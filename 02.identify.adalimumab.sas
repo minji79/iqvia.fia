@@ -40,7 +40,7 @@ data &data;
 run;
 
 %mend yearly;
-%yearly(data=glp1users_v00, refer=pde20.pde_file_2020);
-%yearly(data=glp1users_v01, refer=pde19.pde_file_2019);
-%yearly(data=glp1users_v02, refer=pde18.pde_file_2018);
-%yearly(data=glp1users_v03, refer=pde17.pde_file_2017);
+%yearly(data=input.adalimumab_24_v00, refer=input.RxFact2024);
+%yearly(data=input.adalimumab_22_v00, refer=input.RxFact2022);
+%yearly(data=input.adalimumab_20_v00, refer=input.RxFact2020);
+%yearly(data=input.adalimumab_18_v00, refer=input.RxFact2018);
