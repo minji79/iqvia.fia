@@ -1,7 +1,9 @@
 
+/************************************************************************************
+	1.   Library Setting
+************************************************************************************/
 
 directory: cd /dcs07/hpm/data/iqvia_fia
-ref
 
 /* run sas */
 rm ~/.config/chromium/Singleton*
@@ -22,22 +24,34 @@ libname auth_gen "/dcs07/hpm/data/iqvia_fia/auth_generics";
 libname form_apx "/dcs07/hpm/data/iqvia_fia/formulary_approx";   /* formulary_approx  */
 
 * see the files under glp1;
+
 /*
 01_load_and_merge_glp1.do
-
 ****Xcode****
 Step1b_UniqueUsers.do -> 25 rows to identify unique plan for each patient
 01_load_and_merge_glp1.do
 01_load_and_merge_glp1_v2.do
 Step1_FindUsers.do -> 15 rows to merge files
 Step2_GetAllClaims.do -> 10 rows to merge files
-
 Descriptive_stats.do 
 Descriptive_stats_index.do -> 48 rows
 glp_switchers_analysis.do
 glp_switchers.do   -> similar as the above
 */
 
+/************************************************************************************
+	2.   Coverting DTA files to SAS files
+************************************************************************************/
+
+proc import datafile="/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2024.dta" out=input.RxFact2024 dbms=dta replace; run;
+proc import datafile="/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2022.dta" out=input.RxFact2022 dbms=dta replace; run;
+proc import datafile="/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2020.dta" out=input.RxFact2020 dbms=dta replace; run;
+proc import datafile="/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2018.dta" out=input.RxFact2018 dbms=dta replace; run;
+
+
+/************************************************************************************
+	3.   Read other files
+************************************************************************************/
 * convert do file to sas files;
 filename dofile "/dcs07/hpm/data/iqvia_fia/glp1_paper/01_load_and_merge_glp1.do";
 data do_commands;
