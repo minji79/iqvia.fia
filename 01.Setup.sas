@@ -49,12 +49,12 @@ proc print data=do_commands; run;
 
 
 * see the dta files;
-proc import datafile="/dcs07/hpm/data/iqvia_fia/glp1_paper/Step1b_GLP1Claims_forcashanalysis.dta"
+proc import datafile="/dcs07/hpm/data/iqvia_fia/reduced/RxFact2020_small.dta"
     out=mydata
     dbms=dta
     replace;
 run;
-proc print data=mydata (obs=10); title "Step1b_GLP1Claims_forcashanalysis.dta"; run;
+proc print data=mydata (obs=10); title "RxFact2020_small.dta"; run;
 proc contents data=mydata; run;
 
 
