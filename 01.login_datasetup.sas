@@ -15,6 +15,7 @@ libname input "/dcs07/hpm/data/iqvia_fia/mj";   /* my own directory */
 libname home "/dcs07/hpm/data/iqvia_fia";   /* home directory */
 libname fia100 "/dcs07/hpm/data/iqvia_fia/full_raw";   /* 100% rqw data */
 libname ref "/dcs07/hpm/data/iqvia_fia/ref";   /* reference files */
+libname red "/dcs07/hpm/data/iqvia_fia/reduced";   /* reference files */
 
 libname glp1 "/dcs07/hpm/data/iqvia_fia/glp1_paper";
 libname auth_gen "/dcs07/hpm/data/iqvia_fia/auth_generics";
