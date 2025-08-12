@@ -44,3 +44,5 @@ run;
 %yearly(data=input.adalimumab_22_v00, refer=input.RxFact2022);
 %yearly(data=input.adalimumab_20_v00, refer=input.RxFact2020);
 %yearly(data=input.adalimumab_18_v00, refer=input.RxFact2018);
+
+proc contents data=input.adalimumab_24_v00; run;
