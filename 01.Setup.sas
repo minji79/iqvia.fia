@@ -12,7 +12,8 @@ module load sas
 sas -helpbrowser SAS -xrm "SAS.webBrowser:'/usr/bin/chromium-browser'" -xrm "SAS.helpBrowser:'/usr/bin/chromium-browser'"
 
 /* set library */
-libname input "/dcs07/hpm/data/iqvia_fia/mj";   /* my own directory */
+libname input "/dcs07/hpm/data/iqvia_fia/biosim";   /* my own directory */
+libname tuto "/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r/data";   /* my own directory */
 
 libname home "/dcs07/hpm/data/iqvia_fia";   /* home directory */
 libname fia100 "/dcs07/hpm/data/iqvia_fia/full_raw";   /* 100% rqw data */
