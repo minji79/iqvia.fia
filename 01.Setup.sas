@@ -11,6 +11,15 @@ srun --pty --x11 --partition sas bash
 module load sas
 sas -helpbrowser SAS -xrm "SAS.webBrowser:'/usr/bin/chromium-browser'" -xrm "SAS.helpBrowser:'/usr/bin/chromium-browser'"
 
+/* run R */
+srun --pty --x11 --partition sas bash
+module load R
+module load rstudio
+rstudio
+
+setwd("/users/59883/c-mkim255-59883/glp1off/sas_input")
+*/
+
 /* set library */
 libname input "/dcs07/hpm/data/iqvia_fia/biosim";   /* my own directory */
 libname tuto "/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r/data";   /* my own directory */
