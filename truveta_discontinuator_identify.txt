@@ -1,0 +1,94 @@
+///////////////////////////////////////////////////////////////////////////
+// Population of Lecanemab initiators
+// Last edited: 7/25
+// Last generated snapshot: not yet
+///////////////////////////////////////////////////////////////////////////
+
+// lecanemabDiscontinued_v01 = among Lecanemab initiators in both orders and dispenses (N=616)
+// lecanemabDiscontinued_v02 = among Lecanemab initiators in both orders and dispenses between 2023-2025 (N=65)
+// lecanemabDiscontinued_v03 = among Lecanemab initiators in dispenses (N=12)
+// lecanemabDiscontinued_v04 = among Lecanemab initiators in dispenses between 2023-2025 (N=7)
+
+population lecanemabDiscontinued_v01
+
+/***************************************************************************
+  1. Import pre-made definitions
+****************************************************************************/
+lecanemabEvents = import "/definitions/lecanemab-event"
+lecanemabOrders = import "/definitions/lecanemab-order"
+// DemographicsEvents
+defBase = include "https://library.truveta.com/o/truveta/d/base"
+defPersonAliveFactEvents = import "https://library.truveta.com/o/truveta/d/person-alive-fact-events"
+
+/***************************************************************************
+  2. Identify Index date (=initiation date)
+****************************************************************************/
+// all lecanemab events and orders
+lecanemabAll_v00 = union(lecanemabEvents, lecanemabOrders)
+
+// Identify the first event date as 'index date (=initiation date)' & last medication date
+firstLecanemab = build(lecanemabAll_v00 a){}output first 1, sortBy IndexDateTime, asIndex {a.*, IndexDateTime = a.StartDateTime}
+lastLecanemab = build(lecanemabAll_v00 a){}output last 1, sortBy LastMedicationDateTime{a.*, LastMedicationDateTime = a.StartDateTime}
+
+// merge (inner join) with all event
+lecanemabAll_v01 = buildBySequence(lecanemabAll_v00 a, firstLecanemab i){} output {a.*, IndexDateTime = i.IndexDateTime} 
+
+lecanemabAll_v02 = buildBySequence(lecanemabAll_v01 a, lastLecanemab l){} output {a.*, LastMedicationDateTime = l.StartDateTime} 
+
+lecanemabAll_v03 = build(lecanemabAll_v02 m) {} output {
+    m.*, DrugOnPeriod = m.LastMedicationDateTime - m.IndexDateTime
+}
+
+
+/***************************************************************************
+  3. Identify discontinuation events depending on different definitions of initiators
+****************************************************************************/
+// Those without administration (using administration dates) of lecanemab for at least 60 days after having started lecanemab (IndexDate)
+
+// 3-1. among Lecanemab initiators in both orders and dispenses (N=1.4k)
+lecanemabDiscontinued_v01 = build(lecanemabAll_v03 a){
+  countEventsInWindow(a.LastMedicationDateTime, endOfDay(a.LastMedicationDateTime + 60 days), lecanemabAll_v00) == 0
+}output{a.*}
+
+// 3-2. among Lecanemab initiators in both orders and dispenses between 2023-2025 (N=831)
+lecanemabDiscontinued_v02 = build(lecanemabDiscontinued_v01 a){
+  a.IndexDateTime >= @2023-02
+}output{a.*}
+
+// 3-3. among Lecanemab initiators in dispenses (N=392)
+lecanemabAll_v04 = buildBySequence(lecanemabEvents a, firstLecanemab i){} output {a.*, IndexDateTime = i.IndexDateTime} 
+
+lecanemabAll_v05 = buildBySequence(lecanemabAll_v04 a, lastLecanemab l){} output {a.*, LastMedicationDateTime = l.StartDateTime} 
+
+lecanemabAll_v06 = build(lecanemabAll_v05 m) {} output {
+    m.*, DrugOnPeriod = m.LastMedicationDateTime - m.IndexDateTime
+}
+
+lecanemabDiscontinued_v03 = build(lecanemabAll_v06 a){
+  countEventsInWindow(a.LastMedicationDateTime, endOfDay(a.LastMedicationDateTime + 60 days), lecanemabAll_v00) == 0
+}output{a.*}
+
+
+// 3-4. among Lecanemab initiators in dispenses between 2023-2025 (N=386)
+lecanemabDiscontinued_v04 = build(lecanemabDiscontinued_v03 a){
+  a.IndexDateTime >= @2023-02
+}output{a.*}
+
+
+
+// Distribution of number of event per patients
+hist = build(defBase.PersonSet e) {}
+output {
+  e.*,
+  NumEvents = countEvents(lecanemabDiscontinued_v01),
+}
+numEventsPerPatient = aggregate(hist) {
+  NumEvents,
+}
+
+
+// Age
+AgeAtIndex = aggregate(lecanemabDiscontinued_v01) using eventSelector = first {
+  IndexDateTime by age in years,}
+
+
