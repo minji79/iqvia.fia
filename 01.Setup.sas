@@ -12,7 +12,7 @@ module load sas
 sas -helpbrowser SAS -xrm "SAS.webBrowser:'/usr/bin/chromium-browser'" -xrm "SAS.helpBrowser:'/usr/bin/chromium-browser'"
 
 /* run R */
-srun --pty --x11 --partition r bash
+srun --pty --x11 --partition sas bash
 module load R
 module load rstudio
 rstudio
