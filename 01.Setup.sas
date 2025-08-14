@@ -22,7 +22,7 @@ setwd("/users/59883/c-mkim255-59883/glp1off/sas_input")
 
 /* set library */
 libname input "/dcs07/hpm/data/iqvia_fia/biosim";   /* my own directory */
-libname tuto "/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r/data";   /* my own directory */
+libname tuto "/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/stata/data";   
 
 libname home "/dcs07/hpm/data/iqvia_fia";   /* home directory */
 libname fia100 "/dcs07/hpm/data/iqvia_fia/full_raw";   /* 100% rqw data */
