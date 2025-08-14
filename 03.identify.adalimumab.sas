@@ -9,7 +9,7 @@
 ************************************************************************************/
 
 /************************************************************************************
-	1. NDCs for Adalimumab 
+	1. NDCs for Adalimumab & claims with Adalimumab use - use pre-identified files
 ************************************************************************************/
 /* 
 %macro yearly(data=, refer=);
@@ -27,11 +27,18 @@ run;
 */
 
 * use pre-identified files;
+* for ndc codes;
 proc import datafile="/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r/data/ADALIMUMAB_NDCs.dta" out=input.ADALIMUMAB_NDCs dbms=dta replace; run;
+* for claims;
+proc import datafile="/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/stata/data/A_ADALIMUMAB_claims.dta" out=input.A_ADALIMUMAB_claims dbms=dta replace; run;
+proc import datafile="/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/stata/data/B_ADALIMUMAB_claims.dta" out=input.B_ADALIMUMAB_claims dbms=dta replace; run;
+proc import datafile="/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/stata/data/A_analytic_file.dta" out=input.A_analytic_file dbms=dta replace; run;
+proc import datafile="/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/stata/data/B_analytic_file.dta" out=input.B_analytic_file dbms=dta replace; run;
+
+/* I will use input.A_analytic_file for further analysis, which include 682966 obs with 48 variables, and delete other files */
 
 proc contents data=input.ADALIMUMAB_NDCs; run;
 proc print data=input.ADALIMUMAB_NDCs (obs=20); run;
-
 
 /************************************************************************************
 	2. Categorize at NDC level
@@ -99,10 +106,40 @@ data input.ADALIMUMAB_NDCs; set input.ADALIMUMAB_NDCs;
 run;
 
 
+/************************************************************************************
+	3. merge with the NDCs with claims
+************************************************************************************/
 
-
-
-
+proc sql; 
+	create table input.adalimumab_claim_v0 as
+ 	select distinct a.*, b.category
+    from input.A_analytic_file as a
+	left join input.ADALIMUMAB_NDCs as b
+ 	on a.product_ndc = b.product_ndc; 
+quit;
+proc contents data=input.adalimumab_claim_v0; run;
+proc print data=input.adalimumab_claim_v0 (obs=20); var month_id week_id; run;
+	
+/************************************************************************************
+	4. Area plot for stacked by category
+************************************************************************************/
+# Area plot for actual count;
+proc sql;
+    create table counts as
+    select week_id,
+           category,
+           count(*) as count
+    from input.adalimumab_claim_v0
+    group by week_id, category
+	order by month_id, calculated count desc;
+quit;
+proc sgplot data=counts;
+    styleattrs datacolors=(lightblue lightgreen lightcoral); /* Optional */
+    vbar week_id / response=count group=category groupdisplay=stack
+        transparency=0.2;
+    xaxis label="Week";
+    yaxis label="Count";
+run;
 
 
 
