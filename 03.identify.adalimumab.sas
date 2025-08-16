@@ -39,6 +39,7 @@ proc import datafile="/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/stata/da
 
 proc contents data=input.ADALIMUMAB_NDCs; run;
 proc print data=input.ADALIMUMAB_NDCs (obs=20); run;
+proc freq data=input.ADALIMUMAB_NDCs; table molecule_name; run;
 
 /************************************************************************************
 	2. Categorize at NDC level
@@ -119,9 +120,20 @@ proc sql;
 quit;
 proc contents data=input.adalimumab_claim_v0; run;
 proc print data=input.adalimumab_claim_v0 (obs=20); var month_id week_id; run;
-	
+
+data adalimumab_claim_v0; set input.adalimumab_claim_v0; year = year(svc_dt); run;
+proc sql;
+    create table counts as
+    select year,
+           category,
+           count(*) as count
+    from adalimumab_claim_v0
+    group by year, category;
+quit;
+proc print data=counts; run;
+
 /************************************************************************************
-	4. Area plot for stacked by category
+	4. Area plot for stacked by category with week_id
 ************************************************************************************/
 # Area plot for actual count;
 proc sql;
@@ -131,16 +143,207 @@ proc sql;
            count(*) as count
     from input.adalimumab_claim_v0
     group by week_id, category
-	order by month_id, calculated count desc;
+	order by week_id, calculated count desc;
 quit;
-proc sgplot data=counts;
-    styleattrs datacolors=(lightblue lightgreen lightcoral); /* Optional */
-    vbar week_id / response=count group=category groupdisplay=stack
-        transparency=0.2;
-    xaxis label="Week";
-    yaxis label="Count";
+
+
+/* Convert YYYYMMDD week_id (Monday of week) to a SAS date */
+data counts_d;
+  set counts;
+  if vtype(week_id)='N' then week_dt = input(put(week_id,8.), yymmdd8.);
+  else                       week_dt = input(week_id, yymmdd8.);
+  format week_dt date9.;
+run;
+
+/* Ensure consistent order within each week */
+proc sort data=counts_d; by week_dt category; run;
+
+/* Build cumulative lower/upper bounds for each category per week */
+data cum;
+  set counts_d;
+  by week_dt;
+  retain lower 0;
+  if first.week_dt then lower=0;
+  upper = lower + count;
+  output;
+  lower = upper;
+run;
+
+/* Filled bands stack to look like a stacked area chart */
+proc sgplot data=cum;
+  band x=week_dt lower=lower upper=upper / group=category transparency=0.1;
+  xaxis type=time interval=week valuesformat=monyy7.;
+  yaxis label="Count";
+run;
+
+
+/************************************************************************************
+	5. Area plot for stacked by category with month_id
+************************************************************************************/
+
+/* 1) Aggregate counts by month & category */
+proc sql;
+    create table counts as
+    select month_id,
+           category,
+           count(*) as count
+    from input.adalimumab_claim_v0
+    group by month_id, category
+    order by month_id, calculated count desc;
+quit;
+
+/* 2) Convert YYYYMM month_id to SAS date (first day of month) */
+data counts_d;
+  set counts;
+  length month_dt 8;
+  /* Works for numeric or character month_id */
+  if vtype(month_id)='N' then month_dt = input(put(month_id, 6.), yymmn6.);
+  else                       month_dt = input(month_id, yymmn6.);
+  format month_dt monyy7.; /* Displays as MONYYYY */
+run;
+
+/* 3) Sort for stacking */
+proc sort data=counts_d; 
+    by month_dt category; 
+run;
+
+/* 4) Build cumulative lower/upper bounds for stacking */
+data cum;
+  set counts_d;
+  by month_dt;
+  retain lower 0;
+  if first.month_dt then lower=0;
+  upper = lower + count;
+  output;
+  lower = upper;
+run;
+
+/* 5) Stacked area plot using BAND */
+proc sgplot data=cum;
+  band x=month_dt lower=lower upper=upper / group=category transparency=0.1;
+  xaxis type=time interval=month valuesformat=monyy7.;
+  yaxis label="Count";
+run;
+
+/************************************************************************************
+	6. Area plot for stacked by category with month_id
+************************************************************************************/
+
+/* 1) Aggregate counts by month & category */
+proc sql;
+    create table counts as
+    select month_id,
+           category,
+           count(*) as count
+    from input.adalimumab_claim_v0
+    where category ne 'reference_biologics' /* filter here */
+    group by month_id, category
+    order by month_id, calculated count desc;
+quit;
+
+proc print data=counts; where month_id = 202404; run;
+
+/* clean them */
+proc sql;
+    create table counts as
+    select month_id,
+           category,
+           count(*) as count
+    from input.adalimumab_claim_v0
+    where category ne 'reference_biologics' and month_id > 202212
+    group by month_id, category
+    order by month_id, calculated count desc;
+quit;
+
+/* 2) Convert YYYYMM month_id to SAS date (first day of month) */
+data counts_d;
+  set counts;
+  length month_dt 8;
+  if vtype(month_id)='N' then month_dt = input(put(month_id, 6.), yymmn6.);
+  else                       month_dt = input(month_id, yymmn6.);
+  format month_dt monyy7.;
+run;
+
+/* 3) Sort for stacking */
+proc sort data=counts_d; 
+    by month_dt category; 
+run;
+
+/* 4) Build cumulative lower/upper bounds for stacking */
+data cum;
+  set counts_d;
+  by month_dt;
+  retain lower 0;
+  if first.month_dt then lower=0;
+  upper = lower + count;
+  output;
+  lower = upper;
+run;
+
+/* 5) Stacked area plot using BAND */
+proc sgplot data=cum;
+  band x=month_dt lower=lower upper=upper / group=category transparency=0.1;
+  xaxis type=time interval=month valuesformat=monyy7.;
+  yaxis label="Count";
 run;
 
 
 
+/************************************************************************************
+	7. Area plot for proportion stacked by category with month_id
+************************************************************************************/
 
+/* 1) Aggregate counts by month & category */
+proc sql;
+    create table counts as
+    select month_id,
+           category,
+           count(*) as count
+    from input.adalimumab_claim_v0
+    group by month_id, category
+    order by month_id, calculated count desc;
+quit;
+
+/* 2) Convert YYYYMM month_id to SAS date (first day of month) */
+data counts_d;
+  set counts;
+  length month_dt 8;
+  if vtype(month_id)='N' then month_dt = input(put(month_id, 6.), yymmn6.);
+  else                       month_dt = input(month_id, yymmn6.);
+  format month_dt monyy7.;
+run;
+
+/* 3) Calculate percentage of total per month */
+proc sql;
+    create table counts_pct as
+    select month_dt,
+           category,
+           count,
+           (count / sum(count) * 100) as pct format=6.1
+    from counts_d
+    group by month_dt
+    order by month_dt, calculated pct desc;
+quit;
+
+/* 4) Sort for stacking */
+proc sort data=counts_pct; 
+    by month_dt category; 
+run;
+
+/* 5) Build cumulative lower/upper bounds for stacking */
+data cum;
+  set counts_pct;
+  by month_dt;
+  retain lower 0;
+  if first.month_dt then lower=0;
+  upper = lower + pct;
+  output;
+  lower = upper;
+run;
+
+/* 6) Stacked area plot (percentage) */
+proc sgplot data=cum;
+  band x=month_dt lower=lower upper=upper / group=category transparency=0.1;
+  xaxis type=time interval=month valuesformat=monyy7.;
+  yaxis label="Percentage" values=(0 to 100 by 10);
+run;
