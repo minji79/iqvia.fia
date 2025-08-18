@@ -1,5 +1,6 @@
-install.packages(c("data.table", "fst", "arrow", "dplyr"))
+#install.packages(c("data.table", "fst", "arrow", "dplyr", "haven"))
 
+library(haven)
 library(data.table)
 library(arrow)
 library(dplyr)
