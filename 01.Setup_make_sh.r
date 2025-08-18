@@ -1,1 +1,30 @@
 
+########################################################
+##  Setting up and running R studio
+########################################################
+
+directory: cd /dcs07/hpm/data/iqvia_fia
+
+/* run R */
+srun --pty --x11 --partition bash
+module load R
+module load rstudio
+rstudio
+
+
+########################################################
+##  Make sh file
+########################################################
+# to make sh file, under the target directory, 
+nano convert_dta_to_fst.sh
+
+# in the file editor, copy and paste the *** codes (it is in the separate file)***, hit 'control + o' to save, and hit 'enter', then, 'control + x' to exit
+
+# Make the script executable
+chmod +x convert_dta_to_fst.sh
+
+# submit my bash
+sbatch convert_dta_to_fst.sh
+
+# check my job status:
+squeue --me
