@@ -1,14 +1,37 @@
 #!/usr/bin/env Rscript
 
-#install.packages(c("data.table", "fst", "arrow", "dplyr", "haven"))
+## --- ensure user lib & arrow present (no .sh changes) ---
+user_lib <- Sys.getenv(
+  "R_LIBS_USER",
+  unset = file.path(Sys.getenv("HOME"),
+                    "R",
+                    paste(R.version$major, R.version$minor, sep = "."),
+                    "library")
+)
+if (!dir.exists(user_lib)) dir.create(user_lib, recursive = TRUE, showWarnings = FALSE)
+.libPaths(c(user_lib, .libPaths()))  # prefer user lib first
 
-library(haven)
-library(data.table)
+if (!requireNamespace("arrow", quietly = TRUE)) {
+  install.packages("arrow",
+                   repos = "https://cloud.r-project.org",
+                   lib   = user_lib)
+}
+
 library(arrow)
-library(dplyr)
-library(fst)
+## --- end ensure user lib ---
 
-# Set working directory
+suppressPackageStartupMessages({
+  library(data.table)
+  library(haven)
+  library(dplyr)
+  library(fst)
+  library(stringi)
+  library(arrow)   
+})
+
+# ---------------------------
+# Config
+# ---------------------------
 setwd("/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r") 
 
 # Define folders
