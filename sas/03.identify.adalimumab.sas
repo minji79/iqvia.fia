@@ -347,28 +347,3 @@ proc sgplot data=cum;
   xaxis type=time interval=month valuesformat=monyy7.;
   yaxis label="Percentage" values=(0 to 100 by 10);
 run;
-
-
-
-/************************************************************************************
-	7. Area plot for proportion stacked by category with month_id
-************************************************************************************/
-
-/* 1) Aggregate counts by month & category */
-data adalimumab_claim_v0; set input.adalimumab_claim_v0; if category ne "reference_biologics"; run;
-proc sql;
-    create table counts as
-    select count(distinct patient_id) as count, year
-    from adalimumab_claim_v0
-	group by year;
-quit;
-proc print data=counts; run;
-
-data input.adalimumab_claim_v0; set input.adalimumab_claim_v0; year = year(svc_dt); run;
-proc sql;
-    create table counts as
-    select count(distinct patient_id) as count, year
-    from input.adalimumab_claim_v0
-	group by year;
-quit;
-proc print data=counts; run;
