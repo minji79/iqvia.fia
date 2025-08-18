@@ -6,7 +6,7 @@
 directory: cd /dcs07/hpm/data/iqvia_fia
 
 /* run R */
-srun --pty --x11 --partition bash
+srun --pty --x11 bash
 module load R
 module load rstudio
 rstudio
