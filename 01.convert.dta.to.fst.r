@@ -1,8 +1,3 @@
-srun --pty --x11 --partition sas bash
-module load R
-module load rstudio
-rstudio
-
 # 1. setting
 setwd("/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r") # file directory
 
