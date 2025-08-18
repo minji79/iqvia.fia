@@ -45,7 +45,7 @@ claim_files <- c(
   "/dcs07/hpm/data/iqvia_fia/reduced/RxFact2024_small.dta"
 )
 
-claim_filesa <- claim_files[file.exists(claim_files)]
+claim_files <- claim_files[file.exists(claim_files)]
 stopifnot(length(claim_files) > 0)
 
 # Name candidates (auto-detect and normalize)
@@ -165,39 +165,44 @@ read_claims <- function(p) {
   cat("  ->", p, "\n")
   dt <- as.data.table(read_dta(p))
 
-  # rename to standardized names if present
+  # Rename to standardized names if present
   dt <- pick_and_rename(dt, cands$ndc,        std$ndc)
   dt <- pick_and_rename(dt, cands$plan_id,    std$plan_id)
   dt <- pick_and_rename(dt, cands$claim_id,   std$claim_id)
   dt <- pick_and_rename(dt, cands$rjct_grp,   std$rjct_grp)
   dt <- pick_and_rename(dt, cands$encnt_code, std$encnt_code)
 
-  # keep just what we need
+  # Keep just what we need
   keep <- intersect(names(dt), c(std$claim_id, std$ndc, std$plan_id, std$rjct_grp, std$encnt_code))
   dt <- dt[, ..keep]
 
-  # types
-  dt <- normalize_cols(dt, c(std$claim_id, std$ndc, std$plan_id))
+  # Normalize column types (including NDC as numeric)
+  if (std$ndc %in% names(dt)) dt[, (std$ndc) := as.numeric(get(std$ndc))]
+  if (std$claim_id %in% names(dt)) dt[, (std$claim_id) := as.character(get(std$claim_id))]
+  if (std$plan_id %in% names(dt)) dt[, (std$plan_id) := as.character(get(std$plan_id))]
 
-  # filter to adalimumab by NDC
+  # Filter to adalimumab by NDC
   if (!(std$ndc %in% names(dt))) return(data.table())  # no ndc col in this slice
   setkeyv(dt, std$ndc)
   dt <- adali_ndcs[dt, on = c(ndc = std$ndc), nomatch = 0L]
 
-  # merge plan metadata
+  # Merge plan metadata
   if (std$plan_id %in% names(dt)) {
     setkeyv(dt, std$plan_id)
     dt <- plan[dt, on = c(plan_id = std$plan_id)]
   } else {
-    dt[, c("model_type","plan_type") := .(NA_character_, "Other")]
+    dt[, c("model_type", "plan_type") := .(NA_character_, "Other")]
   }
 
-# optional: label rjct group (kept as numeric + label string)
+  # Optional: label rejection group
   if (std$rjct_grp %in% names(dt)) {
-    lvl <- c("Fill","Step edit","Prior auth","Not covered","Plan limit","Other")
-    dt[, rjct_grp_lbl := fifelse(get(std$rjct_grp) %in% 0:5, lvl[get(std$rjct_grp)+1L], NA_character_)]
+    lvl <- c("Fill", "Step edit", "Prior auth", "Not covered", "Plan limit", "Other")
+    dt[, rjct_grp_lbl := fifelse(get(std$rjct_grp) %in% 0:5,
+                                 lvl[get(std$rjct_grp) + 1L],
+                                 NA_character_)]
   }
-  df[]
+
+  return(dt)
 }
 
 cat("Claims files found:", length(claim_files), "\n")
