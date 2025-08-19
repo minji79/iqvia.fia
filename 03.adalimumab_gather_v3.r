@@ -16,7 +16,7 @@ install_if_missing <- function(pkg) {
     install.packages(pkg, repos = "https://cloud.r-project.org", lib = user_lib)
   }
 }
-pkgs <- c("arrow", "data.table", "haven", "stringi")
+pkgs <- c("arrow", "data.table", "haven", "stringi", "fst")
 lapply(pkgs, install_if_missing)
 
 
@@ -28,8 +28,10 @@ suppressPackageStartupMessages({
   library(data.table)
   library(haven)
   library(stringi)
+  library(fst)
   library(arrow)     # for parquet
 })
+
                  
 ## ===========================================================
 ## 0. SET WORKING DIRECTORY & DEFINE PATHS
@@ -80,29 +82,29 @@ save_parquet <- function(dt, path, compression = "zstd") {
 ts_now <- function() format(Sys.time(), "%Y-%m-%d %H:%M:%S")
 
 ## ===========================================================
-## (1) Load Product File. Filter to Drug Of Interest. Save NDCs
+## (1) Load Product File. Filter to Drug Of Interest. Save NDCs : ~2:20
 ## ===========================================================
 prod <- as.data.table(read_dta(prod_ref))
 
 # use if strpos(molecule_name,"ADALIMUMAB")
-stopifnot("molecule_name" %in% names(prod))
-prod_adali <- prod[grepl("ADALIMUMAB", molecule_name, fixed = TRUE)]
+#stopifnot("molecule_name" %in% names(prod))
+#prod_adali <- prod[grepl("ADALIMUMAB", molecule_name, fixed = TRUE)]
 
 # molecule_name, sort
-cat("== Table: molecule_name (sorted) ==\n")
-tab(prod_adali$molecule_name)
+#cat("== Table: molecule_name (sorted) ==\n")
+#tab(prod_adali$molecule_name)
 
 # keep product_ndc usc_3_description molecule_name drug_labeler_corp_name
-keep_cols <- c("product_ndc", "usc_3_description", "molecule_name", "drug_labeler_corp_name")
-keep_cols <- intersect(keep_cols, names(prod_adali))
-prod_adali <- prod_adali[, ..keep_cols]
+#keep_cols <- c("product_ndc", "usc_3_description", "molecule_name", "drug_labeler_corp_name")
+#keep_cols <- intersect(keep_cols, names(prod_adali))
+#prod_adali <- prod_adali[, ..keep_cols]
 
-if (all(c("molecule_name","drug_labeler_corp_name") %in% names(prod_adali))) {
-  cat("== Table: molecule_name x drug_labeler_corp_name ==\n")
-  tab(prod_adali$molecule_name, prod_adali$drug_labeler_corp_name)
-}
+#if (all(c("molecule_name","drug_labeler_corp_name") %in% names(prod_adali))) {
+#  cat("== Table: molecule_name x drug_labeler_corp_name ==\n")
+#  tab(prod_adali$molecule_name, prod_adali$drug_labeler_corp_name)
+#}
 
-save_parquet(prod_adali, file.path(data_dir, "ADALIMUMAB_NDCs.parquet"))
+#save_parquet(prod_adali, file.path(data_dir, "ADALIMUMAB_NDCs.parquet"))
 
 ## =====================================================================
 ## (2) LOAD & COMBINE RAW CLAIMS FOR MULTIPLE YEARS: Many Ways to Do this
@@ -135,7 +137,7 @@ save_parquet(prod_adali, file.path(data_dir, "ADALIMUMAB_NDCs.parquet"))
 #  setnames(rxA, "ndc", "product_ndc")
 #}
 
-#ndcs <- as.data.table(read_dta(file.path(data_dir, "ADALIMUMAB_NDCs.dta")))[, .(product_ndc)]
+#ndcs <- as.data.table(read_dta(file.path(data_dir, "ADALIMUMAB_NDCs.parquet")))[, .(product_ndc)]
 #ndcs <- unique(ndcs)
 #setkey(ndcs, product_ndc)
 #setkey(rxA,  product_ndc)
@@ -163,7 +165,7 @@ cat("Time:", ts_now(), "\n")
 
 ## Attempt C (random 0.5% sample of reduced)
 cat("Time:", ts_now(), "\n")
-rxC <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/reduced/RxFact_2018_2024_small.dta"))
+rxC <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/reduced/RxFact_2018_2024_small.fst"))
 set.seed(123)
 rxC <- rxC[runif(.N) < 0.005]
 
