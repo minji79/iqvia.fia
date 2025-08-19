@@ -49,7 +49,7 @@ dir.create(errs_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(figs_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(tabs_dir, showWarnings = FALSE, recursive = TRUE)
 
-# Reference files
+# Reference files (dta)
 prod_ref    <- "/dcs07/hpm/data/iqvia_fia/ref/product.dta"
 plan_ref    <- "/dcs07/hpm/data/iqvia_fia/ref/plan.dta"
 patient_ref    <- "/dcs07/hpm/data/iqvia_fia/ref/patient.dta"
@@ -58,7 +58,7 @@ encpatch <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/LevyPDRJR
 
 # Choose the same “Attempt B/C” reduced files used in your Stata
 claim_files <- c(
-  "/dcs07/hpm/data/iqvia_fia/reduced/RxFact_2018_2024_small.dta"
+  "/dcs07/hpm/data/iqvia_fia/reduced/RxFact_2018_2024_small.fst"
 )
 claim_files <- claim_files[file.exists(claim_files)]
 stopifnot(length(claim_files) > 0)
@@ -105,47 +105,48 @@ prod <- as.data.table(read_dta(prod_ref))
 #}
 
 #save_parquet(prod_adali, file.path(data_dir, "ADALIMUMAB_NDCs.parquet"))
-
+prod_adali <- read_parquet(file.path(data_dir, "ADALIMUMAB_NDCs.parquet"))
+                 
 ## =====================================================================
 ## (2) LOAD & COMBINE RAW CLAIMS FOR MULTIPLE YEARS: Many Ways to Do this
 ## =====================================================================
 
 ## Attempt A (full raw, largest)
-#cat("Time:", ts_now(), "\n")
-#rx2018 <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2018.dta"))
-#rx2020 <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2020.dta"))
-#rx2022 <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2022.dta"))
-#rx2024 <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2024.dta"))
+cat("Time:", ts_now(), "\n")
+rx2018 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2018.fst"))
+rx2020 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2020.fst"))
+rx2022 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2022.fst"))
+rx2024 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2024.fst"))
 
-#rxA <- rbindlist(list(rx2018, rx2020, rx2022, rx2024), use.names = TRUE, fill = TRUE)
-#rm(rx2018, rx2020, rx2022, rx2024); gc()
+rxA <- rbindlist(list(rx2018, rx2020, rx2022, rx2024), use.names = TRUE, fill = TRUE)
+rm(rx2018, rx2020, rx2022, rx2024); gc()
 
 # rename daw_cd daw_cd_s
-#if ("daw_cd" %in% names(rxA) && !"daw_cd_s" %in% names(rxA)) {
-#  setnames(rxA, "daw_cd", "daw_cd_s")
-#}
+if ("daw_cd" %in% names(rxA) && !"daw_cd_s" %in% names(rxA)) {
+  setnames(rxA, "daw_cd", "daw_cd_s")
+}
 
 # merge encnt_outcm_cd by claim_id
-#stopifnot("claim_id" %in% names(rxA), "claim_id" %in% names(encpatch))
-#encpatch <- encpatch[, .(claim_id, encnt_outcm_cd)]
-#setkey(encpatch, claim_id)
-#setkey(rxA, claim_id)
-#rxA <- encpatch[rxA]  # keep matched (Stata keep(3)); rows without match dropped
+stopifnot("claim_id" %in% names(rxA), "claim_id" %in% names(encpatch))
+encpatch <- encpatch[, .(claim_id, encnt_outcm_cd)]
+setkey(encpatch, claim_id)
+setkey(rxA, claim_id)
+rxA <- encpatch[rxA]  # keep matched (Stata keep(3)); rows without match dropped
 
 # rename ndc product_ndc before NDC merge
-#if ("ndc" %in% names(rxA) && !"product_ndc" %in% names(rxA)) {
-#  setnames(rxA, "ndc", "product_ndc")
-#}
+if ("ndc" %in% names(rxA) && !"product_ndc" %in% names(rxA)) {
+  setnames(rxA, "ndc", "product_ndc")
+}
 
-#ndcs <- as.data.table(read_dta(file.path(data_dir, "ADALIMUMAB_NDCs.parquet")))[, .(product_ndc)]
-#ndcs <- unique(ndcs)
-#setkey(ndcs, product_ndc)
-#setkey(rxA,  product_ndc)
-#rxA <- ndcs[rxA, nomatch = 0L]  # keep matched only
+ndcs <- as.data.table(read_parquet(file.path(data_dir, "ADALIMUMAB_NDCs.parquet")))[, .(product_ndc)]
+ndcs <- unique(ndcs)
+setkey(ndcs, product_ndc)
+setkey(rxA,  product_ndc)
+rxA <- ndcs[rxA, nomatch = 0L]  # keep matched only
 
-#save_parquet(rxA, file.path(data_dir, "A_ADALIMUMAB_claims.parquet"))
-#rm(rxA); gc()
-#cat("Time:", ts_now(), "\n")
+save_parquet(rxA, file.path(data_dir, "A_ADALIMUMAB_claims.parquet"))
+rm(rxA); gc()
+cat("Time:", ts_now(), "\n")
 # ** in R vs. ~2:30 in Stata
 
 ## Attempt B (reduced file, efficient)
