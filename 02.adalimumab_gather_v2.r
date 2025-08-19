@@ -11,13 +11,17 @@ user_lib <- Sys.getenv(
 if (!dir.exists(user_lib)) dir.create(user_lib, recursive = TRUE, showWarnings = FALSE)
 .libPaths(c(user_lib, .libPaths()))  # prefer user lib first
 
-if (!requireNamespace("arrow", quietly = TRUE)) {
-  install.packages("arrow",
-                   repos = "https://cloud.r-project.org",
-                   lib   = user_lib)
+install_if_missing <- function(pkg) {
+  if (!requireNamespace(pkg, quietly = TRUE, lib.loc = user_lib)) {
+    install.packages(pkg, repos = "https://cloud.r-project.org", lib = user_lib)
+  }
 }
+pkgs <- c("arrow", "data.table", "haven", "stringi")
+lapply(pkgs, install_if_missing)
 
-library(arrow)
+
+invisible(lapply(pkgs, function(p) library(p, character.only = TRUE, lib.loc = user_lib)))
+                 
 ## --- end ensure user lib ---
 
 suppressPackageStartupMessages({
@@ -128,8 +132,8 @@ stopifnot(length(mol_col) > 0)
 setnames(prod, mol_col[1], "molecule_name")
 
 prod[, molecule_name := stri_trans_toupper(stri_trim_both(molecule_name))]
-#adali_ndcs <- unique(prod[grepl("ADALIMUMAB", molecule_name, fixed = TRUE), ..std$ndc])
 adali_ndcs <- unique(prod[grepl("adalimumab", molecule_name, ignore.case = TRUE), .(ndc = get(std$ndc))])
+adali_ndcs[, ndc := as.numeric(ndc)]
 
 setnames(adali_ndcs, std$ndc, "ndc")
 setkey(adali_ndcs, ndc)
