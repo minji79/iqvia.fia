@@ -247,4 +247,4 @@ print(claims[, .N, by = .(model_type, plan_type)][order(-N)])
 ## =============================
 write_parquet(claims, file.path(data_dir, "B_analytic_file.parquet"), compression = "zstd")
 
-cat("== Analysis File done: ", ts_now(), " ==\n")
+logmsg("Analysis File saved")
