@@ -5,6 +5,8 @@
 
 directory: cd /dcs07/hpm/data/iqvia_fia
 
+cd /dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r
+
 /* run R */
 srun --pty --x11 bash
 module load R
