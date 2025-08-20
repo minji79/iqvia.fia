@@ -1,10 +1,14 @@
 #!/usr/bin/env Rscript
 
 # ============================================================
-# ETL for ADALIMUMAB claims in IQVIA FIA dataset
-# Purpose: Load, clean, and classify pharmacy claims and plan info
-# Inputs: product.dta, plan.dta, RxFact*.fst, LevyPDRJRV.dta
-# Outputs: Cleaned parquet files including analytic dataset
+# ETL for MOLECULE_OF_INTEREST (here, we use ADALIMUMAB) claims in IQVIA FIA dataset
+# Purpose: Load, clean, and classify claims and plan info
+# Inputs: product.dta, plan.dta, RxFact2018-2024.fst, LevyPDRJRV.fst
+# Outputs: "MOLECULE_OF_INTEREST_NDCs.parquet", 
+#          "A_MOLECULE_OF_INTEREST_claims.parquet",
+#          "B_MOLECULE_OF_INTEREST_claims.parquet",
+#          "C_MOLECULE_OF_INTEREST_claims.parquet",
+#          "B_analytic_file.parquet"
 # ============================================================
 
 ## =============================
