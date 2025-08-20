@@ -87,7 +87,7 @@ rx_all <- rbindlist(list(rx2018, rx2020, rx2022, rx2024), use.names = TRUE, fill
 rm(rx2018, rx2020, rx2022, rx2024); gc()
 
 # Merge with encounter outcome
-encpatch <- as.data.table(read_dta(encpatch_path))[, .(claim_id, encnt_outcm_cd)]
+encpatch <- as.data.table(read_dta(encpatch_ref))[, .(claim_id, encnt_outcm_cd)]
 stopifnot(!anyDuplicated(encpatch$claim_id))
 setkey(encpatch, claim_id)
 setkey(rx_all, claim_id)
