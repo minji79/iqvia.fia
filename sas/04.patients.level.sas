@@ -164,7 +164,7 @@ proc print data=df_multi (obs=20); run;
 *  Age at initiation;
 *****************************/
 * set year_init; 
-data adalimumab_patient_v0; set input.adalimumab_patient_v0; year_init = year(svc_dt); run;
+data input.adalimumab_patient_v0; set input.adalimumab_patient_v0; year_init = year(svc_dt); run;
 
 * merge with patient file -> get year of birth;
 proc sql; 
@@ -197,16 +197,15 @@ proc sql;
 data what; set adalimumab_patient_v0; if patient_birth_year = 0; run;
 
 * calculate age at initiation and make invalid data null;
-data adalimumab_patient_v1;
-    set adalimumab_patient_v0;
-    if patient_birth_year = 0 then age_at_init = .;
-    else age_at_init = year_init - patient_birth_year;
-run;
+data adalimumab_patient_v0; set adalimumab_patient_v0; age_at_init = year_init - patient_birth_year; run;
+data input.adalimumab_patient_v0; set adalimumab_patient_v0; if patient_birth_year=0 then age_at_init = .; run;
 
 * test : 
-proc means data=adalimumab_patient_v1; var age_at_init; run;
-proc freq data=adalimumab_patient_v0; table age_at_init; run;
-proc freq data=adalimumab_patient_v0; table age_at_init*patient_group; run;
+proc means data=input.adalimumab_patient_v0 n nmiss mean std;  var age_at_init; run;
+proc means data=input.adalimumab_patient_v0 n nmiss mean std;
+    class patient_group;
+    var age_at_init;
+run;
 
 
 
