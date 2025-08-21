@@ -7,6 +7,9 @@ directory: cd /dcs07/hpm/data/iqvia_fia
 
 cd /dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r
 
+# when give the permit to make a change to someone 
+chmod 777 [file name]
+
 /* run R */
 srun --pty --x11 bash
 module load R
