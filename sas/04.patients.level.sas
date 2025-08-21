@@ -63,11 +63,34 @@ run;
 
 proc print data=input.adalimumab_patient_v0 (obs=20); var patient_id first_date last_date claim_count switch_date first_cat biosim_initiator switcher; where switcher = 1; run;
 proc print data=input.adalimumab_patient_v0 (obs=20); run;
-proc print data=input.adalimumab_patient_v0 (obs=20); run;
+proc contents data=input.adalimumab_patient_v0; run;
 
-proc print data=input.adalimumab_claim_v0 (obs=20); var patient_id svc_dt molecule_name category; where patient_id = 1237730811; run;
+
+/*
+patient_group
+Group 1: reference_lover
+Group 2: 
+Group 3: 
+Group 4: 
+*/
+
+data input.adalimumab_patient_v0; set input.adalimumab_patient_v0;
+	length patient_group $100;
+ 	retain patient_group;
+	if biosim_initiator = 0 and switcher = 0 then patient_group = "reference_lover"; 
+ 	else if biosim_initiator = 0 and switcher = 1 then patient_group = "switcher_to_biosim"; 
+  	else if biosim_initiator = 1 and switcher = 0 then patient_group = "biosim_lover"; 
+   	else if biosim_initiator = 1 and switcher = 1 then patient_group = "switcher_to_reference"; 
+	else patient_group = "none"; 
+run;
+proc freq data=input.adalimumab_patient_v0; table patient_group; run;
+
+proc freq data=input.adalimumab_claim_v0; table category; run;
 
 proc freq data=input.adalimumab_patient_v0; table biosim_initiator*switcher; run;
+
+
+proc print data=input.adalimumab_claim_v0 (obs=20); var patient_id svc_dt molecule_name category; where patient_id = 1237730811; run;
 
 
 /************************************************************************************
