@@ -3,7 +3,7 @@
 # ============================================================
 # ETL for MOLECULE_OF_INTEREST (here, we use ADALIMUMAB) claims in IQVIA FIA dataset
 # Purpose: Load, clean, and classify claims and plan info
-# Inputs: product.dta, plan.dta, RxFact2018-2024.fst, LevyPDRJRV.fst
+# Inputs: product.dta, plan.dta, RxFact2018-2024.dta, LevyPDRJRV.dta
 # Outputs: "MOLECULE_OF_INTEREST_NDCs.parquet", 
 #          "A_MOLECULE_OF_INTEREST_claims.parquet",
 #          "B_MOLECULE_OF_INTEREST_claims.parquet",
@@ -77,10 +77,10 @@ setkey(ndcs, product_ndc)
 logmsg("Attempt A Start")
 
 # load 4 full raw files (keep all variables)
-rx2018 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2018.fst"))
-rx2020 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2020.fst"))
-rx2022 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2022.fst"))
-rx2024 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2024.fst"))
+rx2018 <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2018.dta"))
+rx2020 <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2020.dta"))
+rx2022 <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2022.dta"))
+rx2024 <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2024.dta"))
 
 # Rename daw_cd → daw_cd_s if exists
 for (dt in list(rx2018, rx2020, rx2022, rx2024)) {
@@ -120,7 +120,7 @@ logmsg("Attempt A End")
 logmsg("Attempt B Start")
 
 # Load reduced dataset (includes encnt_outcm_cd, fewer vars)
-rx_small <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/reduced/RxFact_2018_2024_small.fst"))
+rx_small <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/reduced/RxFact_2018_2024_small.dta"))
 
 # Rename ndc to match prod file
 if ("ndc" %in% names(rx_small) && !"product_ndc" %in% names(rx_small)) {
