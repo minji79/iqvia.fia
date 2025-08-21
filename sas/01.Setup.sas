@@ -52,11 +52,16 @@ glp_switchers.do   -> similar as the above
 /************************************************************************************
 	2.   Coverting DTA files to SAS files
 ************************************************************************************/
-
+* raw claims;
 proc import datafile="/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2024.dta" out=input.RxFact2024 dbms=dta replace; run;
 proc import datafile="/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2022.dta" out=input.RxFact2022 dbms=dta replace; run;
 proc import datafile="/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2020.dta" out=input.RxFact2020 dbms=dta replace; run;
 proc import datafile="/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2018.dta" out=input.RxFact2018 dbms=dta replace; run;
+
+* reference files;
+proc import datafile="/dcs07/hpm/data/iqvia_fia/ref/patient.dta" out=input.patient dbms=dta replace; run;
+proc import datafile="/dcs07/hpm/data/iqvia_fia/ref/provider.dta" out=input.provider dbms=dta replace; run;
+proc import datafile="/dcs07/hpm/data/iqvia_fia/ref/plan.dta" out=input.plan dbms=dta replace; run;
 
 
 /************************************************************************************
