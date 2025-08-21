@@ -14,10 +14,61 @@
 ## =============================
 ## 0) Setup & libraries
 ## =============================
+
+#BiocManager::install("data.table")
+#BiocManager::install("haven")
+#BiocManager::install("arrow")
+#BiocManager::install("fst")
+
+#library(data.table)
+#library(haven)
+#library(arrow)
+#library(fst)
+
+# 0) Make installs predictable in batch jobs
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+# 1) Ensure a writable personal library and put it first on .libPaths()
+lib <- Sys.getenv("R_LIBS_USER")
+if (lib == "") {
+  lib <- file.path(Sys.getenv("HOME"), "R", paste0("lib-", paste(R.version$major, R.version$minor, sep=".")))
+  Sys.setenv(R_LIBS_USER = lib)
+}
+
+dir.create(lib, recursive = TRUE, showWarnings = FALSE)
+.libPaths(c(lib, .libPaths()))
+
+# 2) Detect what’s installed in ANY active lib path (not just the default)
 pkgs <- c("data.table", "haven", "arrow", "fst")
-to_install <- setdiff(pkgs, rownames(installed.packages()))
-if (length(to_install)) install.packages(to_install)
-invisible(lapply(pkgs, require, character.only = TRUE))
+have <- rownames(installed.packages(lib.loc = .libPaths()))
+to_install <- setdiff(pkgs, have)
+
+# 3) Install missing ones with parallel compile, fail loudly on error
+if (length(to_install)) {
+  ncpu <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK", "1"))
+  for (p in to_install) {
+    message("\n--- Installing ", p, " ---")
+    tryCatch(
+      install.packages(p, lib = lib, dependencies = TRUE, Ncpus = ncpu),
+      error = function(e) {
+        message("FAILED to install ", p, ": ", conditionMessage(e))
+        quit(status = 1)
+      }
+    )
+  }
+}
+
+# 4) Load and stop if any package still missing
+ok <- vapply(pkgs, require, logical(1), character.only = TRUE, quietly = FALSE)
+if (!all(ok)) {
+  missing <- paste(pkgs[!ok], collapse = ", ")
+  stop("Could not load packages: ", missing)
+}
+# Optional: print session info to your SLURM log
+print(sessionInfo())
+
+
+
+
 
 # Set working directory
 setwd("/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r")
