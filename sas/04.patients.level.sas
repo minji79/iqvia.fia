@@ -31,7 +31,6 @@ Group 3: biosim_lover
 Group 4: switcher_to_reference
 */
 
-
 * sort by patient_id svc_dt; 
 proc sort data=input.adalimumab_claim_v0; by patient_id svc_dt; run;
 
@@ -207,6 +206,33 @@ proc means data=input.adalimumab_patient_v0 n nmiss mean std;
     var age_at_init;
 run;
 
+/*****************************
+*  # of claims per patient: claim_count
+*****************************/
+proc means data=input.adalimumab_patient_v0 n nmiss mean std;
+    class patient_group;
+    var claim_count;
+run;
+
+/*****************************
+*  duration of medication in month
+*****************************/
+data adalimumab_patient_v0; set input.adalimumab_patient_v0; duration_on_med = (last_date - first_date) / 30.5; run;
+
+proc means data=adalimumab_patient_v0 n nmiss mean std;
+    class patient_group;
+    var duration_on_med;
+run;
+
+/*****************************
+*  OOP for 30 days 
+*****************************/
+data adalimumab_patient_v0; set input.adalimumab_patient_v0; duration_on_med = (last_date - first_date) / 30.5; run;
+
+proc means data=adalimumab_patient_v0 n nmiss mean std;
+    class patient_group;
+    var duration_on_med;
+run;
 
 
 
