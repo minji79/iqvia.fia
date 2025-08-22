@@ -3,7 +3,7 @@
 # ============================================================
 # ETL for MOLECULE_OF_INTEREST (here, we use ADALIMUMAB) claims in IQVIA FIA dataset
 # Purpose: Load, clean, and classify claims and plan info
-# Inputs: product.dta, plan.dta, RxFact2018-2024.dta, LevyPDRJRV.dta
+# Inputs: product.dta, plan.dta, RxFact2018-2024.fst, LevyPDRJRV.fst
 # Outputs: "MOLECULE_OF_INTEREST_NDCs.parquet", 
 #          "A_MOLECULE_OF_INTEREST_claims.parquet",
 #          "B_MOLECULE_OF_INTEREST_claims.parquet",
@@ -14,16 +14,6 @@
 ## =============================
 ## 0) Setup & libraries
 ## =============================
-
-#BiocManager::install("data.table")
-#BiocManager::install("haven")
-#BiocManager::install("arrow")
-#BiocManager::install("fst")
-
-#library(data.table)
-#library(haven)
-#library(arrow)
-#library(fst)
 
 # 0) Make installs predictable in batch jobs
 options(repos = c(CRAN = "https://cloud.r-project.org"))
@@ -67,9 +57,6 @@ if (!all(ok)) {
 print(sessionInfo())
 
 
-
-
-
 # Set working directory
 setwd("/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r")
 
@@ -88,7 +75,7 @@ dir.create(tabs_dir, showWarnings = FALSE, recursive = TRUE)
 # Reference file paths
 prod_ref <- "/dcs07/hpm/data/iqvia_fia/ref/product.dta"
 plan_ref <- "/dcs07/hpm/data/iqvia_fia/ref/plan.dta"
-encpatch_ref <- "/dcs07/hpm/data/iqvia_fia/full_raw/LevyPDRJRV.dta"
+encpatch_ref <- "/dcs07/hpm/data/iqvia_fia/full_raw/LevyPDRJRV.fst"
 
 # Time logger
 ts_now <- function() format(Sys.time(), "%Y-%m-%d %H:%M:%S")
@@ -98,23 +85,26 @@ logmsg <- function(msg) cat(sprintf("[%s] %s\n", ts_now(), msg))
 ## 1. Load Product File. Manipulate to Drug Of Interest. Save list of NDCs
 ## =============================
 prod <- as.data.table(read_dta(prod_ref))
-stopifnot("molecule_name" %in% names(prod))
-prod <- prod[grepl("ADALIMUMAB", molecule_name, ignore.case = TRUE)]
+#stopifnot("molecule_name" %in% names(prod))
+#prod <- prod[grepl("ADALIMUMAB", molecule_name, ignore.case = TRUE)]
 
-logmsg("Tabulate molecule_name (sorted):")
-print(sort(table(prod$molecule_name), decreasing = TRUE))
+#logmsg("Tabulate molecule_name (sorted):")
+#print(sort(table(prod$molecule_name), decreasing = TRUE))
 
-keep_cols <- intersect(c("product_ndc", "usc_3_description", "molecule_name", "drug_labeler_corp_name"), names(prod))
-prod <- prod[, ..keep_cols]
+#keep_cols <- intersect(c("product_ndc", "usc_3_description", "molecule_name", "drug_labeler_corp_name"), names(prod))
+#prod <- prod[, ..keep_cols]
 
-if (all(c("molecule_name", "drug_labeler_corp_name") %in% names(prod))) {
-  logmsg("Tabulate molecule_name x drug_labeler_corp_name:")
-  print(with(prod, table(molecule_name, drug_labeler_corp_name)))
-}
+#if (all(c("molecule_name", "drug_labeler_corp_name") %in% names(prod))) {
+#  logmsg("Tabulate molecule_name x drug_labeler_corp_name:")
+#  print(with(prod, table(molecule_name, drug_labeler_corp_name)))
+#}
 
-write_parquet(prod, file.path(data_dir, "ADALIMUMAB_NDCs.parquet"), compression = "zstd")
+#write_parquet(prod, file.path(data_dir, "ADALIMUMAB_NDCs.parquet"), compression = "zstd")
 
-ndcs <- unique(prod[, .(product_ndc)])
+#ndcs <- unique(prod[, .(product_ndc)])
+ndcs <- as.data.table(read_parquet("/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r/data/ADALIMUMAB_NDCs.parquet"))
+ndcs <- unique(ndcs[, .(product_ndc)])
+
 setkey(ndcs, product_ndc)
 
 ## =============================
@@ -128,10 +118,10 @@ setkey(ndcs, product_ndc)
 logmsg("Attempt A Start")
 
 # load 4 full raw files (keep all variables)
-rx2018 <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2018.dta"))
-rx2020 <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2020.dta"))
-rx2022 <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2022.dta"))
-rx2024 <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2024.dta"))
+rx2018 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2018.fst"))
+rx2020 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2020.fst"))
+rx2022 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2022.fst"))
+rx2024 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2024.fst"))
 
 # Rename daw_cd → daw_cd_s if exists
 for (dt in list(rx2018, rx2020, rx2022, rx2024)) {
@@ -142,7 +132,7 @@ rx_all <- rbindlist(list(rx2018, rx2020, rx2022, rx2024), use.names = TRUE, fill
 rm(rx2018, rx2020, rx2022, rx2024); gc()
 
 # Merge with encounter outcome
-encpatch <- as.data.table(read_dta(encpatch_ref))[, .(claim_id, encnt_outcm_cd)]
+encpatch <- as.data.table(read_fst(encpatch_ref))[, .(claim_id, encnt_outcm_cd)]
 stopifnot(!anyDuplicated(encpatch$claim_id))
 setkey(encpatch, claim_id)
 setkey(rx_all, claim_id)
@@ -154,9 +144,6 @@ if ("ndc" %in% names(rx_all) && !"product_ndc" %in% names(rx_all)) {
   setnames(rx_all, "ndc", "product_ndc")
 }
 
-if ("ndc" %in% names(rx_all) && !"product_ndc" %in% names(rx_all)) {
-  setnames(rx_all, "ndc", "product_ndc")
-}
 setkey(rx_all, product_ndc)
 rx_a <- ndcs[rx_all, nomatch = 0L]
 write_parquet(rx_a, file.path(data_dir, "A_ADALIMUMAB_claims.parquet"), compression = "zstd")
@@ -171,7 +158,7 @@ logmsg("Attempt A End")
 logmsg("Attempt B Start")
 
 # Load reduced dataset (includes encnt_outcm_cd, fewer vars)
-rx_small <- as.data.table(read_dta("/dcs07/hpm/data/iqvia_fia/reduced/RxFact_2018_2024_small.dta"))
+rx_small <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/reduced/RxFact_2018_2024_small.fst"))
 
 # Rename ndc to match prod file
 if ("ndc" %in% names(rx_small) && !"product_ndc" %in% names(rx_small)) {
