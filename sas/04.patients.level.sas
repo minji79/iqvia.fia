@@ -511,6 +511,64 @@ proc freq data=adalimumab_claim_g4_at_switching order=freq; table adjudicating_p
 * model_type;
 proc freq data=adalimumab_claim_g4_at_switching order=freq; table model_type; title "Group 4 | Insurance type at switching date"; run;
 
+* rejection rate in plan_type;
+proc sql;
+    select plan_type,
+           count(*) as total_claims
+    from adalimumab_claim_g4_at_switching
+    group by plan_type;
+quit;
+
+proc sql;
+    select plan_type,
+           count(*) as count_RJ
+    from adalimumab_claim_g4_at_switching
+    where encnt_outcm_cd = 'RJ'
+    group by plan_type;
+quit;
+
+* rejection rate in pay_type_description;
+proc sql;
+    select pay_type_description,
+           count(*) as total_claims
+    from adalimumab_claim_g4_at_switching
+    group by pay_type_description;
+quit;
+
+proc sql;
+    select pay_type_description,
+           count(*) as count_RJ
+    from adalimumab_claim_g4_at_switching
+    where encnt_outcm_cd = 'RJ'
+    group by pay_type_description;
+quit;
+
+* rejection rate in major PBM;
+data adalimumab_claim_g4_at_switching;
+	set adalimumab_claim_g4_at_switching;
+ 	length pbm $100;
+  	retain pbm;
+	if adjudicating_pbm_plan_name in ("OPTUMRX (PROC-UNSP)", "CAREMARK (PROC-UNSP)") then pbm = adjudicating_pbm_plan_name; 
+ 	else if index(upcase(adjudicating_pbm_plan_name), "EXPRESS") > 0 then pbm = adjudicating_pbm_plan_name; 
+ 	else pbm = "Others"; 
+run;
+
+proc sql;
+    select pbm,
+           count(*) as total_claims
+    from adalimumab_claim_g4_at_switching
+    group by pbm;
+quit;
+
+proc sql;
+    select pbm,
+           count(*) as count_RJ
+    from adalimumab_claim_g4_at_switching
+    where encnt_outcm_cd = 'RJ'
+    group by pbm;
+quit;
+
+
 
 proc print data=adalimumab_claim_g2_at_switching (obs=30); 
 var patient_id svc_dt switch_date category encnt_outcm_cd adjudicating_pbm_plan_name model_type pay_type_description plan_type plan_name; run;
