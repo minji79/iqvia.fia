@@ -33,13 +33,14 @@ Group 4: switcher_to_reference
 
 * sort by patient_id svc_dt; 
 proc sort data=input.adalimumab_claim_v0; by patient_id svc_dt; run;
+proc contents data=input.adalimumab_claim_v0; run;
 
 data input.adalimumab_patient_v0;
     set input.adalimumab_claim_v0;
     by patient_id;
 
     length first_cat $50 switch_date 8;
-    retain first_cat switcher biosim_initiator switch_date claim_count first_date last_date prev_cat;
+    retain first_cat switcher biosim_initiator switch_date claim_count first_date last_date prev_cat ;
 
     format first_date last_date switch_date yymmdd10.;
 
@@ -87,6 +88,15 @@ proc contents data=input.adalimumab_patient_v0; run;
 
 proc freq data=input.adalimumab_patient_v0; table biosim_initiator*switcher; run;
 proc print data=input.adalimumab_claim_v0 (obs=20); var patient_id svc_dt molecule_name category; where patient_id = 1237730811; run;
+
+* merge patient_group & switch_date with total claims;
+proc sql; 
+ 	create table input.adalimumab_claim_v0 as
+  	select distinct a.*, b.patient_group, b.switch_date
+  	from input.adalimumab_claim_v0 as a
+   	left join input.adalimumab_patient_v0 as b
+	on a.patient_id = b.patient_id; 
+ quit;
 
 
 /************************************************************************************
@@ -217,41 +227,374 @@ run;
 /*****************************
 *  duration of medication in month
 *****************************/
-data adalimumab_patient_v0; set input.adalimumab_patient_v0; duration_on_med = (last_date - first_date) / 30.5; run;
+data input.adalimumab_patient_v0; set input.adalimumab_patient_v0; duration_on_med = (last_date - first_date) / 30.5; run;
 
-proc means data=adalimumab_patient_v0 n nmiss mean std;
+proc means data=input.adalimumab_patient_v0 n nmiss mean std;
     class patient_group;
     var duration_on_med;
 run;
 
 /*****************************
-*  OOP for 30 days 
-*****************************/
-data adalimumab_patient_v0; set input.adalimumab_patient_v0; duration_on_med = (last_date - first_date) / 30.5; run;
+*  OOP for 28 days 
+******************************
+* identify how many OOP with null or 0;
+proc sql;
+    select 
+        patient_group,
+        sum(missing(final_opc_amt)) as count_missing,
+        sum(final_opc_amt = 0)      as count_zero
+    from input.adalimumab_claim_v0
+    group by patient_group;
+quit;
 
-proc means data=adalimumab_patient_v0 n nmiss mean std;
-    class patient_group;
-    var duration_on_med;
-run;
+* nonzero OOP; 
+data adalimumab_claim_v0; set input.adalimumab_claim_v0; if final_opc_amt ne 0 and not missing(final_opc_amt); run;
+data adalimumab_claim_v0; set adalimumab_claim_v0; OOP_for_28day = final_opc_amt/days_supply_cnt * 28 ; run;
 
 
+/*****************************
+*  make separate data tables; 
+******************************
+* make separate data tables; 
+proc sort data=input.adalimumab_claim_v0; by patient_id svc_dt; run;
+
+/**** Group 1: reference_lover ****/
+data adalimumab_claim_g1; set input.adalimumab_claim_v0; if patient_group = "reference_lover"; run;
+
+/**** Group 2: switcher_to_biosim ****/
+data adalimumab_claim_g2; set input.adalimumab_claim_v0; if patient_group = "switcher_to_biosim"; run;
+data adalimumab_claim_g2_pre; set adalimumab_claim_g2; if svc_dt < switch_date; run;  
+data adalimumab_claim_g2_post; set adalimumab_claim_g2; if svc_dt >= switch_date; run;  
+
+/**** Group 3: biosim_lover ****/
+data adalimumab_claim_g3; set input.adalimumab_claim_v0; if patient_group = "biosim_lover"; run;
+
+/**** Group 4: switcher_to_reference ****/
+data adalimumab_claim_g4; set input.adalimumab_claim_v0; if patient_group = "switcher_to_reference"; run;
+data adalimumab_claim_g4_pre; set adalimumab_claim_g4; if svc_dt < switch_date; run;  
+data adalimumab_claim_g4_post; set adalimumab_claim_g4; if svc_dt >= switch_date; run;  
+
+
+/*****************************
+*  with separate data tables; insurance type
+******************************
+
+/**** Group 1: reference_lover ****/
+* plan_type;
+proc freq data=adalimumab_claim_g1 order=freq; table plan_type; title "Group 1 | Insurance type overall"; run;
+
+* pay_type_description;
+proc freq data=adalimumab_claim_g1 order=freq; table pay_type_description; title "Group 1 | Insurance type overall"; run;
+
+* adjudicating_pbm_plan_name;
+proc freq data=adalimumab_claim_g1 order=freq; table adjudicating_pbm_plan_name; title "Group 1 | Insurance type overall"; run;
+
+* model_type;
+proc freq data=adalimumab_claim_g1 order=freq; table model_type; title "Group 1 | Insurance type overall"; run;
+
+* rejection rate in plan_type;
+proc sql;
+    select plan_type,
+           count(*) as total_claims
+    from adalimumab_claim_g1
+    group by plan_type;
+quit;
 
 proc sql;
-  create table work.index_final2 as
-  select a.*, b.count_generics, b.count_brands, b.count_ts
-  from work.index_final a
-  left join work.by_moly b
-    on a.molecule_name=b.molecule_name and a.year=b.year;
+    select plan_type,
+           count(*) as count_RJ
+    from adalimumab_claim_g1
+    where encnt_outcm_cd = 'RJ'
+    group by plan_type;
+quit;
+
+* rejection rate in pay_type_description;
+proc sql;
+    select pay_type_description,
+           count(*) as total_claims
+    from adalimumab_claim_g1
+    group by pay_type_description;
+quit;
+
+proc sql;
+    select pay_type_description,
+           count(*) as count_RJ
+    from adalimumab_claim_g1
+    where encnt_outcm_cd = 'RJ'
+    group by pay_type_description;
+quit;
+
+* rejection rate in major PBM;
+data adalimumab_claim_g1;
+	set adalimumab_claim_g1;
+ 	length pbm $100;
+  	retain pbm;
+	if adjudicating_pbm_plan_name in ("OPTUMRX (PROC-UNSP)", "CAREMARK (PROC-UNSP)") then pbm = adjudicating_pbm_plan_name; 
+ 	else if index(upcase(adjudicating_pbm_plan_name), "EXPRESS") > 0 then pbm = adjudicating_pbm_plan_name; 
+ 	else pbm = "Others"; 
+run;
+
+proc sql;
+    select pbm,
+           count(*) as total_claims
+    from adalimumab_claim_g1
+    group by pbm;
+quit;
+
+proc sql;
+    select pbm,
+           count(*) as count_RJ
+    from adalimumab_claim_g1
+    where encnt_outcm_cd = 'RJ'
+    group by pbm;
 quit;
 
 
-data input.adalimumab_patient_plan_v0; set input.adalimumab_claim_v0; patient_id year 
+/**** Group 2: switcher_to_biosim ****/
+data adalimumab_claim_g2_at_switching; set adalimumab_claim_g2; if svc_dt = switch_date; run;  
 
-proc contents data=input.adalimumab_claim_v0; run;
+* plan_type;
+proc freq data=adalimumab_claim_g2_at_switching order=freq; table plan_type; title "Group 2 | Insurance type at the switching date"; run;
+
+* pay_type_description;
+proc freq data=adalimumab_claim_g2_at_switching order=freq; table pay_type_description; title "Group 2 | Insurance type at the switching date"; run;
+
+* adjudicating_pbm_plan_name;
+proc freq data=adalimumab_claim_g2_at_switching order=freq; table adjudicating_pbm_plan_name; title "Group 2 | Insurance type at the switching date"; run;
+
+* model_type;
+proc freq data=adalimumab_claim_g2_at_switching order=freq; table model_type; title "Group 2 | Insurance type at the switching date"; run;
+
+* rejection rate in plan_type;
+proc sql;
+    select plan_type,
+           count(*) as total_claims
+    from adalimumab_claim_g2_at_switching
+    group by plan_type;
+quit;
+
+proc sql;
+    select plan_type,
+           count(*) as count_RJ
+    from adalimumab_claim_g2_at_switching
+    where encnt_outcm_cd = 'RJ'
+    group by plan_type;
+quit;
+
+* rejection rate in pay_type_description;
+proc sql;
+    select pay_type_description,
+           count(*) as total_claims
+    from adalimumab_claim_g2_at_switching
+    group by pay_type_description;
+quit;
+
+proc sql;
+    select pay_type_description,
+           count(*) as count_RJ
+    from adalimumab_claim_g2_at_switching
+    where encnt_outcm_cd = 'RJ'
+    group by pay_type_description;
+quit;
+
+* rejection rate in major PBM;
+data adalimumab_claim_g2_at_switching; 
+	set adalimumab_claim_g2_at_switching; 
+ 	length pbm $100;
+  	retain pbm;
+	if adjudicating_pbm_plan_name in ("OPTUMRX (PROC-UNSP)", "CAREMARK (PROC-UNSP)") then pbm = adjudicating_pbm_plan_name; 
+ 	else if index(upcase(adjudicating_pbm_plan_name), "EXPRESS") > 0 then pbm = adjudicating_pbm_plan_name; 
+ 	else pbm = "Others"; 
+run;
+
+proc sql;
+    select pbm,
+           count(*) as total_claims
+    from adalimumab_claim_g2_at_switching
+    group by pbm;
+quit;
+
+proc sql;
+    select pbm,
+           count(*) as count_RJ
+    from adalimumab_claim_g2_at_switching
+    where encnt_outcm_cd = 'RJ'
+    group by pbm;
+quit;
+
+
+/**** Group 3: biosim_lover ****/
+data adalimumab_claim_g3_at_init; set adalimumab_claim_g2; by patient_id; if first.patient_id; run;
+
+* plan_type;
+proc freq data=adalimumab_claim_g3_at_init order=freq; table plan_type; title "Group 3 | Insurance type at biosimilar initiation"; run;
+
+* pay_type_description;
+proc freq data=adalimumab_claim_g3_at_init order=freq; table pay_type_description; title "Group 3 | Insurance type at biosimilar initiation"; run;
+
+* adjudicating_pbm_plan_name;
+proc freq data=adalimumab_claim_g3_at_init order=freq; table adjudicating_pbm_plan_name; title "Group 3 | Insurance type at biosimilar initiation"; run;
+
+* model_type;
+proc freq data=adalimumab_claim_g3_at_init order=freq; table model_type; title "Group 3 | Insurance type at biosimilar initiation"; run;
+
+* rejection rate in plan_type;
+proc sql;
+    select plan_type,
+           count(*) as total_claims
+    from adalimumab_claim_g3_at_init
+    group by plan_type;
+quit;
+
+proc sql;
+    select plan_type,
+           count(*) as count_RJ
+    from adalimumab_claim_g3_at_init
+    where encnt_outcm_cd = 'RJ'
+    group by plan_type;
+quit;
+
+* rejection rate in pay_type_description;
+proc sql;
+    select pay_type_description,
+           count(*) as total_claims
+    from adalimumab_claim_g3_at_init
+    group by pay_type_description;
+quit;
+
+proc sql;
+    select pay_type_description,
+           count(*) as count_RJ
+    from adalimumab_claim_g3_at_init
+    where encnt_outcm_cd = 'RJ'
+    group by pay_type_description;
+quit;
+
+* rejection rate in major PBM;
+data adalimumab_claim_g3_at_init;
+	set adalimumab_claim_g3_at_init;
+ 	length pbm $100;
+  	retain pbm;
+	if adjudicating_pbm_plan_name in ("OPTUMRX (PROC-UNSP)", "CAREMARK (PROC-UNSP)") then pbm = adjudicating_pbm_plan_name; 
+ 	else if index(upcase(adjudicating_pbm_plan_name), "EXPRESS") > 0 then pbm = adjudicating_pbm_plan_name; 
+ 	else pbm = "Others"; 
+run;
+
+proc sql;
+    select pbm,
+           count(*) as total_claims
+    from adalimumab_claim_g3_at_init
+    group by pbm;
+quit;
+
+proc sql;
+    select pbm,
+           count(*) as count_RJ
+    from adalimumab_claim_g3_at_init
+    where encnt_outcm_cd = 'RJ'
+    group by pbm;
+quit;
+
+
+/**** Group 4: switcher_to_reference ****/
+data adalimumab_claim_g4_at_switching; set adalimumab_claim_g4; if svc_dt = switch_date; run;  
+
+* plan_type;
+proc freq data=adalimumab_claim_g4_at_switching order=freq; table plan_type; title "Group 4 | Insurance type at switching date"; run;
+
+* pay_type_description;
+proc freq data=adalimumab_claim_g4_at_switching order=freq; table pay_type_description; title "Group 4 | Insurance type at switching date"; run;
+
+* adjudicating_pbm_plan_name;
+proc freq data=adalimumab_claim_g4_at_switching order=freq; table adjudicating_pbm_plan_name; title "Group 4 | Insurance type at switching date"; run;
+
+* model_type;
+proc freq data=adalimumab_claim_g4_at_switching order=freq; table model_type; title "Group 4 | Insurance type at switching date"; run;
+
+
+proc print data=adalimumab_claim_g2_at_switching (obs=30); 
+var patient_id svc_dt switch_date category encnt_outcm_cd adjudicating_pbm_plan_name model_type pay_type_description plan_type plan_name; run;
+
+
+
+proc print data=adalimumab_claim_g2 (obs=100); var patient_id svc_dt switch_date adjudicating_pbm_plan_name model_type pay_type_description plan_type plan_name; run;
+
+
+
+/*****************************
+*  with separate data tables; rejection rate
+******************************
+
+if encnt_outcm_cd = "RJ";
+
+reason -> rjct_grp
 
 
 
 
+
+
+
+
+
+/*****************************
+*  insurance type at initiation
+******************************
+proc sort data=input.adalimumab_claim_v0; by patient_id svc_dt; run;
+*remain useful variables;
+data adalimumab_patient_plan; set input.adalimumab_claim_v0;
+	keep patient_id patient_group svc_dt switch_date adjudicating_pbm_plan_name model_type pay_type_description plan_type plan_name; run;
+
+* 1) Ensure svc_dt is a SAS date and normalize plan_type;
+data adalimumab_patient_plan; set adalimumab_patient_plan;
+    if vtype(svc_dt)='C' then do;
+        svc_dt_d = input(svc_dt, mmddyy10.);
+        format svc_dt_d yymmdd10.;
+    end;
+    else svc_dt_d = svc_dt;
+
+    length plan_type_norm $60;
+    plan_type_norm = strip(upcase(plan_type));
+run;
+
+/* Emit one row for the first plan, then one for each change in plan_type */
+data adalimumab_patient_plan;
+    set adalimumab_patient_plan;
+    by patient_id svc_dt_d;
+
+    length last_type $60 from_plan_type $60 to_plan_type $60;
+    retain last_type;
+
+    /* First record for patient: keep as initial plan event */
+    if first.patient_id then do;
+        plan_switch_date = svc_dt_d;
+        from_plan_type   = '';
+        to_plan_type     = plan_type_norm;
+        output;
+        last_type = plan_type_norm;
+    end;
+    else do;
+        /* Output only when plan_type changes */
+        if not missing(plan_type_norm) and plan_type_norm ne last_type then do;
+            plan_switch_date = svc_dt_d;
+            from_plan_type   = last_type;
+            to_plan_type     = plan_type_norm;
+            output;
+            last_type = plan_type_norm;
+        end;
+    end;
+    format plan_switch_date yymmdd10.;
+run;
+
+/* (Optional) If multiple claims exist on the same switch date & plan, dedupe */
+proc sort data=adalimumab_patient_plan out=input.adalimumab_patient_plan nodupkey;
+    by patient_id plan_switch_date to_plan_type;
+run;
+proc print data=adalimumab_patient_plan (obs=20); where patient_id = 116490214; run;
+
+proc print data=input.adalimumab_claim_v0 (obs=30); 
+var patient_id svc_dt switch_date category encnt_outcm_cd adjudicating_pbm_plan_name model_type pay_type_description plan_type plan_name;
+where patient_id = 116490214 and year(svc_dt) = 2024 ; run;
 
 
 
