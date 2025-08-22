@@ -353,6 +353,10 @@ quit;
 /**** Group 2: switcher_to_biosim ****/
 data adalimumab_claim_g2_at_switching; set adalimumab_claim_g2; if svc_dt = switch_date; run;  
 
+proc print data=adalimumab_claim_g2_at_switching (obs=30); 
+var patient_id svc_dt switch_date category encnt_outcm_cd adjudicating_pbm_plan_name model_type pay_type_description plan_type plan_name; run;
+
+
 * plan_type;
 proc freq data=adalimumab_claim_g2_at_switching order=freq; table plan_type; title "Group 2 | Insurance type at the switching date"; run;
 
