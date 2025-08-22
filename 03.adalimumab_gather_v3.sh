@@ -20,9 +20,11 @@ for job_number in {1..1}; do
 #SBATCH --output=out/${output_file}
 #SBATCH --error=errs/${error_file}
 
-export STATATMP=/dcs07/hpm/data/iqvia_fia/root/
 module load R
-Rscript adalimumab_gather_v3.R ${job_number}
+
+# Run R and echo every line + its output
+Rscript --vanilla -e 'options(echo=TRUE); source("adalimumab_gather_v2.R", echo>
+
 echo "R exit code: \$?"
 EOT
 
