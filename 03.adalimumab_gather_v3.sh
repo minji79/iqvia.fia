@@ -23,7 +23,7 @@ for job_number in {1..1}; do
 module load R
 
 # Run R and echo every line + its output
-Rscript --vanilla -e 'options(echo=TRUE); source("adalimumab_gather_v2.R", echo>
+Rscript --vanilla -e 'options(echo=TRUE); source("adalimumab_gather_v2.R", echo=TRUE)' ${job_number}
 
 echo "R exit code: \$?"
 EOT
