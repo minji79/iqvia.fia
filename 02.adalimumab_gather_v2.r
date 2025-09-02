@@ -117,36 +117,61 @@ setkey(ndcs, product_ndc)
 
 logmsg("Attempt A Start")
 
-# load 4 full raw files (keep all variables)
-rx2018 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2018.fst"))
-rx2020 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2020.fst"))
-rx2022 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2022.fst"))
-rx2024 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2024.fst"))
+# List of FST files
+fst_files <- c("RxFact2018.fst", "RxFact2020.fst", "RxFact2022.fst", "RxFact2024.fst")
 
-# Rename daw_cd → daw_cd_s if exists
-for (dt in list(rx2018, rx2020, rx2022, rx2024)) {
-  if ("daw_cd" %in% names(dt)) setnames(dt, "daw_cd", "daw_cd_s")
+for (f in fst_files) {
+  logmsg(paste("Processing:", f))
+  rx <- as.data.table(read_fst(file.path("/dcs07/hpm/data/iqvia_fia/full_raw", f)))
+
+  if ("daw_cd" %in% names(rx)) setnames(rx, "daw_cd", "daw_cd_s") # Optional: Rename daw_cd
+
+  setkey(rx, claim_id) # Merge with encpatch
+  rx <- encpatch[rx, nomatch = 0L]
+  
+  if ("ndc" %in% names(rx)) setnames(rx, "ndc", "product_ndc") # Rename NDC
+  setkey(rx, product_ndc)
+  
+  rx_sub <- ndcs[rx, nomatch = 0L] # Subset to Adalimumab claims
+
+  # Write or append
+  write_parquet(rx_sub, file.path(data_dir, "A_ADALIMUMAB_claims.parquet"), compression = "zstd", append = file.exists(sink_file))
+  
+  rm(rx, rx_sub); gc() # Clean memory
 }
 
-rx_all <- rbindlist(list(rx2018, rx2020, rx2022, rx2024), use.names = TRUE, fill = TRUE)
-rm(rx2018, rx2020, rx2022, rx2024); gc()
+
+  
+# load 4 full raw files (keep all variables)
+#rx2018 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2018.fst"))
+#rx2020 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2020.fst"))
+#rx2022 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2022.fst"))
+#rx2024 <- as.data.table(read_fst("/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2024.fst"))
+
+# Rename daw_cd → daw_cd_s if exists
+#for (dt in list(rx2018, rx2020, rx2022, rx2024)) {
+#  if ("daw_cd" %in% names(dt)) setnames(dt, "daw_cd", "daw_cd_s")
+#}
+
+#rx_all <- rbindlist(list(rx2018, rx2020, rx2022, rx2024), use.names = TRUE, fill = TRUE)
+#rm(rx2018, rx2020, rx2022, rx2024); gc()
 
 # Merge with encounter outcome
-encpatch <- as.data.table(read_fst(encpatch_ref))[, .(claim_id, encnt_outcm_cd)]
-stopifnot(!anyDuplicated(encpatch$claim_id))
-setkey(encpatch, claim_id)
-setkey(rx_all, claim_id)
-rx_all <- encpatch[rx_all, nomatch = 0L]
+#encpatch <- as.data.table(read_fst(encpatch_ref))[, .(claim_id, encnt_outcm_cd)]
+#stopifnot(!anyDuplicated(encpatch$claim_id))
+#setkey(encpatch, claim_id)
+#setkey(rx_all, claim_id)
+#rx_all <- encpatch[rx_all, nomatch = 0L]
 
 # Merge with ADALIMUMAB NDCs
 # Rename ndc to product_ndc for consistency
-if ("ndc" %in% names(rx_all) && !"product_ndc" %in% names(rx_all)) {
-  setnames(rx_all, "ndc", "product_ndc")
-}
+#if ("ndc" %in% names(rx_all) && !"product_ndc" %in% names(rx_all)) {
+#  setnames(rx_all, "ndc", "product_ndc")
+#}
 
-setkey(rx_all, product_ndc)
-rx_a <- ndcs[rx_all, nomatch = 0L]
-write_parquet(rx_a, file.path(data_dir, "A_ADALIMUMAB_claims.parquet"), compression = "zstd")
+#setkey(rx_all, product_ndc)
+#rx_a <- ndcs[rx_all, nomatch = 0L]
+#write_parquet(rx_a, file.path(data_dir, "A_ADALIMUMAB_claims.parquet"), compression = "zstd")
 
 logmsg("Attempt A End")
 
