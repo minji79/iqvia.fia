@@ -127,7 +127,7 @@ for (f in fst_files) {
   if ("daw_cd" %in% names(rx)) setnames(rx, "daw_cd", "daw_cd_s") # Optional: Rename daw_cd
 
   setkey(rx, claim_id) # Merge with encpatch
-  rx <- encpatch[rx, nomatch = 0L]
+  rx <- encpatch_ref[rx, nomatch = 0L]
   
   if ("ndc" %in% names(rx)) setnames(rx, "ndc", "product_ndc") # Rename NDC
   setkey(rx, product_ndc)
@@ -135,7 +135,7 @@ for (f in fst_files) {
   rx_sub <- ndcs[rx, nomatch = 0L] # Subset to Adalimumab claims
 
   # Write or append
-  write_parquet(rx_sub, file.path(data_dir, "A_ADALIMUMAB_claims.parquet"), compression = "zstd", append = file.exists(sink_file))
+  write_parquet(rx_sub, file.path(data_dir, "A_ADALIMUMAB_claims.parquet"), compression = "zstd")
   
   rm(rx, rx_sub); gc() # Clean memory
 }
