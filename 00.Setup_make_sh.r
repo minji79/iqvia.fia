@@ -33,3 +33,10 @@ sbatch convert_dta_to_fst.sh
 
 # check my job status:
 squeue --me
+
+
+mv /dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r/glp1_gather.sh /dcs07/hpm/data/iqvia_fia/glp1_disc
+
+mv /dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r/out/adalimumab_claims.parquet /dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r/data
+
+
