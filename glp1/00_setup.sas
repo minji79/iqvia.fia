@@ -27,6 +27,7 @@ libname fia100 "/dcs07/hpm/data/iqvia_fia/full_raw";   /* 100% rqw data */
 libname ref "/dcs07/hpm/data/iqvia_fia/ref";   /* reference files */
 libname red "/dcs07/hpm/data/iqvia_fia/reduced";   /* reference files */
 libname glp1 "/dcs04/hpm/data/iqvia_fia/glp1_paper/data";
+libname biosim "/dcs07/hpm/data/iqvia_fia/biosim";   /* for reference files */
 
 /*
 libname tuto "/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/stata/data";   
