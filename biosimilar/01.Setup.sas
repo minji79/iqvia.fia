@@ -21,19 +21,18 @@ setwd("/users/59883/c-mkim255-59883/glp1off/sas_input")
 */
 
 /* set library */
-libname input "/dcs07/hpm/data/iqvia_fia/biosim";   /* my own directory */
-libname tuto "/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/stata/data";   
-
+libname input "/dcs07/hpm/data/iqvia_fia/glp1_disc";   /* my own directory */
 libname home "/dcs07/hpm/data/iqvia_fia";   /* home directory */
 libname fia100 "/dcs07/hpm/data/iqvia_fia/full_raw";   /* 100% rqw data */
 libname ref "/dcs07/hpm/data/iqvia_fia/ref";   /* reference files */
 libname red "/dcs07/hpm/data/iqvia_fia/reduced";   /* reference files */
+libname glp1 "/dcs04/hpm/data/iqvia_fia/glp1_paper/data";
 
-libname glp1 "/dcs07/hpm/data/iqvia_fia/glp1_paper";
+/*
+libname tuto "/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/stata/data";   
 libname auth_gen "/dcs07/hpm/data/iqvia_fia/auth_generics";
 libname form_apx "/dcs07/hpm/data/iqvia_fia/formulary_approx";   /* formulary_approx  */
 
-* see the files under glp1;
 
 /*
 01_load_and_merge_glp1.do
@@ -78,13 +77,40 @@ proc print data=do_commands; run;
 
 
 * see the dta files;
-proc import datafile="/dcs07/hpm/data/iqvia_fia/reduced/RxFact2020_small.dta"
+/* mydata: Step1_Index_18_glp_switch.dta */
+proc import datafile="/dcs04/hpm/data/iqvia_fia/glp1_paper/data/Step1_Index_18_glp_switch.dta"
     out=mydata
     dbms=dta
     replace;
 run;
-proc print data=mydata (obs=10); title "RxFact2020_small.dta"; run;
+proc print data=mydata (obs=10); title "Step1_Index_18_glp_switch.dta"; run;
 proc contents data=mydata; run;
+
+* distinct patient number;
+proc sql; 
+    select count(distinct patient_id) as count_patient_switch
+    from mydata;
+quit;
+
+/* mydata2: Step1_Index_18_glp_ER.dta */
+proc import datafile="/dcs04/hpm/data/iqvia_fia/glp1_paper/data/Step1_Index_24_glp_ER.dta"
+    out=mydata2
+    dbms=dta
+    replace;
+run;
+proc sort data=mydata2; by patient_id svc_dt; run;
+proc print data=mydata2 (obs=20); title "Step1_Index_24_glp_ER.dta"; run;
+proc contents data=mydata2; run;
+
+* check the name of molecule;
+proc freq data=mydata2; table molecule_name; run;
+proc freq data=mydata2; table rjct_cd; run;
+
+* distinct patient number;
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from mydata2;
+quit;
 
 
 
