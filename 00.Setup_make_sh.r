@@ -7,6 +7,9 @@ directory: cd /dcs07/hpm/data/iqvia_fia
 
 cd /dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r
 
+### glp1 proejct files
+/dcs04/hpm/data/iqvia_fia/glp1_paper
+
 # when give the permit to make a change to someone 
 chmod 777 [file name]
 
