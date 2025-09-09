@@ -226,13 +226,13 @@ data first_claim;
 run;
 
 /* 2) Sort by patient → earliest svc_dt → prefer paid on that date */
-proc sort data=first_claim; by patient_id svc_dt paid_priority; run;
+proc sort data=first_claim; by patient_id svc_dt descending paid_priority; run;
 
 /* 3) Keep the first record per patient (earliest date; paid preferred if tie) */
 data first_claim;
     set first_claim;
-    by patient_id;
-    if first.patient_id then output;
+    by patient_id svc_dt;
+    if first.svc_dt then output;
     drop paid_priority;
 run; /* 1,061,808 obs */
 
