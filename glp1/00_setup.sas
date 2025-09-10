@@ -114,15 +114,7 @@ proc sql;
 quit;
 
 
+data patient; set biosim.patient; keep patient_id; run;
+proc sort data=patient nodupkey; run;
+proc contents data=patient; run;
 
-
-
-
-filename myfile "/dcs07/hpm/data/iqvia_fia/glp1_paper/01_load_and_merge_glp1.sh ";
-
-data preview;
-    infile myfile;
-    input line $char200.;
-run;
-
-proc print data=preview(obs=10); run;
