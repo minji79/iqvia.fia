@@ -115,6 +115,6 @@ quit;
 
 
 data patient; set biosim.patient; keep patient_id; run;
-proc sort data=patient nodupkey; run;
+proc sort data=patient nodupkey; by patient_id; run;
 proc contents data=patient; run;
 
