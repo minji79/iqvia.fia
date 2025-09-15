@@ -63,6 +63,13 @@ proc import datafile="/dcs07/hpm/data/iqvia_fia/ref/patient.dta" out=input.patie
 proc import datafile="/dcs07/hpm/data/iqvia_fia/ref/provider.dta" out=input.provider dbms=dta replace; run;
 proc import datafile="/dcs07/hpm/data/iqvia_fia/ref/plan.dta" out=input.plan dbms=dta replace; run;
 
+proc import datafile="/dcs07/hpm/data/iqvia_fia/glp1_disc/LevyPDRJRV.csv"
+    out=input.LevyPDRJRV
+    dbms=csv
+    replace;
+    getnames=yes;   /* first row has column names */
+    guessingrows=max; /* lets SAS scan all rows to guess column types */
+run;
 
 /************************************************************************************
 	3.   Read other files
