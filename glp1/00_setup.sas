@@ -67,8 +67,8 @@ proc import datafile="/dcs07/hpm/data/iqvia_fia/glp1_disc/LevyPDRJRV.csv"
     out=input.LevyPDRJRV
     dbms=csv
     replace;
-    getnames=yes;   /* first row has column names */
-    guessingrows=max; /* lets SAS scan all rows to guess column types */
+    getnames=yes; 
+    guessingrows=1000;
 run;
 
 /************************************************************************************
