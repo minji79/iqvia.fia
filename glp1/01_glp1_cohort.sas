@@ -151,28 +151,50 @@ run;
 %yearly(year=19); 
 %yearly(year=18); 
 
-/* merge with from LevyPDRJRV */
-proc contents data=input.LevyPDRJRV; run;
 
+/* merge with from LevyPDRJRV */
 %macro yearly(year=);
 proc sql; 
-  create table rx_&year._glp1 as
-  select distinct a.*, b.
+  create table input.rx_&year._glp1 as
+  select distinct a.*, b.encnt_outcm_cd
   from input.rx_&year._glp1 as a 
   left join input.LevyPDRJRV as b
   on a.claim_id = b.claim_id;
 quit;
 
+proc sort data=input.rx_&year._glp1 nodupkey; by claim_id; run;
+
+%mend yearly;
+%yearly(year=24); /* 8299345 obs, with 45 variables */
+%yearly(year=23); /* 6273028 obs */
+%yearly(year=22); /* 3287046 obs */
+%yearly(year=21); /* 2189023 obs */
+%yearly(year=20); /* 1754725 obs */
+%yearly(year=19); /* 1453451 obs */
+%yearly(year=18); /* 1176157 obs */
+
+
+%macro yearly(year=);
+data input.rx_&year._glp1;
+  set input.rx_&year._glp1;
+
+  PD = (encnt_='PD'); 
+  RV = (encnt_='RV'); 
+  RJ_Step = (encnt_='RJ' and rjct_grp=1); 
+  RJ_PrAu = (encnt_='RJ' and rjct_grp=2); 
+  RJ_NtCv = (encnt_='RJ' and rjct_grp=3); 
+  RJ_PlLm = (encnt_='RJ' and rjct_grp=4); 
+  RJ_NotForm = (encnt_='RJ' and rjct_grp=5); 
+
+run;
 %mend yearly;
 %yearly(year=24);
-
 %yearly(year=23); 
 %yearly(year=22);
 %yearly(year=21);
 %yearly(year=20); 
 %yearly(year=19); 
 %yearly(year=18); 
-
 
 
 /* merge all dataset */
