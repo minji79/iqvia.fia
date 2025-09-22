@@ -183,7 +183,7 @@ quit;
 
 
 /*============================================================*
- | 4) only leave paitents who have at least one paid claims (N= 951,434)
+ | 4) only leave paitents who have at least one paid claims (N= 951,434 -> 827,108)
  *============================================================*/
 
 proc sql;
@@ -193,9 +193,9 @@ proc sql;
     where a.patient_id in (
         select distinct patient_id
         from input.rx18_24_glp1_long_v00
-        where rjct_grp = 0
+        where encnt_outcm_cd = "PD"
     );
-quit;
+quit; /* 23,318,756 obs */
 
 proc sql; 
     select count(distinct patient_id) as count_patient_all
