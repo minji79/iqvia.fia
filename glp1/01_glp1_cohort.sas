@@ -30,9 +30,26 @@ run;
 %yearly(year=18);
 
 
-/* check identical */
-proc contents data=input.rx_24_glp; run;
-proc contents data=mydata2; run;
+/* merge with from LevyPDRJRV */
+%macro yearly(year=);
+proc sql; 
+  create table input.rx_&year._glp1 as
+  select distinct a.*, b.encnt_outcm_cd
+  from input.rx_&year._glp1 as a 
+  left join input.LevyPDRJRV as b
+  on a.claim_id = b.claim_id;
+quit;
+
+proc sort data=input.rx_&year._glp1 nodupkey; by claim_id; run;
+
+%mend yearly;
+%yearly(year=24);
+%yearly(year=23);
+%yearly(year=22);
+%yearly(year=21);
+%yearly(year=20);
+%yearly(year=19);
+%yearly(year=18);
 
 
 /*============================================================*
@@ -84,6 +101,7 @@ run;
 %yearly(year=20); /* 1754725 obs */
 %yearly(year=19); /* 1453451 obs */
 %yearly(year=18); /* 1176157 obs */
+
 
 /*============================================================*
  | 3) Merge plan; classify plan_type and numeric pln_typ (N= 1,061,808)
@@ -152,56 +170,10 @@ run;
 %yearly(year=18); 
 
 
-/* merge with from LevyPDRJRV */
-%macro yearly(year=);
-proc sql; 
-  create table input.rx_&year._glp1 as
-  select distinct a.*, b.encnt_outcm_cd
-  from input.rx_&year._glp1 as a 
-  left join input.LevyPDRJRV as b
-  on a.claim_id = b.claim_id;
-quit;
-
-proc sort data=input.rx_&year._glp1 nodupkey; by claim_id; run;
-
-%mend yearly;
-%yearly(year=24); /* 8299345 obs, with 45 variables */
-%yearly(year=23); /* 6273028 obs */
-%yearly(year=22); /* 3287046 obs */
-%yearly(year=21); /* 2189023 obs */
-%yearly(year=20); /* 1754725 obs */
-%yearly(year=19); /* 1453451 obs */
-%yearly(year=18); /* 1176157 obs */
-
-
-%macro yearly(year=);
-data input.rx_&year._glp1;
-  set input.rx_&year._glp1;
-
-  PD = (encnt_='PD'); 
-  RV = (encnt_='RV'); 
-  RJ_Step = (encnt_='RJ' and rjct_grp=1); 
-  RJ_PrAu = (encnt_='RJ' and rjct_grp=2); 
-  RJ_NtCv = (encnt_='RJ' and rjct_grp=3); 
-  RJ_PlLm = (encnt_='RJ' and rjct_grp=4); 
-  RJ_NotForm = (encnt_='RJ' and rjct_grp=5); 
-
-run;
-%mend yearly;
-%yearly(year=24);
-%yearly(year=23); 
-%yearly(year=22);
-%yearly(year=21);
-%yearly(year=20); 
-%yearly(year=19); 
-%yearly(year=18); 
-
-
 /* merge all dataset */
 data input.rx18_24_glp1_long_v00; set input.rx_24_glp1 input.rx_23_glp1 input.rx_22_glp1 input.rx_21_glp1 input.rx_20_glp1 input.rx_19_glp1 input.rx_18_glp1; run;
 proc sort data=input.rx18_24_glp1_long_v00; by patient_id svc_dt; run;
 
-proc print data=input.rx18_24_glp1_long_v00 (obs=30); run;
 
 * distinct number of patients (N= 1,061,808);
 proc sql; 
@@ -230,6 +202,7 @@ proc sql;
     from input.rx18_24_glp1_long_v01;
 quit; 
 
+
 * make group;
 data input.rx18_24_glp1_long_v01;
     set input.rx18_24_glp1_long_v01;
@@ -239,52 +212,6 @@ data input.rx18_24_glp1_long_v01;
     else if plan_type in ("Coupon/Voucher", "Other", "Discount Card") then group = "Others";
     else group = plan_type; 
 run;
-
-
-/*============================================================*
- | Median days from first rejection to first approved fill (IQR)
- *============================================================*/
-data rx18_24_glp1_long_v01;
-    set input.rx18_24_glp1_long_v01;
-    if rjct_grp = 0 then fill = 1;
-    else fill = 0;
-run;
-
-proc sort data=rx18_24_glp1_long_v01; by patient_id svc_dt; run;
-data rx18_24_glp1_long_v02;
-    set rx18_24_glp1_long_v01;
-    by patient_id svc_dt;
-
-    retain first0_date first1_date gap first_fill;
-    format first0_date first1_date yymmdd10.;
-
-    if first.patient_id then do;
-        first0_date  = .;
-        first1_date  = .;
-        gap          = .;
-        first_fill   = fill;   /* record the very first fill value */
-    end;
-
-    /* Only process patients whose first fill=0 */
-    if first_fill = 0 then do;
-        if fill=0 and missing(first0_date) then first0_date = svc_dt;  /* capture first date with fill=0 */        
-        if fill=1 and missing(first1_date) then first1_date = svc_dt;  /* capture first date with fill=1 */
-        if last.patient_id then do;
-            if not missing(first0_date) and not missing(first1_date) then
-                gap = first1_date - first0_date;
-            else gap = .;
-            output;
-        end;
-
-    end;
-run; /* 331129 obs */
-
-proc print data=rx18_24_glp1_long_v02 (obs=20); run;
-
-*test;
-proc means data=rx18_24_glp1_long_v02 n nmiss median q1 q3 min max; class group; var gap; run;
-
-* if gap > 30, we con; 
 
 
 /*============================================================*
@@ -302,26 +229,13 @@ run;
 proc sort data=first_claim; by patient_id svc_dt descending paid_priority; run;
 
 /* 3) Keep the first record per patient (earliest date; paid preferred if tie) */
-data first_claim;
+data input.first_claim;
     set first_claim;
     by patient_id svc_dt;
     if first.patient_id then output;
     drop paid_priority;
 run; /* 951,434 obs */
 
-data input.first_claim; set first_claim; run;
-
- * make group; 
- data input.first_claim;
-    set input.first_claim;
-    length group $50;
-    if plan_type in ("Medicaid FFS", "Medicaid MCO") then group = "Medicaid";
-    else if plan_type in ("Medicare ADV", "Medicare TM") then group = "Medicare Part D";
-    else if plan_type in ("Coupon/Voucher", "Other", "Discount Card") then group = "Others";
-    else group = plan_type; 
-run;
-
-proc print data=first_claim (obs=30); run;
 
 /*****************************
 *  retail channel
@@ -375,6 +289,57 @@ data first_claim_all; set input.rx18_24_glp1_long_v00; if first.patient_id and f
 
 
 /*============================================================*
+ | Median days from first rejection to first approved fill (IQR)
+ *============================================================*/
+data rx18_24_glp1_long_v01;
+    set input.rx18_24_glp1_long_v01;
+    if encnt_outcm_cd = "PD" then fill = 1;
+    else fill = 0;
+run;
+
+proc sort data=rx18_24_glp1_long_v01; by patient_id svc_dt; run;
+data rx18_24_glp1_long_v02;
+    set rx18_24_glp1_long_v01;
+    by patient_id svc_dt;
+
+    retain first0_date first1_date gap first_fill;
+    format first0_date first1_date yymmdd10.;
+
+    if first.patient_id then do;
+        first0_date  = .;
+        first1_date  = .;
+        gap          = .;
+        first_fill   = fill;   /* record the very first fill value */
+    end;
+
+    /* Only process patients whose first fill=0 */
+    if first_fill = 0 then do;
+        if fill=0 and missing(first0_date) then first0_date = svc_dt;  /* capture first date with fill=0 */        
+        if fill=1 and missing(first1_date) then first1_date = svc_dt;  /* capture first date with fill=1 */
+        if last.patient_id then do;
+            if not missing(first0_date) and not missing(first1_date) then
+                gap = first1_date - first0_date;
+            else gap = .;
+            output;
+        end;
+
+    end;
+run; /* 331129 obs */
+
+proc print data=rx18_24_glp1_long_v02 (obs=20); run;
+
+*test;
+proc means data=rx18_24_glp1_long_v02 n nmiss median q1 q3 min max; class group; var gap; run;
+
+* if gap > 30, we con; 
+
+
+
+
+
+
+
+/*============================================================*
  | 7) long data clean - one svc_dt can have only one row - paid priority
  *============================================================*/
  
@@ -394,249 +359,5 @@ data first_claim;
     if first.svc_dt then output;
     drop paid_priority;
 run; /* 1,061,808 obs */
+
  
- 
-/*============================================================*
- | 5) First drug day per (patient, molecule); collapse sums
- *============================================================*/
-proc sql;
-  create table work.first_day as
-  select patient_id, molecule_name, min(svc_dt) as first_drug_day format=date9.
-  from work.claims2
-  group by patient_id, molecule_name;
-quit;
-
-proc sql;
-  create table work.index_only as
-  select a.*
-  from work.claims2 a
-  inner join work.first_day b
-    on a.patient_id=b.patient_id and a.molecule_name=b.molecule_name
-   and a.svc_dt=b.first_drug_day;
-quit;
-
-/* collapse sums by patient, molecule, branded_generic, usc_5, svc_dt, pln_typ */
-proc summary data=work.index_only nway;
-  class patient_id molecule_name branded_generic usc_5 svc_dt pln_typ;
-  var PD RV RJ_Step RJ_PrAu RJ_NtCv RJ_PlLm RJ_NotForm;
-  output out=work.collapsed(drop=_type_ _freq_) sum=;
-run;
-
-/* Create sequence within day for “reshape wide” */
-proc sort data=work.collapsed;
-  by patient_id molecule_name svc_dt pln_typ;
-run;
-
-data work.coll_seq;
-  set work.collapsed;
-  by patient_id molecule_name svc_dt;
-  if first.svc_dt then count=1; else count+1;
-run;
-
-proc sort data=work.coll_seq;
-  by patient_id molecule_name branded_generic usc_5 svc_dt count;
-run;
-
-/* Reshape wide to 7 columns (PD1..PD7 etc.) */
-data work.wide;
-  set work.coll_seq;
-  by patient_id molecule_name branded_generic usc_5 svc_dt;
-
-  array PDv[7]        PD1-PD7;
-  array RVv[7]        RV1-RV7;
-  array RJ_Stepv[7]   RJ_Step1-RJ_Step7;
-  array RJ_PrAuv[7]   RJ_PrAu1-RJ_PrAu7;
-  array RJ_NtCvv[7]   RJ_NtCv1-RJ_NtCv7;
-  array RJ_PlLmv[7]   RJ_PlLm1-RJ_PlLm7;
-  array RJ_NFv[7]     RJ_NotForm1-RJ_NotForm7;
-  array PTv[7]        pln_typ1-pln_typ7;
-
-  retain PD1-PD7 RV1-RV7 RJ_Step1-RJ_Step7 RJ_PrAu1-RJ_PrAu7
-         RJ_NtCv1-RJ_NtCv7 RJ_PlLm1-RJ_PlLm7 RJ_NotForm1-RJ_NotForm7
-         pln_typ1-pln_typ7;
-
-  if first.svc_dt then do i=1 to 7;
-    PDv[i]=.; RVv[i]=.; RJ_Stepv[i]=.; RJ_PrAuv[i]=.;
-    RJ_NtCvv[i]=.; RJ_PlLmv[i]=.; RJ_NFv[i]=.; PTv[i]=.;
-  end;
-
-  if 1<=count<=7 then do;
-    PDv[count]=PD; RVv[count]=RV; RJ_Stepv[count]=RJ_Step; RJ_PrAuv[count]=RJ_PrAu;
-    RJ_NtCvv[count]=RJ_NtCv; RJ_PlLmv[count]=RJ_PlLm; RJ_NFv[count]=RJ_NotForm;
-    PTv[count]=pln_typ;
-  end;
-
-  if last.svc_dt then output;
-  drop PD RJ_: RV pln_typ i count;
-run;
-
-/* row_count = number of nonmissing plan slots */
-data work.wide2;
-  set work.wide;
-  array PT[7] pln_typ1-pln_typ7;
-  row_count=0; do i=1 to 7; if not missing(PT[i]) then row_count+1; end; drop i;
-run;
-
-/* any_paid flags */
-data work.wide2;
-  set work.wide2;
-  array PT[7] pln_typ1-pln_typ7;
-  array PDv[7] PD1-PD7;
-  any_paid_cash=0; any_paid_voucher=0; any_paid_disccard=0;
-  do k=1 to 7;
-    if PT[k]=1 and PDv[k]>0 then any_paid_cash=1;
-    if PT[k]=2 and PDv[k]>0 then any_paid_voucher=1;
-    if PT[k]=3 and PDv[k]>0 then any_paid_disccard=1;
-  end;
-run;
-
-/* Drop rows with 3+ payers (as in Stata) */
-data work.wide2; set work.wide2; if row_count>=3 then delete; run;
-
-/* If first payer is cash/discount/voucher, copy slot 2 into slot 1, then reassign plan */
-data work.wide2;
-  set work.wide2;
-
-  if pln_typ1 in (1,2,3) then do;
-    PD1=PD2; RJ_Step1=RJ_Step2; RJ_PrAu1=RJ_PrAu2; RJ_NtCv1=RJ_NtCv2;
-    RJ_PlLm1=RJ_PlLm2; RV1=RV2; RJ_NotForm1=RJ_NotForm2;
-  end;
-
-  if pln_typ1 in (1,2,3) and not missing(pln_typ2) then pln_typ1=pln_typ2;
-
-  /* Drop remaining cash/discount/voucher as payer of record */
-  if pln_typ1 in (1,2,3) then delete;
-
-  length final_payer $20;
-  final_payer=put(pln_typ1, plntyp_fmt.);
-run;
-
-/* final_day */
-data work.index_final;
-  set work.wide2;
-  length final_day $24;
-  if PD1>0 then final_day='Fill';
-  if PD1=0 and sum(RJ_Step1,RJ_PrAu1,RJ_NtCv1,RJ_PlLm1)>0 then final_day='FormularyReject';
-  if PD1>0 and sum(RJ_Step1,RJ_PrAu1,RJ_NtCv1,RJ_PlLm1)>0 then final_day='FormularyReject+Fill';
-  if RV1>0 and PD1=0 and sum(RJ_Step1,RJ_PrAu1,RJ_NtCv1,RJ_PlLm1)=0 then final_day='SoleReversal';
-  if RJ_NotForm1>0 and final_day='' then final_day='SoleNonFormRej';
-
-  year=year(svc_dt);
-run;
-
-/* Molecule-year brand/generic/TS counts */
-proc sql;
-  create table work.by_moly as
-  select molecule_name, year,
-         sum(branded_generic='G') as count_generics,
-         sum(branded_generic='B') as count_brands,
-         sum(branded_generic='T') as count_ts
-  from work.index_final
-  group by molecule_name, year;
-quit;
-
-proc sql;
-  create table work.index_final2 as
-  select a.*, b.count_generics, b.count_brands, b.count_ts
-  from work.index_final a
-  left join work.by_moly b
-    on a.molecule_name=b.molecule_name and a.year=b.year;
-quit;
-
-/* Keep molecules with no generic that year */
-data "&WP2";
-  set work.index_final2;
-  if count_generics=0;
-run;
-
-/*============================================================*
- | 5) Restrict & 0–90-day follow-up
- *============================================================*/
-data work.rj_only;
-  set "&WP2";
-  if final_day in ('FormularyReject','FormularyReject+Fill','SoleReversal');
-  i_svc_dt = svc_dt;
-  i_molecule_name = molecule_name;
-  i_branded_generic = branded_generic;
-  day0=i_svc_dt; day90=intnx('day',i_svc_dt,90);
-  format day0 day90 date9.;
-  /* drop higher suffixes as in Stata */
-  drop pln_typ3-pln_typ7 RJ_NotForm2-RJ_NotForm7 RJ_Step2-RJ_Step7
-       RJ_PrAu2-RJ_PrAu7 RJ_NtCv2-RJ_NtCv7 RJ_PlLm2-RJ_PlLm7
-       PD2-PD7 RV2-RV7;
-run;
-
-data "&WP3"; set work.rj_only; run;
-
-/* Join back to WP1 on patient_id & usc_5; keep 0–90 days */
-proc sql;
-  create table work.post90 as
-  select a.*,
-         b.svc_dt as svc_dt2 format=date9.,
-         (b.svc_dt - a.i_svc_dt) as days_from_index
-  from work.rj_only a
-  inner join "&WP1"n b
-    on a.patient_id=b.patient_id and a.usc_5=b.usc_5
-  where calculated days_from_index between 0 and 90;
-quit;
-
-data "&WP4"; set work.post90; run;
-
-/*============================================================*
- | 6) Final analytic filters & save
- *============================================================*/
-data work.final;
-  set "&WP4";
-  if year=2017 then delete;
-  if upcase(molecule_name)='NIRMATRELVIR-RITONAVIR' then delete;
-  if usc_5=82250 then delete;            /* covid */
-  if final_payer='Other' then delete;
-  if missing(final_payer) then delete;
-run;
-
-/* Drop molecules with <=1000 obs */
-proc sql;
-  create table work.mol_ct as
-  select molecule_name, count(*) as molecule_count
-  from work.final
-  group by molecule_name;
-quit;
-
-proc sql;
-  create table "&WP5" as
-  select a.*
-  from work.final a
-  inner join work.mol_ct b
-    on a.molecule_name=b.molecule_name
-  where b.molecule_count>1000;
-quit;
-
-/* month variable like Stata mofd() + %tm */
-data "&WP5";
-  set "&WP5";
-  month=intnx('month', svc_dt, 0, 'b');
-  format month yymmn6.;
-run;
-
-/*============================================================*
- | (Optional) Ravi’s analysis sketch in SAS
- *============================================================*/
-/*
-data work.wp2_med;
-  set "&WP2";
-  if index(upcase(final_payer),'MEDICARE')>0;
-run;
-
-data work.top10;
-  set work.wp2_med;
-  length top10 3; top10=0;
-  if find(molecule_name,'APIXABAN','i') or find(molecule_name,'EMPAGLIFLOZIN','i') or
-     find(molecule_name,'SITAGLIPTIN','i') or find(molecule_name,'DAPAGLIFLOZIN','i') or
-     find(molecule_name,'RIVAROXABAN','i') or find(molecule_name,'ETANERCEPT','i') or
-     find(molecule_name,'USTEKINUMAB','i') or find(molecule_name,'SACUBITRIL','i') or
-     find(molecule_name,'IBRUTINIB','i') or find(molecule_name,'INSULIN ASPART','i') then top10=1;
-  if top10=1;
-run;
-
-/* then repeat the 0–90-day block on work.top10 similarly */
-*/
