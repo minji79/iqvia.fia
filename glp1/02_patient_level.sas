@@ -5,8 +5,8 @@
  *============================================================*/
 /* Sort by patient → earliest svc_dt → prefer paid on that date */
 data rx18_24_glp1_long_v01;
-    set input.rx18_24_glp1_long_v01;        
-    if rjct_grp = 0 then paid_priority = 1;   /* 1 if rjct_grp=0, else 0 */
+    set input.rx18_24_glp1_long_v01;
+    if encnt_outcm_cd = "PD" then paid_priority = 1;   /* 1 if encnt_outcm_cd = "PD", else 0 */
     else paid_priority = 0;
 run;
 proc sort data=rx18_24_glp1_long_v01; by patient_id svc_dt descending paid_priority; run;
@@ -16,7 +16,7 @@ data input.patients_v0;
   set rx18_24_glp1_long_v01;       
   by patient_id;
   length first_glp1 after_glp1 first_plan_type after_plan_type first_plan_name after_plan_name first_model_type after_model_type first_npi first_provider_id $50;
-  retain first_glp1 after_glp1 first_plan_type after_plan_type glp1_switcher plan_switcher claim_count reject_count 
+  retain first_glp1 after_glp1 first_plan_type after_plan_type glp1_switcher plan_switcher claim_count reject_count reversed_count glp1_switch_count plan_switch_count
     first_plan_name after_plan_name first_model_type after_model_type first_date last_date glp1_switch_date plan_switch_date total_oop total_days_to_adjudct_cnt first_npi first_provider_id first_provider_zip;
   format first_date last_date glp1_switch_date plan_switch_date yymmdd10.;
   if first.patient_id then do;
@@ -32,8 +32,11 @@ data input.patients_v0;
         glp1_switch_date = .;
         plan_switcher = 0;
         plan_switch_date = .;
+		glp1_switch_count = 0;
+        plan_switch_count = 0;
         claim_count = 0;
         reject_count = 0;
+		reversed_count = 0;
         total_oop = 0;
         total_days_to_adjudct_cnt	=0;
         first_npi = npi;
@@ -45,18 +48,25 @@ data input.patients_v0;
     claim_count + 1;
     total_days_to_adjudct_cnt + days_to_adjudct_cnt;
     if rjct_grp ne 0 then reject_count + 1;
-    if rjct_grp = 0 then total_oop + final_opc_amt;
+	if encnt_outcm_cd = "RV" then reversed_count + 1;
+    if encnt_outcm_cd = "PD" then total_oop + final_opc_amt;
 
-    if molecule_name ne after_glp1 and glp1_switcher = 0 then do;
-        glp1_switch_date = svc_dt;
-        glp1_switcher = 1;
-    end;
+  	if molecule_name ne after_glp1 then do;
+        glp1_switch_count + 1;  /* count all switches */
+        if glp1_switcher = 0 then do;  /* record first switch only */
+            glp1_switch_date = svc_dt;
+            glp1_switcher = 1;
+        end;
+ 	end;
     after_glp1 = molecule_name;
 
-    if plan_type ne after_plan_type and plan_switcher = 0 then do;
-        plan_switch_date = svc_dt;
-        plan_switcher = 1;
-    end;
+    if plan_type ne after_plan_type then do;
+        plan_switch_count + 1;  /* count all switches */
+        if plan_switcher = 0 then do;  /* record first switch only */
+            plan_switch_date = svc_dt;
+            plan_switcher = 1;
+        end;
+  	end;
     after_plan_type = plan_type;
     after_plan_name = plan_name;
     after_model_type = model_type;
@@ -66,12 +76,25 @@ data input.patients_v0;
     if last.patient_id then output;
 run;
 
-proc print data=input.patients_v0 (obs=10); run;
-
 data input.patients_v0; set input.patients_v0; 
-keep patient_id first_glp1 after_glp1 first_plan_type after_plan_type glp1_switcher plan_switcher claim_count reject_count 
+keep patient_id first_glp1 after_glp1 first_plan_type after_plan_type glp1_switcher plan_switcher claim_count reject_count reversed_count glp1_switch_count plan_switch_count
     first_plan_name after_plan_name first_model_type after_model_type first_date last_date glp1_switch_date plan_switch_date total_oop total_days_to_adjudct_cnt first_npi first_provider_id first_provider_zip;
 run; /* 951,434 obs */
+
+data input.patients_v0; set input.patients_v0; 
+paid_count = claim_count - reject_count - reversed_count;
+if claim_count > 0 then pct_fill = paid_count / claim_count;
+else pct_fill = .;
+run;
+
+data year; set input.rx18_24_glp1_long_v01; year = year(svc_dt); run;
+proc means data=year n nmiss min max mean std; var year; run;
+
+proc print data=input.patients_v0 (obs=30); where paid_count = 0; run; /* one patient (30219224134) -> (-) */
+data nonfill; set input.patients_v0; if paid_count = 0; run; /* 124,013 */ 
+
+proc contents data=input.patients_v0; run;
+
 
 
 /*============================================================*
@@ -207,7 +230,7 @@ proc means data=input.patients_v0 n nmiss median q1 q3 min max;
 run;
 
 /*****************************
-* other variables
+* other variables | claim_count, reject_count, total_oop, total_days_to_adjudct_cnt
 *****************************/
 proc print data=input.patients_v0 (obs=10); run;
 
@@ -217,11 +240,7 @@ proc means data=input.patients_v0 n nmiss median q1 q3 min max;
     var total_days_to_adjudct_cnt;
 run;
 
-claim_count = 0;
-        reject_count = 0;
-        total_oop = 0;
-        total_days_to_adjudct_cnt	=0;
-        
+
 proc freq data=input.patients_v0; table glp1_switcher; run;
 proc freq data=input.patients_v0; table glp1_switcher*group; run;
 
