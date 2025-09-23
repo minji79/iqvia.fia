@@ -183,7 +183,7 @@ quit;
 
 
 /*============================================================*
- | 4) only leave paitents who have at least one paid claims (N= 951,434 -> 827,108)
+ | 4) only leave paitents who have at least one paid claims (N= 827,123 )
  *============================================================*/
 
 proc sql;
@@ -203,17 +203,6 @@ proc sql;
 quit; 
 
 
-* make group;
-data input.rx18_24_glp1_long_v01;
-    set input.rx18_24_glp1_long_v01;
-    length group $50;
-    if plan_type in ("Medicaid FFS", "Medicaid MCO") then group = "Medicaid";
-    else if plan_type in ("Medicare ADV", "Medicare TM") then group = "Medicare Part D";
-    else if plan_type in ("Coupon/Voucher", "Other", "Discount Card") then group = "Others";
-    else group = plan_type; 
-run;
-
-
 /*============================================================*
  | 5) first claim characteristics | first_claim (N= 951,434)
  *============================================================*/
@@ -221,7 +210,7 @@ run;
 
 data first_claim;
     set input.rx18_24_glp1_long_v01;        
-    if rjct_grp = 0 then paid_priority = 1;   /* 1 if rjct_grp=0, else 0 */
+    if encnt_outcm_cd = "PD" then paid_priority = 1;  
     else paid_priority = 0;
 run;
 
@@ -234,15 +223,42 @@ data input.first_claim;
     by patient_id svc_dt;
     if first.patient_id then output;
     drop paid_priority;
-run; /* 951,434 obs */
+run; /* 827,123 obs */
 
 
 /*****************************
 *  retail channel
 *****************************/
-proc contents data=input.first_claim; run;
 proc freq data=input.first_claim; table chnl_cd; run;
-proc freq data=input.first_claim; table chnl_cd*group; run;
+proc freq data=input.first_claim; table chnl_cd*plan_type /norow nopercent; run;
+
+/*****************************
+*  GLP1 types, indication
+*****************************/
+data input.first_claim; 
+    length indication $20.;
+    set input.first_claim;
+    if upcase(molecule_name) in (
+        "LIRAGLUTIDE (WEIGHT MANAGEMENT)",
+        "SEMAGLUTIDE (WEIGHT MANAGEMENT)",
+        "TIRZEPATIDE (WEIGHT MANAGEMENT)"
+    ) then indication = "obesity"; 
+    else indication = "non-obesity"; 
+run;
+data input.first_claim; 
+    length molecule $50;   /* safer length */
+    set input.first_claim;
+
+    select (upcase(molecule_name));
+        when ("LIRAGLUTIDE (WEIGHT MANAGEMENT)", "LIRAGLUTIDE") molecule = "LIRAGLUTIDE";
+        when ("TIRZEPATIDE (WEIGHT MANAGEMENT)", "TIRZEPATIDE") molecule = "TIRZEPATIDE";
+        when ("SEMAGLUTIDE (WEIGHT MANAGEMENT)", "SEMAGLUTIDE") molecule = "SEMAGLUTIDE";
+        otherwise molecule = molecule_name;  /* keep original */
+    end;
+run;
+
+proc freq data=first_claim; table molecule; run;
+proc freq data=first_claim; table molecule*plan_type /norow nopercent; run;
 
 /*****************************
 *  OOP at index
@@ -250,22 +266,27 @@ proc freq data=input.first_claim; table chnl_cd*group; run;
 *only remain valid rows for calculating OOP;
 data oop;
     set input.first_claim;
-    if final_opc_amt ne 0 and not missing(final_opc_amt);
+    if final_opc_amt ne 0 and not missing(final_opc_amt) and encnt_outcm_cd = "RV" ;
 run;
 proc means data=oop n nmiss median q1 q3 min max; var final_opc_amt; run;
 proc means data=oop n nmiss median q1 q3 min max;
-    class group;
+    class plan_type;
     var final_opc_amt;
 run;
-proc means data=input.first_claim n nmiss median q1 q3 min max; var final_opc_amt*group; run;
 
 /*****************************
 *  reason of rejections
 *****************************/
-proc freq data=input.rx18_24_glp1_long_v01; table group; run; /* all claim number */
+proc freq data=input.rx18_24_glp1_long_v01; table encnt_outcm_cd; run; /* all claim number */
+proc freq data=input.rx18_24_glp1_long_v01; table encnt_outcm_cd*plan_type  /norow nopercent; run;
 
 proc freq data=input.first_claim; table rjct_grp; run;
-proc freq data=input.first_claim; table rjct_grp*group  /norow nopercent;; run;
+proc freq data=input.first_claim; table rjct_grp*plan_type  /norow nopercent; run;
+
+proc freq data=input.first_claim; table encnt_outcm_cd; run;
+proc freq data=input.first_claim; table encnt_outcm_cd*plan_type  /norow nopercent; run;
+
+
 
 * among rejection;
 data rejection; set input.first_claim; if rjct_grp ne 0; run;
