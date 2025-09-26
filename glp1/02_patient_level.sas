@@ -1,7 +1,7 @@
 
 
 /*============================================================*
- | 1) start with the first claim data
+ | 1) start with the first claim data (N=827,123)
  *============================================================*/
 /* Sort by patient → earliest svc_dt → prefer paid on that date */
 data rx18_24_glp1_long_v01;
@@ -77,24 +77,15 @@ data input.patients_v0;
 run;
 
 data input.patients_v0; set input.patients_v0; 
-keep patient_id first_glp1 after_glp1 first_plan_type after_plan_type glp1_switcher plan_switcher claim_count reject_count reversed_count glp1_switch_count plan_switch_count
+keep patient_id days_supply_cnt first_glp1 after_glp1 first_plan_type after_plan_type glp1_switcher plan_switcher claim_count reject_count reversed_count glp1_switch_count plan_switch_count
     first_plan_name after_plan_name first_model_type after_model_type first_date last_date glp1_switch_date plan_switch_date total_oop total_days_to_adjudct_cnt first_npi first_provider_id first_provider_zip;
-run; /* 951,434 obs */
+run; /* 827,123 obs */
 
 data input.patients_v0; set input.patients_v0; 
 paid_count = claim_count - reject_count - reversed_count;
 if claim_count > 0 then pct_fill = paid_count / claim_count;
 else pct_fill = .;
 run;
-
-data year; set input.rx18_24_glp1_long_v01; year = year(svc_dt); run;
-proc means data=year n nmiss min max mean std; var year; run;
-
-proc print data=input.patients_v0 (obs=30); where paid_count = 0; run; /* one patient (30219224134) -> (-) */
-data nonfill; set input.patients_v0; if paid_count = 0; run; /* 124,013 */ 
-
-proc contents data=input.patients_v0; run;
-
 
 
 /*============================================================*
@@ -109,7 +100,12 @@ proc contents data=input.patients_v0; run;
     else if first_plan_type in ("Coupon/Voucher", "Other", "Discount Card") then group = "Others";
     else group = first_plan_type; 
 run;
- 
+
+/*****************************
+*  plan_type
+*****************************/
+proc freq data=input.patients_v0; table first_plan_type; run;
+
 /*****************************
 *  Gender
 *****************************/
@@ -157,7 +153,7 @@ data input.patients_v0; set patients_v1 (drop=patient_gender); rename patient_ge
 
 * test : 
 proc freq data=input.patients_v0; table patient_gender; run;
-proc freq data=input.patients_v0; table patient_gender*group; run;
+proc freq data=input.patients_v0; table patient_gender*first_plan_type /norow nopercent; run;
 
 /*****************************
 *  States & region based on zip codes
@@ -180,7 +176,7 @@ data input.patients_v0;
 run; /* 951,434 obs */
 
 proc freq data=input.patients_v0; table region; run;
-proc freq data=input.patients_v0; table region*group /norow nopercent; run;
+proc freq data=input.patients_v0; table region*first_plan_type /norow nopercent; run;
 
 /*****************************
 *  Age at initiation;
@@ -220,12 +216,12 @@ proc sql;
     from input.patients_v0 as a
 	left join id_age as b
  	on a.patient_id = b.patient_id;
- quit; /* 951,434 obs */
+ quit; /* 827,123 obs */
 
 * test : 
 proc means data=input.patients_v0 n nmiss median q1 q3 min max; var age_at_init; run;
 proc means data=input.patients_v0 n nmiss median q1 q3 min max;
-    class group;
+    class first_plan_type;
     var age_at_init;
 run;
 
@@ -234,18 +230,43 @@ run;
 *****************************/
 proc print data=input.patients_v0 (obs=10); run;
 
-proc means data=input.patients_v0 n nmiss median q1 q3 min max; var total_days_to_adjudct_cnt;
+proc means data=input.patients_v0 n nmiss median q1 q3 min max; var days_supply_cnt;
 proc means data=input.patients_v0 n nmiss median q1 q3 min max;
-    class group;
-    var total_days_to_adjudct_cnt;
+    class first_plan_type;
+    var days_supply_cnt;
 run;
 
 
 proc freq data=input.patients_v0; table glp1_switcher; run;
-proc freq data=input.patients_v0; table glp1_switcher*group; run;
-
-proc freq data=input.patients_v0; table plan_switcher; run;
-proc freq data=input.patients_v0; table plan_switcher*group; run;
+proc freq data=input.patients_v0; table region*first_plan_type /norow nopercent; run;
 
 
-proc print data=input.patients_v0 (obs=10); run;
+/*==========================*
+ |  Discontinuation
+ *==========================*/
+
+proc sql; 
+  create table input.patients_v0 as
+  select a.*, b1.discontinuation1, b1.disc1_date, b2.discontinuation2, b2.disc2_date
+  from input.patients_v0 as a
+  left join disc_patient_v1 as b1 on a.patient_id = b1.patient_id
+  left join disc_patient_v2 as b2 on a.patient_id = b2.patient_id;  
+quit;
+
+data input.patients_v0; set input.patients_v0; if discontinuation1 = 0 and discontinuation2 =0 then discontinuation =0; else discontinuation =1; run;
+data input.patients_v0; set input.patients_v0; if discontinuation =1 then disc_date = min(disc1_date, disc2_date); else disc_date =.; format disc_date mmddyy10.; run;
+
+proc freq data=input.patients_v0; table discontinuation; run;
+proc freq data=input.patients_v0; table discontinuation*first_plan_type /norow nopercent; run;
+
+
+
+
+
+
+data patients_v1; set patients_v1; format first_date last_date glp1_switch_date plan_switch_date mmddyy10.; run;
+data patients_v1; set patients_v1; if discontinuation = 1 then time_to_disc_in_month = (disc_date - first_date)/31; else time_to_disc_in_month =.;run;
+proc means data=patients_v1 n nmiss min max mean std median q1 q3; var time_to_disc_in_month; run;
+
+proc print data=patients_v1 (obs=10); run;
+
