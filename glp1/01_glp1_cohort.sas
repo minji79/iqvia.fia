@@ -183,9 +183,53 @@ quit;
 
 
 /*============================================================*
- | 4) only leave paitents who have at least one paid claims (N= 827,123 )
+ | 4) merge with age file  
  *============================================================*/
+* clean the patient_birth_year;
+proc sql;
+    create table id_age as
+    select distinct patient_id, max(patient_birth_year) as patient_birth_year
+    from biosim.patient
+    group by patient_id;
+quit; /* 12170856 obs */
+proc means data=id_age n nmiss min max mean std median q1 q3; var patient_birth_year; run;
 
+proc sql;
+    select count(distinct patient_id) as id_count
+    from id_age;
+quit; /* 12170856 obs */
+
+* merge with the dataset without duplication;
+proc sql; 
+	create table input.rx18_24_glp1_long_v00 as
+ 	select a.*, b.patient_birth_year
+    from input.rx18_24_glp1_long_v00 as a
+	left join id_age as b
+ 	on a.patient_id = b.patient_id;
+ quit; /* 24,432,775 */
+
+* calculate age at initiation and make invalid data null;
+data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00;  age_at_claim = year - patient_birth_year; run;
+/* proc means data=input.rx18_24_glp1_long_v00 n nmiss min max mean std median q1 q3; var age_at_claim; run; */
+
+
+/*============================================================*
+ | 5) exclude invalid data in plan_id OR molecule_name 
+ *============================================================*/
+data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if not missing(plan_id); run; /* - 1926 */
+data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if not missing(molecule_name); run; /* - 39 */
+
+ /*============================================================*
+ | 6) exclude claims with age < 18
+ *============================================================*/
+ * adults: 18 <= age_at_claim < 120;
+ data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if 18 <= age_at_claim < 120; run; /* 24432775 -> 24,396,384 (18 under) -> 24,222,502 (invalid information)*/
+
+/* 24,220,537 obs*/
+
+/*============================================================*
+ | 7) only leave paitents who have at least one approved claims (N= 940,621)
+ *============================================================*/
 proc sql;
     create table input.rx18_24_glp1_long_v01 as
     select *
@@ -193,21 +237,69 @@ proc sql;
     where a.patient_id in (
         select distinct patient_id
         from input.rx18_24_glp1_long_v00
-        where encnt_outcm_cd = "PD"
+        where rjct_grp=0
     );
-quit; /* 23,318,756 obs */
+quit; /* 24,220,537 -> 23,709,951 obs */
 
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx18_24_glp1_long_v01;
-quit; 
+quit;  /* 940,621 individuals */
+
+/*============================================================*
+ | 7) only leave paitents who have at least one paid claims (N= 817,897)
+ *============================================================*/
+proc sql;
+    create table input.rx18_24_glp1_long_v01 as
+    select *
+    from input.rx18_24_glp1_long_v01 as a
+    where a.patient_id in (
+        select distinct patient_id
+        from input.rx18_24_glp1_long_v00
+        where encnt_outcm_cd = "PD"
+    );
+quit; /* 23,709,951 -> 23,117,173 obs*/
+
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from input.rx18_24_glp1_long_v01;
+quit;  /* 817,897 individuals */
 
 
 /*============================================================*
- | 5) first claim characteristics | first_claim (N= 951,434)
+ | 8) add glp1 indication based on molecule_name & molecule
+ *============================================================*/
+
+data input.rx18_24_glp1_long_v01;
+    set input.rx18_24_glp1_long_v01;
+    length indication $20.;
+    
+    if upcase(molecule_name) in (
+        "LIRAGLUTIDE (WEIGHT MANAGEMENT)",
+        "SEMAGLUTIDE (WEIGHT MANAGEMENT)",
+        "TIRZEPATIDE (WEIGHT MANAGEMENT)"
+    ) then indication = "obesity"; 
+    else indication = "non-obesity"; 
+run;
+
+data input.rx18_24_glp1_long_v01;
+    set input.rx18_24_glp1_long_v01;
+    length molecule $50;
+
+    select (upcase(molecule_name));
+        when ("LIRAGLUTIDE (WEIGHT MANAGEMENT)", "LIRAGLUTIDE") molecule = "LIRAGLUTIDE";
+        when ("TIRZEPATIDE (WEIGHT MANAGEMENT)", "TIRZEPATIDE") molecule = "TIRZEPATIDE";
+        when ("SEMAGLUTIDE (WEIGHT MANAGEMENT)", "SEMAGLUTIDE") molecule = "SEMAGLUTIDE";
+        otherwise molecule = molecule_name;  /* keep original */
+    end;
+run;
+
+
+
+/*============================================================*
+ | 9) first claim characteristics | first_claim (N= 817,897)
  *============================================================*/
 * trial 1 | first_claim - remain only one of the first claim. if patients have multiple claims, only included paid one;
-
 data first_claim;
     set input.rx18_24_glp1_long_v01;        
     if encnt_outcm_cd = "PD" then paid_priority = 1;  
@@ -223,7 +315,7 @@ data input.first_claim;
     by patient_id svc_dt;
     if first.patient_id then output;
     drop paid_priority;
-run; /* 827,123 obs */
+run; /* 817,897 obs */
 
 
 /*****************************
@@ -235,28 +327,6 @@ proc freq data=input.first_claim; table chnl_cd*plan_type /norow nopercent; run;
 /*****************************
 *  GLP1 types, indication
 *****************************/
-data input.first_claim; 
-    length indication $20.;
-    set input.first_claim;
-    if upcase(molecule_name) in (
-        "LIRAGLUTIDE (WEIGHT MANAGEMENT)",
-        "SEMAGLUTIDE (WEIGHT MANAGEMENT)",
-        "TIRZEPATIDE (WEIGHT MANAGEMENT)"
-    ) then indication = "obesity"; 
-    else indication = "non-obesity"; 
-run;
-data input.first_claim; 
-    length molecule $50;   /* safer length */
-    set input.first_claim;
-
-    select (upcase(molecule_name));
-        when ("LIRAGLUTIDE (WEIGHT MANAGEMENT)", "LIRAGLUTIDE") molecule = "LIRAGLUTIDE";
-        when ("TIRZEPATIDE (WEIGHT MANAGEMENT)", "TIRZEPATIDE") molecule = "TIRZEPATIDE";
-        when ("SEMAGLUTIDE (WEIGHT MANAGEMENT)", "SEMAGLUTIDE") molecule = "SEMAGLUTIDE";
-        otherwise molecule = molecule_name;  /* keep original */
-    end;
-run;
-
 proc freq data=first_claim; table molecule; run;
 proc freq data=first_claim; table molecule*plan_type /norow nopercent; run;
 
