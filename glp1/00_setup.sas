@@ -65,6 +65,13 @@ proc import datafile="/dcs07/hpm/data/iqvia_fia/ref/plan.dta" out=input.plan dbm
 
 proc import datafile="/dcs07/hpm/data/iqvia_fia/full_raw/LevyPDRJRV.dta" out=input.LevyPDRJRV dbms=stata replace; run;
 
+proc import 
+    datafile="/dcs04/hpm/data/iqvia_fia/ref/product.dta"
+    out=biosim.product
+    dbms=dta 
+    replace;
+run;
+
 /************************************************************************************
 	3.   Read other files
 ************************************************************************************/
