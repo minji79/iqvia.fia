@@ -29,6 +29,28 @@ run;
 %yearly(year=19);
 %yearly(year=18);
 
+/* import 2017 data */
+data rx_17_glp1; set biosim.rxfact2018; if year(svc_dt) = 2017; run; /* 214718703 obs */
+
+data glp1; set biosim.product; if molecule_name in ("DULAGLUTIDE", "EXENATIDE", "LIRAGLUTIDE", "LIRAGLUTIDE (WEIGHT MANAGEMENT)", "LIXISENATIDE",
+"SEMAGLUTIDE", "SEMAGLUTIDE (WEIGHT MANAGEMENT)", "TIRZEPATIDE", "TIRZEPATIDE (WEIGHT MANAGEMENT)"); run;
+
+proc sql;
+  create table input.rx_17_glp1 as
+  select a.*, 
+         b.molecule_name, 
+         b.package_size, 
+         b.strength
+  from rx_17_glp1 as a
+  inner join glp1 as b
+    on a.ndc = b.product_ndc;
+quit; /* 854,405 */
+
+
+proc contents data=input.rx_24_glp1; run;
+proc print data=biosim.product (obs=5); run;
+
+proc freq data=input.rx_17_glp1; table molecule_name; run;
 
 /* merge with from LevyPDRJRV */
 %macro yearly(year=);
@@ -50,7 +72,7 @@ proc sort data=input.rx_&year._glp1 nodupkey; by claim_id; run;
 %yearly(year=20);
 %yearly(year=19);
 %yearly(year=18);
-
+%yearly(year=17);
 
 /*============================================================*
  | 2) Classify rejection group (rjct_grp) & encounter flags
@@ -101,6 +123,7 @@ run;
 %yearly(year=20); /* 1754725 obs */
 %yearly(year=19); /* 1453451 obs */
 %yearly(year=18); /* 1176157 obs */
+%yearly(year=17); /* 854405 obs */
 
 
 /*============================================================*
@@ -146,6 +169,7 @@ run;
 %yearly(year=20); /* 1754725 obs */
 %yearly(year=19); /* 1453451 obs */
 %yearly(year=18); /* 1176157 obs */
+%yearly(year=17);
 
 * align with the data type of daw_cd; 
 %macro yearly(year=);
@@ -167,11 +191,12 @@ run;
 %yearly(year=21);
 %yearly(year=20); 
 %yearly(year=19); 
-%yearly(year=18); 
+%yearly(year=18);
+%yearly(year=17);
 
 
 /* merge all dataset */
-data input.rx18_24_glp1_long_v00; set input.rx_24_glp1 input.rx_23_glp1 input.rx_22_glp1 input.rx_21_glp1 input.rx_20_glp1 input.rx_19_glp1 input.rx_18_glp1; run;
+data input.rx18_24_glp1_long_v00; set input.rx_24_glp1 input.rx_23_glp1 input.rx_22_glp1 input.rx_21_glp1 input.rx_20_glp1 input.rx_19_glp1 input.rx_18_glp1 input.rx_17_glp1; run;
 proc sort data=input.rx18_24_glp1_long_v00; by patient_id svc_dt; run;
 
 
