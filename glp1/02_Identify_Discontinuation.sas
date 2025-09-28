@@ -11,32 +11,6 @@ data rx18_24_glp1_long_paid; set input.rx18_24_glp1_long_v01; if encnt_outcm_cd 
 proc sort data=rx18_24_glp1_long_paid; by patient_id svc_dt; run;
 
 proc print data=rx18_24_glp1_long_paid (obs=10); var days_supply_cnt dspnsd_qty; run;
-*;
-
-data rx18_24_glp1_long_paid_v2;
-    set rx18_24_glp1_long_paid;
-    format prev_svc_dt disc2_date mmddyy10.;
-    by patient_id;
-
-    prev_svc_dt = lag(svc_dt);
-    if first.patient_id then do;
-        prev_svc_dt = .;
-        stockpiling = days_supply_cnt;
-    end;
-    else do;
-        gap = svc_dt - prev_svc_dt;
-        stockpiling = days_supply_cnt - gap;
-    end;
-
-    if stockpiling > 30 then stockpiling_adj = 30; else stockpiling_adj = stockpiling;
-    if gap >= (60 + stockpiling_adj) then discontinuation2 = 1; else discontinuation2 = 0;
-    if discontinuation2 = 1 then disc2_date = svc_dt; else disc2_date = .;
-
-run;
-
-proc print data=rx18_24_glp1_long_paid_v2 (obs=10); var patient_id svc_dt gap days_supply_cnt stockpiling stockpiling_adj discontinuation2 disc2_date; run;
-proc print data=rx18_24_glp1_long_paid_v2 (obs=10); var patient_id svc_dt gap days_supply_cnt stockpiling stockpiling_adj discontinuation2 disc2_date; where discontinuation2=1; run;
-
 
 /*==========================*
  |  Definition 1; GAP >=60 (with consideration of 30-days stockpiling)
@@ -129,6 +103,34 @@ data disc_patient_v2; set disc_patient_v2; if missing(disc2_date) then disc2_dat
 proc print data=disc_patient_v2 (obs=10); run;
 
 proc freq data=disc_patient_v2; table discontinuation2; run;
+
+
+/*
+data rx18_24_glp1_long_paid_v2;
+    set rx18_24_glp1_long_paid;
+    format prev_svc_dt disc2_date mmddyy10.;
+    by patient_id;
+
+    prev_svc_dt = lag(svc_dt);
+    if first.patient_id then do;
+        prev_svc_dt = .;
+        stockpiling = days_supply_cnt;
+    end;
+    else do;
+        gap = svc_dt - prev_svc_dt;
+        stockpiling = days_supply_cnt - gap;
+    end;
+
+    if stockpiling > 30 then stockpiling_adj = 30; else stockpiling_adj = stockpiling;
+    if gap >= (60 + stockpiling_adj) then discontinuation2 = 1; else discontinuation2 = 0;
+    if discontinuation2 = 1 then disc2_date = svc_dt; else disc2_date = .;
+
+run;
+
+proc print data=rx18_24_glp1_long_paid_v2 (obs=10); var patient_id svc_dt gap days_supply_cnt stockpiling stockpiling_adj discontinuation2 disc2_date; run;
+proc print data=rx18_24_glp1_long_paid_v2 (obs=10); var patient_id svc_dt gap days_supply_cnt stockpiling stockpiling_adj discontinuation2 disc2_date; where discontinuation2=1; run;
+
+*/
 
 
 /*==========================*
