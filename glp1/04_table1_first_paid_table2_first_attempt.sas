@@ -76,8 +76,37 @@ data input.first_attempt;
 run; /* 817,897 obs */
 
 
-*;
-data first_date_reject_fill; set first_attempt; if 
+/* 4) count people who got approved glp1 after the first rejection in the same date  */
+proc sort data=first_attempt; by patient_id svc_dt;  run;
+data first_attempt_firstdate;
+    set first_attempt;
+    by patient_id svc_dt;
+
+    /* Identify the first date per patient */
+    if first.patient_id then first_date = svc_dt;
+    retain first_date;
+
+    /* Keep only rows where svc_dt = first_date */
+    if svc_dt = first_date;
+run;
+
+
+proc sql;
+    create table first_attempt_firstdate_v1 as
+    select a.patient_id,
+           count(*) as count_claims
+    from first_attempt_firstdate as a
+    where a.patient_id in (
+        select patient_id
+        from input.first_attempt
+        where encnt_outcm_cd = "RJ"
+    )
+    group by a.patient_id;
+quit;
+
+proc print data=first_attempt_firstdate_v1 (obs=10); run;
+data first_attempt_firstdate_v2; set first_attempt_firstdate_v1; if count_claims > 1; run; /* 91074 among 184060 */
+
 
 /*****************************
 *  distribution by plan_type
