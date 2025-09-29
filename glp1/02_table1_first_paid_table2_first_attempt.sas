@@ -53,51 +53,53 @@ run;
 
 
 
-
-
-
 /*============================================================*
- | 1) first attempt (their first try to fill) -> claim characteristics | first_claim (N= 817,897)
+ |      TABLE 2 - first attempt (their first try to fill) 
  *============================================================*/
-* trial 1 | first_claim - remain only one of the first claim. if patients have multiple claims, only included paid one;
-data first_claim;
+
+data first_attempt;
     set input.rx18_24_glp1_long_v01;        
-    if encnt_outcm_cd = "PD" then paid_priority = 1;  
+    if encnt_outcm_cd = "PD" then paid_priority = 2;  
+    else if encnt_outcm_cd = "RV" then paid_priority = 1;  
     else paid_priority = 0;
 run;
+proc sort data=first_attempt; by patient_id svc_dt descending paid_priority;  run;
 
-/* 2) Sort by patient → earliest svc_dt → prefer paid on that date */
-proc sort data=first_claim; by patient_id svc_dt descending paid_priority; run;
+proc print data=first_attempt (obs=30); var patient_id svc_dt encnt_outcm_cd paid_priority; run;
 
 /* 3) Keep the first record per patient (earliest date; paid preferred if tie) */
-data input.first_claim;
-    set first_claim;
+data input.first_attempt;
+    set first_attempt;
     by patient_id svc_dt;
     if first.patient_id then output;
     drop paid_priority;
 run; /* 817,897 obs */
 
 
+data first_date_all;
+    set first_attempt;
+    by patient_id svc_dt;
+    if first.svc_dt then output;
+run; /* 817,897 obs */
 
 /*****************************
-*  retail channel
+*  distribution by plan_type
 *****************************/
-proc freq data=input.first_claim; table chnl_cd; run;
-proc freq data=input.first_claim; table chnl_cd*plan_type /norow nopercent; run;
+proc freq data=input.first_attempt; table first_plan_type; run;
 
-/*****************************
-*  GLP1 types, indication
-*****************************/
-proc freq data=first_claim; table molecule; run;
-proc freq data=first_claim; table molecule*plan_type /norow nopercent; run;
+proc freq data=input.first_attempt; table encnt_outcm_cd; run;
+proc freq data=input.first_attempt; table encnt_outcm_cd*plan_type /norow nopercent; run;
+
+
+
 
 /*****************************
 *  OOP at index
 *****************************/
 *only remain valid rows for calculating OOP;
 data oop;
-    set input.first_claim;
-    if final_opc_amt ne 0 and not missing(final_opc_amt) and encnt_outcm_cd = "RV" ;
+    set input.first_attempt;
+    if not missing(final_opc_amt) and encnt_outcm_cd = "RV" ;
 run;
 proc means data=oop n nmiss median q1 q3 min max; var final_opc_amt; run;
 proc means data=oop n nmiss median q1 q3 min max;
