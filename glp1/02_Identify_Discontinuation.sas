@@ -7,7 +7,7 @@ dspnsd_qty
  |   - remain only paid claims (N=827,108)
  *============================================================*/
 
-data rx18_24_glp1_long_paid; set input.rx18_24_glp1_long_v01; if encnt_outcm_cd ="PD"; run; /* 15792746 -> 10219243 obs */
+data rx18_24_glp1_long_paid; set input.rx18_24_glp1_long_v01; if encnt_outcm_cd ="PD"; run; /* 10559359 obs */
 proc sort data=rx18_24_glp1_long_paid; by patient_id svc_dt; run;
 
 proc print data=rx18_24_glp1_long_paid (obs=10); var days_supply_cnt dspnsd_qty; run;
@@ -55,9 +55,6 @@ proc sort data=disc_patient_v1 nodupkey; by patient_id; run;
 data disc_patient_v1; set disc_patient_v1; if missing(disc1_date) then disc1_date = '31DEC9999'd; format disc1_date mmddyy10.; run;
 
 proc freq data=disc_patient_v1; table discontinuation1; run;
-proc freq data=disc_patient_v2; table discontinuation2; run;
-proc print data=disc_patient_v1(obs=10); run;
-
 
 
 /*==========================*
@@ -84,15 +81,16 @@ data rx18_24_glp1_long_paid_v2;
     if last.patient_id then output;
 run;
 
+
 data rx18_24_glp1_long_paid_v2;
     set rx18_24_glp1_long_paid_v2;
     format disc2_date mmddyy10.;
    
-    if discontinuation2 = ((study_end_date - last_date) > 88) then discontinuation2 = 1; else discontinuation2 = 0;
+    if (study_end_date - last_date) > 70 then discontinuation2 = 1; else discontinuation2 = 0;
     if discontinuation2 = 1 then disc2_date = svc_dt; else disc2_date = .;
     
 run;
-
+proc print data=rx18_24_glp1_long_paid_v2 (obs=10); var patient_id svc_dt days_supply_cnt discontinuation2 disc2_date; run;
 proc print data=rx18_24_glp1_long_paid_v2 (obs=10); var patient_id svc_dt days_supply_cnt discontinuation2 disc2_date; where discontinuation2=1; run;
 
 
@@ -100,37 +98,8 @@ proc print data=rx18_24_glp1_long_paid_v2 (obs=10); var patient_id svc_dt days_s
 data disc_patient_v2; set rx18_24_glp1_long_paid_v2; keep patient_id discontinuation2 disc2_date; run;
 proc sort data=disc_patient_v2 nodupkey; by patient_id; run;
 data disc_patient_v2; set disc_patient_v2; if missing(disc2_date) then disc2_date = '31DEC9999'd; format disc2_date mmddyy10.; run;
-proc print data=disc_patient_v2 (obs=10); run;
 
 proc freq data=disc_patient_v2; table discontinuation2; run;
-
-
-/*
-data rx18_24_glp1_long_paid_v2;
-    set rx18_24_glp1_long_paid;
-    format prev_svc_dt disc2_date mmddyy10.;
-    by patient_id;
-
-    prev_svc_dt = lag(svc_dt);
-    if first.patient_id then do;
-        prev_svc_dt = .;
-        stockpiling = days_supply_cnt;
-    end;
-    else do;
-        gap = svc_dt - prev_svc_dt;
-        stockpiling = days_supply_cnt - gap;
-    end;
-
-    if stockpiling > 30 then stockpiling_adj = 30; else stockpiling_adj = stockpiling;
-    if gap >= (60 + stockpiling_adj) then discontinuation2 = 1; else discontinuation2 = 0;
-    if discontinuation2 = 1 then disc2_date = svc_dt; else disc2_date = .;
-
-run;
-
-proc print data=rx18_24_glp1_long_paid_v2 (obs=10); var patient_id svc_dt gap days_supply_cnt stockpiling stockpiling_adj discontinuation2 disc2_date; run;
-proc print data=rx18_24_glp1_long_paid_v2 (obs=10); var patient_id svc_dt gap days_supply_cnt stockpiling stockpiling_adj discontinuation2 disc2_date; where discontinuation2=1; run;
-
-*/
 
 
 /*==========================*
