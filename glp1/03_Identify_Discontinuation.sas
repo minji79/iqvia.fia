@@ -81,12 +81,11 @@ data rx18_24_glp1_long_paid_v2;
     if last.patient_id then output;
 run;
 
-
 data rx18_24_glp1_long_paid_v2;
     set rx18_24_glp1_long_paid_v2;
     format disc2_date mmddyy10.;
    
-    if (study_end_date - last_date) > 70 then discontinuation2 = 1; else discontinuation2 = 0;
+    if (study_end_date - last_date) > 90 then discontinuation2 = 1; else discontinuation2 = 0;
     if discontinuation2 = 1 then disc2_date = svc_dt; else disc2_date = .;
     
 run;
@@ -113,18 +112,50 @@ proc sql;
   left join disc_patient_v1 as b1 on a.patient_id = b1.patient_id
   left join disc_patient_v2 as b2 on a.patient_id = b2.patient_id;  
 quit;
-
 data patients_v1; set patients_v1; if discontinuation1 = 0 and discontinuation2 =0 then discontinuation =0; else discontinuation =1; run;
 data patients_v1; set patients_v1; if discontinuation =1 then disc_date = min(disc1_date, disc2_date); else disc_date =.; format disc_date mmddyy10.; run;
 
-proc freq data=patients_v1; table discontinuation; run;
-proc freq data=patients_v1; table discontinuation1*discontinuation2; run;
+data patients_v1; set patients_v1; if (last_date - disc_date) <= 365 then disc_at_1y =1; else disc_at_1y =0; run; 
+data patients_v1; set patients_v1; if (last_date - disc_date) <= 365*2 then disc_at_2y =1; else disc_at_2y =0; run; 
+data patients_v1; set patients_v1; if (last_date - disc_date) <= 365/2 then disc_at_6m =1; else disc_at_6m =0; run; 
 
+data input.patients_v1; set patients_v1; run;
+
+
+/*==========================*
+ |  discontinuation at 1 yr
+ *==========================*/
+proc freq data=input.patients_v1; table disc_at_1y; run;
+
+* by first_indication;
+proc freq data=input.patients_v1; table disc_at_1y*first_indication /norow nopercent; run;
+
+data subgroup; set input.patients_v1; if first_indication ="obesity"; run;
+proc freq data=subgroup; table disc_at_1y*first_plan_type /norow nopercent; run;
+
+* by first_payer;
+proc freq data=input.patients_v1; table disc_at_1y*first_plan_type /norow nopercent; run;
+
+/*==========================*
+ |  discontinuation at 6 months
+ *==========================*/
+proc freq data=patients_v1; table disc_at_6m; run;
+
+* by first_indication;
+proc freq data=input.patients_v1; table disc_at_6m*first_indication /norow nopercent; run;
+
+* by first_payer;
+proc freq data=input.patients_v1; table disc_at_6m*first_plan_type /norow nopercent; run;
+
+
+ /*==========================*
+ |  discontinuation at 1 yr
+ *==========================*/
 data patients_v1; set patients_v1; format first_date last_date glp1_switch_date plan_switch_date mmddyy10.; run;
 data patients_v1; set patients_v1; if discontinuation = 1 then time_to_disc_in_month = (disc_date - first_date)/31; else time_to_disc_in_month =.;run;
 proc means data=patients_v1 n nmiss min max mean std median q1 q3; var time_to_disc_in_month; run;
 
 proc print data=patients_v1 (obs=10); run;
 
-
+proc freq data=input.patients_v1; table discontinuation*first_plan_type /norow nopercent; run;
 
