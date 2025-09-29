@@ -76,11 +76,8 @@ data input.first_attempt;
 run; /* 817,897 obs */
 
 
-data first_date_all;
-    set first_attempt;
-    by patient_id svc_dt;
-    if first.svc_dt then output;
-run; /* 817,897 obs */
+*;
+data first_date_reject_fill; set first_attempt; if 
 
 /*****************************
 *  distribution by plan_type
@@ -91,15 +88,13 @@ proc freq data=input.first_attempt; table encnt_outcm_cd; run;
 proc freq data=input.first_attempt; table encnt_outcm_cd*plan_type /norow nopercent; run;
 
 
-
-
 /*****************************
 *  OOP at index
 *****************************/
 *only remain valid rows for calculating OOP;
 data oop;
     set input.first_attempt;
-    if not missing(final_opc_amt) and encnt_outcm_cd = "RV" ;
+    if not missing(final_opc_amt) and encnt_outcm_cd = "PD" ;
 run;
 proc means data=oop n nmiss median q1 q3 min max; var final_opc_amt; run;
 proc means data=oop n nmiss median q1 q3 min max;
@@ -108,37 +103,12 @@ proc means data=oop n nmiss median q1 q3 min max;
 run;
 
 /*****************************
-*  reason of rejections
+*  reason of rejections among rejection
 *****************************/
-proc freq data=input.rx18_24_glp1_long_v01; table encnt_outcm_cd; run; /* all claim number */
-proc freq data=input.rx18_24_glp1_long_v01; table encnt_outcm_cd*plan_type  /norow nopercent; run;
-
-proc freq data=input.first_claim; table rjct_grp; run;
-proc freq data=input.first_claim; table rjct_grp*plan_type  /norow nopercent; run;
-
-proc freq data=input.first_claim; table encnt_outcm_cd; run;
-proc freq data=input.first_claim; table encnt_outcm_cd*plan_type  /norow nopercent; run;
-
-
-
-* among rejection;
-data rejection; set input.first_claim; if rjct_grp ne 0; run;
+data rejection; set input.first_attempt; if rjct_grp ne 0; run;
 proc freq data=rejection; table rjct_grp; run;
-proc freq data=rejection; table rjct_grp*group  /norow nopercent;; run;
+proc freq data=rejection; table rjct_grp*plan_type  /norow nopercent; run;
 
-proc freq data=input.first_claim; table plan_type; run;
-proc freq data=input.first_claim; table molecule_name; run;
-proc freq data=input.first_claim; table molecule_name*plan_type; run;
-
-
-
-
-/*============================================================*
- | 6) What happen on the first date of initiation? | first_claim_all
- *============================================================*/
-data first_claim_all; set input.rx18_24_glp1_long_v00; if first.patient_id and first.svc_dt; run; 
-
-* how many claims people have at the first date of dispense?;
 
 
 
@@ -180,10 +150,11 @@ data rx18_24_glp1_long_v02;
     end;
 run; /* 331129 obs */
 
-proc print data=rx18_24_glp1_long_v02 (obs=20); run;
+proc print data=rx18_24_glp1_long_v02 (obs=20); var patient_id svc_dt first0_date first1_date first_fill gap; run;
 
 *test;
-proc means data=rx18_24_glp1_long_v02 n nmiss median q1 q3 min max; class group; var gap; run;
+proc means data=rx18_24_glp1_long_v02 n nmiss median q1 q3 min max; var gap; run;
+proc means data=rx18_24_glp1_long_v02 n nmiss median q1 q3 min max; class plan_type; var gap; run;
 
 * if gap > 30, we con; 
 
