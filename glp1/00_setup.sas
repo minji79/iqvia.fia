@@ -29,6 +29,8 @@ libname red "/dcs07/hpm/data/iqvia_fia/reduced";   /* reference files */
 libname glp1 "/dcs04/hpm/data/iqvia_fia/glp1_paper/data";
 libname biosim "/dcs07/hpm/data/iqvia_fia/biosim";   /* for reference files */
 
+libname fast "/fastscratch/myscratch/mkim";   /* my fastbarch with 1 TB memory */
+
 /*
 libname tuto "/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/stata/data";   
 libname auth_gen "/dcs07/hpm/data/iqvia_fia/auth_generics";
