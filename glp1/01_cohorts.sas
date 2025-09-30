@@ -238,21 +238,27 @@ data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00;  age_at_claim
 proc means data=input.rx18_24_glp1_long_v00 n nmiss min max mean std median q1 q3; var age_at_claim; run;
 
 /*============================================================*
- | 5) exclude invalid data in plan_id OR molecule_name 
+ | 5) exclude invalid data in molecule_name 
  *============================================================*/
-data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if not missing(plan_id); run; /* - 2840 */
 data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if not missing(molecule_name); run; /* - 39 */
 
  /*============================================================*
  | 6) exclude claims with age < 18
  *============================================================*/
  * adults: 18 <= age_at_claim < 120;
-data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if 18 <= age_at_claim < 120; run;
+data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if 18 <= age_at_claim; run;
+data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if age_at_claim < 120; run;
 
-/* 25,061,630 obs*/
+/* 25,064,421 obs*/
+
+* distinct number of adult patients before excluding reversed and rejected claims (N= 1,061,808);
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from input.rx18_24_glp1_long_v00;
+quit;
 
 /*============================================================*
- | 7) only leave paitents who have at least one approved claims (N= 955,922)
+ | 7) only leave paitents who have at least one approved claims (N= 956,043)
  *============================================================*/
 proc sql;
     create table input.rx18_24_glp1_long_v01 as
@@ -263,15 +269,15 @@ proc sql;
         from input.rx18_24_glp1_long_v00
         where rjct_grp=0
     );
-quit; /* 24,220,537 -> 24,541,224 obs */
+quit; /* 24,544,101 obs */
 
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx18_24_glp1_long_v01;
-quit;  /* 940,621 -> 955,922 individuals */
+quit;  /* 956,043 individuals */
 
 /*============================================================*
- | 7) only leave paitents who have at least one paid claims (N= 817,897)
+ | 7) only leave paitents who have at least one paid claims (N= 832,589)
  *============================================================*/
 proc sql;
     create table input.rx18_24_glp1_long_v01 as
@@ -287,7 +293,7 @@ quit; /* 23,709,951 -> 23,945,456 obs*/
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx18_24_glp1_long_v01;
-quit;  /* 832,454 individuals */
+quit;  /* 832,589 individuals */
 
 
 /*============================================================*
@@ -320,7 +326,7 @@ run;
 
 
 /*****************************
-*  States & region based on zip codes
+*  9) add States & region based on zip codes
 *****************************/
 data input.rx18_24_glp1_long_v01;
     set input.rx18_24_glp1_long_v01;
@@ -339,168 +345,59 @@ data input.rx18_24_glp1_long_v01;
     end;
 run;
 
-proc freq data=input.patients_v0; table region; run;
-proc freq data=input.patients_v0; table region*first_plan_type /norow nopercent; run;
-
-
-
-
-
-
-
-/*============================================================*
- | 9) first claim characteristics | first_claim (N= 817,897)
- *============================================================*/
-* trial 1 | first_claim - remain only one of the first claim. if patients have multiple claims, only included paid one;
-data first_claim;
-    set input.rx18_24_glp1_long_v01;        
-    if encnt_outcm_cd = "PD" then paid_priority = 1;  
-    else paid_priority = 0;
-run;
-
-/* 2) Sort by patient → earliest svc_dt → prefer paid on that date */
-proc sort data=first_claim; by patient_id svc_dt descending paid_priority; run;
-
-/* 3) Keep the first record per patient (earliest date; paid preferred if tie) */
-data input.first_claim;
-    set first_claim;
-    by patient_id svc_dt;
-    if first.patient_id then output;
-    drop paid_priority;
-run; /* 817,897 obs */
-
 
 /*****************************
-*  retail channel
+*  10) add patients gender
 *****************************/
-proc freq data=input.first_claim; table chnl_cd; run;
-proc freq data=input.first_claim; table chnl_cd*plan_type /norow nopercent; run;
+/* 1) make patient - gender table without any duplication */
+* clean the data;
+data gender; set biosim.patient; keep patient_id patient_gender; run;
+proc sort data=gender nodupkey; by patient_id; run; /* 12170856 obs */
 
-/*****************************
-*  GLP1 types, indication
-*****************************/
-proc freq data=first_claim; table molecule; run;
-proc freq data=first_claim; table molecule*plan_type /norow nopercent; run;
+* see the duplicated patient_id rows;
+proc sql;
+    create table gender_conflict as
+    select patient_id,
+           /* has_f = 1 if any F; has_m = 1 if any M */
+           (sum(upcase(coalesce(patient_gender, '')) = 'F') > 0) as has_f,
+           (sum(upcase(coalesce(patient_gender, '')) = 'M') > 0) as has_m
+    from gender
+    group by patient_id
+    ;
+quit;
 
-/*****************************
-*  OOP at index
-*****************************/
-*only remain valid rows for calculating OOP;
-data oop;
-    set input.first_claim;
-    if final_opc_amt ne 0 and not missing(final_opc_amt) and encnt_outcm_cd = "RV" ;
-run;
-proc means data=oop n nmiss median q1 q3 min max; var final_opc_amt; run;
-proc means data=oop n nmiss median q1 q3 min max;
-    class plan_type;
-    var final_opc_amt;
-run;
-
-/*****************************
-*  reason of rejections
-*****************************/
-proc freq data=input.rx18_24_glp1_long_v01; table encnt_outcm_cd; run; /* all claim number */
-proc freq data=input.rx18_24_glp1_long_v01; table encnt_outcm_cd*plan_type  /norow nopercent; run;
-
-proc freq data=input.first_claim; table rjct_grp; run;
-proc freq data=input.first_claim; table rjct_grp*plan_type  /norow nopercent; run;
-
-proc freq data=input.first_claim; table encnt_outcm_cd; run;
-proc freq data=input.first_claim; table encnt_outcm_cd*plan_type  /norow nopercent; run;
-
-
-
-* among rejection;
-data rejection; set input.first_claim; if rjct_grp ne 0; run;
-proc freq data=rejection; table rjct_grp; run;
-proc freq data=rejection; table rjct_grp*group  /norow nopercent;; run;
-
-proc freq data=input.first_claim; table plan_type; run;
-proc freq data=input.first_claim; table molecule_name; run;
-proc freq data=input.first_claim; table molecule_name*plan_type; run;
-
-
-
-
-/*============================================================*
- | 6) What happen on the first date of initiation? | first_claim_all
- *============================================================*/
-data first_claim_all; set input.rx18_24_glp1_long_v00; if first.patient_id and first.svc_dt; run; 
-
-* how many claims people have at the first date of dispense?;
-
-
-
-/*============================================================*
- | Median days from first rejection to first approved fill (IQR)
- *============================================================*/
-data rx18_24_glp1_long_v01;
-    set input.rx18_24_glp1_long_v01;
-    if encnt_outcm_cd = "PD" then fill = 1;
-    else fill = 0;
+data gender_conflict;
+    set gender_conflict;
+    invalid_gender = (has_f = 1 and has_m = 1);
+    keep patient_id invalid_gender;
 run;
 
-proc sort data=rx18_24_glp1_long_v01; by patient_id svc_dt; run;
-data rx18_24_glp1_long_v02;
-    set rx18_24_glp1_long_v01;
-    by patient_id svc_dt;
+proc sql;
+    create table gender as
+    select a.*,
+           case when b.invalid_gender = 1 then 'invalid'
+                else a.patient_gender
+           end as patient_gender_clean
+    from gender as a
+    left join gender_conflict as b
+      on a.patient_id = b.patient_id
+    ;
+quit; 
+proc sort data=gender nodupkey; by patient_id; run;
+data gender; set gender (drop=patient_gender); rename patient_gender_clean = patient_gender; run; /* 951,434 obs */
 
-    retain first0_date first1_date gap first_fill;
-    format first0_date first1_date yymmdd10.;
+proc contents data=gender; run;
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from gender;
+quit; 
 
-    if first.patient_id then do;
-        first0_date  = .;
-        first1_date  = .;
-        gap          = .;
-        first_fill   = fill;   /* record the very first fill value */
-    end;
+/* 2) merge with our dataset */
+proc sql; 
+	create table rx18_24_glp1_long_v01 as
+ 	select distinct a.*, b.patient_gender
+    from input.rx18_24_glp1_long_v01 as a
+	left join gender as b
+ 	on a.patient_id = b.patient_id;
+quit;
 
-    /* Only process patients whose first fill=0 */
-    if first_fill = 0 then do;
-        if fill=0 and missing(first0_date) then first0_date = svc_dt;  /* capture first date with fill=0 */        
-        if fill=1 and missing(first1_date) then first1_date = svc_dt;  /* capture first date with fill=1 */
-        if last.patient_id then do;
-            if not missing(first0_date) and not missing(first1_date) then
-                gap = first1_date - first0_date;
-            else gap = .;
-            output;
-        end;
-
-    end;
-run; /* 331129 obs */
-
-proc print data=rx18_24_glp1_long_v02 (obs=20); run;
-
-*test;
-proc means data=rx18_24_glp1_long_v02 n nmiss median q1 q3 min max; class group; var gap; run;
-
-* if gap > 30, we con; 
-
-
-
-
-
-
-
-/*============================================================*
- | 7) long data clean - one svc_dt can have only one row - paid priority
- *============================================================*/
- 
-data first_claim;
-    set input.rx18_24_glp1_long_v01;        
-    if rjct_grp = 0 then paid_priority = 1;   /* 1 if rjct_grp=0, else 0 */
-    else paid_priority = 0;
-run;
-
-/* 2) Sort by patient → earliest svc_dt → prefer paid on that date */
-proc sort data=first_claim; by patient_id svc_dt descending paid_priority; run;
-
-/* 3) Keep the first record per patient (earliest date; paid preferred if tie) */
-data first_claim;
-    set first_claim;
-    by patient_id svc_dt;
-    if first.svc_dt then output;
-    drop paid_priority;
-run; /* 1,061,808 obs */
-
- 
