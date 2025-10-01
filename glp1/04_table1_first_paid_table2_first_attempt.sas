@@ -11,8 +11,9 @@ proc sort data=first_paid_claim; by patient_id svc_dt; run;
 data first_paid_claim; set first_paid_claim; by patient_id svc_dt; if first.patient_id; run;
 
 proc freq data=first_paid_claim; table plan_type; run;
-proc freq data=first_paid_claim; table indication*plan_type /norow nopercent; run;
 
+proc freq data=first_paid_claim; table indication; run;
+proc freq data=first_paid_claim; table indication*plan_type /norow nopercent; run;
 
 /*****************************
 *  retail channel
@@ -21,19 +22,35 @@ proc freq data=first_paid_claim; table chnl_cd; run;
 proc freq data=first_paid_claim; table chnl_cd*plan_type /norow nopercent; run;
 
 /*****************************
+*  gender
+*****************************/
+proc freq data=first_paid_claim; table patient_gender; run;
+proc freq data=first_paid_claim; table patient_gender*plan_type /norow nopercent; run;
+
+
+/*****************************
+*  age at claim
+*****************************/
+proc means data=first_paid_claim n nmiss median q1 q3 min max; var age_at_claim; run;
+proc means data=first_paid_claim n nmiss median q1 q3 min max;
+    class plan_type;
+    var age_at_claim;
+run;
+
+/*****************************
 *  GLP1 types, indication
 *****************************/
 proc freq data=first_paid_claim; table molecule; run;
 proc freq data=first_paid_claim; table molecule*plan_type /norow nopercent; run;
 
-proc freq data=input.patients_v0; table region; run;
-proc freq data=input.patients_v0; table region*first_plan_type /norow nopercent; run;
+proc freq data=first_paid_claim; table region; run;
+proc freq data=first_paid_claim; table region*plan_type /norow nopercent; run;
 
 /*****************************
 *  OOP at index
 *****************************/
-proc means data=oop n nmiss median q1 q3 min max; var final_opc_amt; run;
-proc means data=oop n nmiss median q1 q3 min max;
+proc means data=first_paid_claim n nmiss median q1 q3 min max; var final_opc_amt; run;
+proc means data=first_paid_claim n nmiss median q1 q3 min max;
     class plan_type;
     var final_opc_amt;
 run;
@@ -41,7 +58,7 @@ run;
 *only remain valid rows for calculating OOP;
 data oop;
     set first_paid_claim;
-    if indication = "diabetes" and not missing(final_opc_amt);
+    if indication = "obesity" and not missing(final_opc_amt);
 run;
 
 proc means data=oop n nmiss median q1 q3 min max; var final_opc_amt; run;
@@ -64,8 +81,7 @@ data first_attempt;
     else paid_priority = 0;
 run;
 proc sort data=first_attempt; by patient_id svc_dt descending paid_priority;  run;
-
-proc print data=first_attempt (obs=30); var patient_id svc_dt encnt_outcm_cd paid_priority; run;
+/* proc print data=first_attempt (obs=30); var patient_id svc_dt encnt_outcm_cd paid_priority; run;*/
 
 /* 3) Keep the first record per patient (earliest date; paid preferred if tie) */
 data input.first_attempt;
@@ -73,7 +89,7 @@ data input.first_attempt;
     by patient_id svc_dt;
     if first.patient_id then output;
     drop paid_priority;
-run; /* 817,897 obs */
+run; /* 768630 obs */
 
 
 /* 4) count people who got approved glp1 after the first rejection in the same date  */
@@ -105,7 +121,7 @@ proc sql;
 quit;
 
 proc print data=first_attempt_firstdate_v1 (obs=10); run;
-data first_attempt_firstdate_v2; set first_attempt_firstdate_v1; if count_claims > 1; run; /* 91074 among 184060 */
+data first_attempt_firstdate_v2; set first_attempt_firstdate_v1; if count_claims > 1; run; /* 86246 among 174523 */
 
 
 /*****************************
@@ -123,7 +139,7 @@ proc freq data=input.first_attempt; table encnt_outcm_cd*plan_type /norow noperc
 *only remain valid rows for calculating OOP;
 data oop;
     set input.first_attempt;
-    if not missing(final_opc_amt) and encnt_outcm_cd = "PD" ;
+    if not missing(final_opc_amt) and encnt_outcm_cd = "RV" ;
 run;
 proc means data=oop n nmiss median q1 q3 min max; var final_opc_amt; run;
 proc means data=oop n nmiss median q1 q3 min max;
