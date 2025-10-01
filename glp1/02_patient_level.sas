@@ -16,8 +16,8 @@ proc sort data=rx18_24_glp1_long_v01; by patient_id svc_dt descending paid_prior
 data input.patients_v0; 
   set rx18_24_glp1_long_v01;       
   by patient_id;
-  length first_glp1 after_glp1 first_plan_type after_plan_type first_plan_name after_plan_name first_model_type after_model_type first_npi first_provider_id $50;
-  retain first_glp1 after_glp1 first_plan_type after_plan_type glp1_switcher plan_switcher claim_count reject_count reversed_count glp1_switch_count plan_switch_count
+  length first_glp1 after_glp1 first_plan_type after_plan_type first_plan_name after_plan_name first_model_type after_model_type first_npi first_provider_id first_indication $50;
+  retain first_glp1 after_glp1 first_plan_type after_plan_type glp1_switcher plan_switcher claim_count reject_count reversed_count glp1_switch_count plan_switch_count first_indication
     first_plan_name after_plan_name first_model_type after_model_type first_date last_date glp1_switch_date plan_switch_date total_oop total_days_to_adjudct_cnt first_npi first_provider_id first_provider_zip;
   format first_date last_date glp1_switch_date plan_switch_date yymmdd10.;
   if first.patient_id then do;
@@ -29,6 +29,7 @@ data input.patients_v0;
         after_plan_name = plan_name;
         first_model_type = model_type;
         after_model_type = model_type;
+		first_indication = indication;
         glp1_switcher = 0;
         glp1_switch_date = .;
         plan_switcher = 0;
@@ -78,7 +79,7 @@ data input.patients_v0;
 run;
 
 data input.patients_v0; set input.patients_v0; 
-keep patient_id days_supply_cnt first_glp1 after_glp1 first_plan_type after_plan_type glp1_switcher plan_switcher claim_count reject_count reversed_count glp1_switch_count plan_switch_count
+keep patient_id days_supply_cnt first_indication first_glp1 after_glp1 first_plan_type after_plan_type glp1_switcher plan_switcher claim_count reject_count reversed_count glp1_switch_count plan_switch_count
     first_plan_name after_plan_name first_model_type after_model_type first_date last_date glp1_switch_date plan_switch_date total_oop total_days_to_adjudct_cnt first_npi first_provider_id first_provider_zip;
 run; /* 827,123 obs */
 
