@@ -7,10 +7,8 @@ dspnsd_qty
  |   - remain only paid claims (N=827,108)
  *============================================================*/
 
-data rx18_24_glp1_long_paid; set input.rx18_24_glp1_long_v01; if encnt_outcm_cd ="PD"; run; /* 10559359 obs */
+data rx18_24_glp1_long_paid; set input.rx18_24_glp1_long_v01; if encnt_outcm_cd ="PD"; run; /* 8760132 obs */
 proc sort data=rx18_24_glp1_long_paid; by patient_id svc_dt; run;
-
-proc print data=rx18_24_glp1_long_paid (obs=10); var days_supply_cnt dspnsd_qty; run;
 
 /*==========================*
  |  Definition 1; GAP >=60 (with consideration of 30-days stockpiling)
@@ -30,14 +28,15 @@ data rx18_24_glp1_long_paid_v1;
         stockpiling = days_supply_cnt - gap;
     end;
 
-    if stockpiling > 30 then stockpiling_adj = 30; else stockpiling_adj = stockpiling;
+    if stockpiling > 30 then stockpiling_adj = 30; else if stockpiling < 0 then stockpiling_adj = 0; else stockpiling_adj = stockpiling;
     if gap >= (60 + stockpiling_adj) then discontinuation1 = 1; else discontinuation1 = 0;
-    if discontinuation1 = 1 then disc1_date = svc_dt; else disc1_date = .;
+    if discontinuation1 = 1 then disc1_date = svc_dt + stockpiling_adj; else disc1_date = .;
 
 run;
 
 proc print data=rx18_24_glp1_long_paid_v1 (obs=10); var patient_id svc_dt gap days_supply_cnt stockpiling stockpiling_adj discontinuation1 disc1_date; run;
-proc print data=rx18_24_glp1_long_paid_v1 (obs=10); var patient_id svc_dt gap days_supply_cnt stockpiling stockpiling_adj discontinuation1 disc1_date; where discontinuation1=1; run;
+proc print data=rx18_24_glp1_long_paid_v1 (obs=10); var patient_id svc_dt gap days_supply_cnt stockpiling stockpiling_adj discontinuation1 disc1_date; where discontinuation1=1 and "01JUL2024"d < disc1_date; run;
+
 
 
 /* patient level clean dataset */
@@ -54,7 +53,28 @@ quit;
 proc sort data=disc_patient_v1 nodupkey; by patient_id; run;
 data disc_patient_v1; set disc_patient_v1; if missing(disc1_date) then disc1_date = '31DEC9999'd; format disc1_date mmddyy10.; run;
 
-proc freq data=disc_patient_v1; table discontinuation1; run;
+proc freq data=disc_patient_v1; table discontinuation1; run; /* 52% */
+
+
+/*==========================*
+ |  Definition 2; Right censored
+ *==========================*/
+
+data disc_patient_v1; set disc_patient_v1; 
+  if disc1_date < "01OCT2024"d and discontinuation1 =1 then do;
+   disc1_date = disc1_date; 
+   discontinuation1 = discontinuation1;
+  end;
+  else do;
+   disc_date = .;
+   discontinuation1 = 0;
+  end;
+ run;
+ 
+proc freq data=disc_patient_v1; table discontinuation1; run; /* 52% */
+proc freq data=disc_patient_v2; table discontinuation; run; /* 49% */
+
+proc freq data=patients_v1; table discontinuation*first_indication /norow nopercent; run;
 
 
 /*==========================*
@@ -101,8 +121,9 @@ data disc_patient_v2; set disc_patient_v2; if missing(disc2_date) then disc2_dat
 proc freq data=disc_patient_v2; table discontinuation2; run;
 
 
+
 /*==========================*
- |  merge with patient files
+ |  merge with patient files 
  *==========================*/
 
 proc sql; 
@@ -115,17 +136,25 @@ quit;
 data patients_v1; set patients_v1; if discontinuation1 = 0 and discontinuation2 =0 then discontinuation =0; else discontinuation =1; run;
 data patients_v1; set patients_v1; if discontinuation =1 then disc_date = min(disc1_date, disc2_date); else disc_date =.; format disc_date mmddyy10.; run;
 
-data patients_v1; set patients_v1; if (last_date - disc_date) <= 365 then disc_at_1y =1; else disc_at_1y =0; run; 
-data patients_v1; set patients_v1; if (last_date - disc_date) <= 365*2 then disc_at_2y =1; else disc_at_2y =0; run; 
-data patients_v1; set patients_v1; if (last_date - disc_date) <= 365/2 then disc_at_6m =1; else disc_at_6m =0; run; 
+data patients_v1; set patients_v1; if discontinuation =1 and disc_date <= (first_date + 365) then disc_at_1y =1; else disc_at_1y =0; run; 
+data patients_v1; set patients_v1; if discontinuation =1 and disc_date <= (first_date + 730) then disc_at_2y =1; else disc_at_2y =0; run; 
+data patients_v1; set patients_v1; if discontinuation =1 and disc_date <= (first_date  + 180) then disc_at_6m =1; else disc_at_6m =0; run; 
 
+proc print data=input.patients_v0 (obs=10); var first_indication first_glp1; run;
+
+proc freq data=patients_v1; table disc_at_1y; run;
+proc freq data=patients_v1; table disc_at_1y*first_indication /norow nopercent; run;
+
+proc freq data=patients_v1; table first_indication; run;
 data input.patients_v1; set patients_v1; run;
-
 
 /*==========================*
  |  discontinuation at 1 yr
  *==========================*/
 proc freq data=input.patients_v1; table disc_at_1y; run;
+
+* by first_payer;
+proc freq data=input.patients_v1; table disc_at_1y*first_plan_type /norow nopercent; run;
 
 * by first_indication;
 proc freq data=input.patients_v1; table disc_at_1y*first_indication /norow nopercent; run;
@@ -133,8 +162,6 @@ proc freq data=input.patients_v1; table disc_at_1y*first_indication /norow noper
 data subgroup; set input.patients_v1; if first_indication ="obesity"; run;
 proc freq data=subgroup; table disc_at_1y*first_plan_type /norow nopercent; run;
 
-* by first_payer;
-proc freq data=input.patients_v1; table disc_at_1y*first_plan_type /norow nopercent; run;
 
 /*==========================*
  |  discontinuation at 6 months
