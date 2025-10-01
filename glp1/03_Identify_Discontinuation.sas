@@ -71,10 +71,7 @@ data disc_patient_v1; set disc_patient_v1;
   end;
  run;
  
-proc freq data=disc_patient_v1; table discontinuation1; run; /* 52% */
-proc freq data=disc_patient_v2; table discontinuation; run; /* 49% */
-
-proc freq data=patients_v1; table discontinuation*first_indication /norow nopercent; run;
+proc freq data=disc_patient_v1; table discontinuation1; run; /* 49% */
 
 
 /*==========================*
@@ -159,7 +156,7 @@ proc freq data=input.patients_v1; table disc_at_1y*first_plan_type /norow noperc
 * by first_indication;
 proc freq data=input.patients_v1; table disc_at_1y*first_indication /norow nopercent; run;
 
-data subgroup; set input.patients_v1; if first_indication ="obesity"; run;
+data subgroup; set input.patients_v1; if first_indication ="diabetes"; run;
 proc freq data=subgroup; table disc_at_1y*first_plan_type /norow nopercent; run;
 
 
@@ -167,17 +164,19 @@ proc freq data=subgroup; table disc_at_1y*first_plan_type /norow nopercent; run;
  |  discontinuation at 6 months
  *==========================*/
 proc freq data=patients_v1; table disc_at_6m; run;
-
-* by first_indication;
-proc freq data=input.patients_v1; table disc_at_6m*first_indication /norow nopercent; run;
-
 * by first_payer;
 proc freq data=input.patients_v1; table disc_at_6m*first_plan_type /norow nopercent; run;
 
 
  /*==========================*
- |  discontinuation at 1 yr
+ |  discontinuation at 2 yr
  *==========================*/
+ proc freq data=patients_v1; table disc_at_2y; run;
+* by first_payer;
+proc freq data=input.patients_v1; table disc_at_2y*first_plan_type /norow nopercent; run;
+
+
+
 data patients_v1; set patients_v1; format first_date last_date glp1_switch_date plan_switch_date mmddyy10.; run;
 data patients_v1; set patients_v1; if discontinuation = 1 then time_to_disc_in_month = (disc_date - first_date)/31; else time_to_disc_in_month =.;run;
 proc means data=patients_v1 n nmiss min max mean std median q1 q3; var time_to_disc_in_month; run;
