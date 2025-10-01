@@ -374,11 +374,13 @@ run;
 /*****************************
 *  10) add States & region based on zip codes
 *****************************/
+
+
 data input.rx18_24_glp1_long_v01;
     set input.rx18_24_glp1_long_v01;
 
     length state $2 region $10;
-    zip = put(first_provider_zip, z5.);
+    zip = put(provider_zip, z5.);
     state = zipstate(zip);
 
     /* Map state to region */
