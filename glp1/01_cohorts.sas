@@ -206,6 +206,12 @@ proc sql;
     from input.rx18_24_glp1_long_v00;
 quit;
 
+* check ndc codes for glp1;
+proc contents data=input.rx18_24_glp1_long_v00; run;
+data ndc; set input.rx18_24_glp1_long_v00; keep molecule_name ndc; run;
+proc sort data=ndc nodupkey; by _all_; run; 
+proc sort data=ndc; by molecule_name; run;
+
 
 /*============================================================*
  | 4) merge with age file  
@@ -231,7 +237,7 @@ proc sql;
     from input.rx18_24_glp1_long_v00 as a
 	left join id_age as b
  	on a.patient_id = b.patient_id;
- quit; /* 24,432,775 -> 25,287,180 */
+ quit; /* 25,287,180 */
 
 * calculate age at initiation and make invalid data null;
 data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00;  age_at_claim = year - patient_birth_year; run;
@@ -241,6 +247,7 @@ proc means data=input.rx18_24_glp1_long_v00 n nmiss min max mean std median q1 q
  | 5) exclude invalid data in molecule_name 
  *============================================================*/
 data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if not missing(molecule_name); run; /* - 39 */
+data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if molecule_name not in ("LIXISENATIDE", "ALBIGLUTIDE"); run; /* - 16656 */
 
  /*============================================================*
  | 6) exclude claims with age < 18
@@ -249,7 +256,7 @@ data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if not missin
 data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if 18 <= age_at_claim; run;
 data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if age_at_claim < 120; run;
 
-/* 25,064,421 obs*/
+/* 25,047,990 obs*/
 
 * distinct number of adult patients before excluding reversed and rejected claims (N= 1,061,808);
 proc sql; 
@@ -269,12 +276,12 @@ proc sql;
         from input.rx18_24_glp1_long_v00
         where rjct_grp=0
     );
-quit; /* 24,544,101 obs */
+quit; /* 24,527,473 obs */
 
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx18_24_glp1_long_v01;
-quit;  /* 956,043 individuals */
+quit;  /* 955,808 individuals */
 
 /*============================================================*
  | 7) only leave paitents who have at least one paid claims (N= 832,589)
@@ -288,16 +295,55 @@ proc sql;
         from input.rx18_24_glp1_long_v00
         where encnt_outcm_cd = "PD"
     );
-quit; /* 23,709,951 -> 23,945,456 obs*/
+quit; /* 23,931,972 obs*/
 
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx18_24_glp1_long_v01;
-quit;  /* 832,589 individuals */
+quit;  /* 832,373 individuals */
 
 
 /*============================================================*
- | 8) add glp1 indication based on molecule_name & molecule
+ | 8) 180 days wash out period (from patient level dataset: exclude individual whose first claim was in between Jan 2017 and May 2017)
+ *============================================================*/
+
+/* go and get patient_v0 file*/
+proc sort data=input.rx18_24_glp1_long_v01;  by patient_id svc_dt; run;
+proc sort data=input.rx18_24_glp1_long_v01 out=rx_sorted;
+    by patient_id svc_dt;
+run;
+
+data patients_duration; 
+    set input.rx18_24_glp1_long_v01;
+    by patient_id;
+    retain first_date;
+    format first_date yymmdd10.;    
+    if first.patient_id then first_date = svc_dt;   /* earliest svc_dt */
+    if last.patient_id then output;                /* one row per patient */
+run; 
+
+/* remain if patient's first_date > "30JUN2017"d */
+proc sql;
+	create table input.rx18_24_glp1_long_v01 as
+	select *
+	from input.rx18_24_glp1_long_v01 as a
+	where a.patient_id in (
+		select patient_id
+		from patients_duration
+		where first_date > "30JUN2017"d
+	);
+quit; /* 20,496,719 obs*/
+
+
+
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from rx18_24_glp1_long_v01;
+quit;  /* 768,630 individuals */
+
+
+/*============================================================*
+ | 9) add glp1 indication based on molecule_name & molecule
  *============================================================*/
 
 data input.rx18_24_glp1_long_v01;
@@ -326,7 +372,7 @@ run;
 
 
 /*****************************
-*  9) add States & region based on zip codes
+*  10) add States & region based on zip codes
 *****************************/
 data input.rx18_24_glp1_long_v01;
     set input.rx18_24_glp1_long_v01;
@@ -347,7 +393,7 @@ run;
 
 
 /*****************************
-*  10) add patients gender
+*  11) add patients gender
 *****************************/
 /* 1) make patient - gender table without any duplication */
 * clean the data;
@@ -394,10 +440,10 @@ quit;
 
 /* 2) merge with our dataset */
 proc sql; 
-	create table rx18_24_glp1_long_v01 as
+	create table input.rx18_24_glp1_long_v01 as
  	select distinct a.*, b.patient_gender
     from input.rx18_24_glp1_long_v01 as a
 	left join gender as b
  	on a.patient_id = b.patient_id;
-quit;
+quit; /* 20,496,719 obs*/
 
