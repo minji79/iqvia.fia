@@ -200,7 +200,18 @@ data input.rx_17_glp1; set input.rx_17_glp1; year = year(svc_dt); run;
 data input.rx18_24_glp1_long_v00; set input.rx_24_glp1 input.rx_23_glp1 input.rx_22_glp1 input.rx_21_glp1 input.rx_20_glp1 input.rx_19_glp1 input.rx_18_glp1 input.rx_17_glp1; run;
 proc sort data=input.rx18_24_glp1_long_v00; by patient_id svc_dt; run;
 
-* distinct number of patients (N= 1,061,808);
+* distinct number of patients (N= 1,079,177);
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from input.rx18_24_glp1_long_v00;
+quit;
+
+/*============================================================*
+ | 4) exclude "LIXISENATIDE", "ALBIGLUTIDE" and invalid data in molecule_name 
+ *============================================================*/
+data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if molecule_name not in ("LIXISENATIDE", "ALBIGLUTIDE"); run; /* - 16929 */
+
+* distinct number of patients (N= 1078969);
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx18_24_glp1_long_v00;
@@ -214,7 +225,7 @@ proc sort data=ndc; by molecule_name; run;
 
 
 /*============================================================*
- | 4) merge with age file  
+ | 5) merge with age file  
  *============================================================*/
 * clean the patient_birth_year;
 proc sql;
@@ -247,7 +258,7 @@ proc means data=input.rx18_24_glp1_long_v00 n nmiss min max mean std median q1 q
  | 5) exclude invalid data in molecule_name 
  *============================================================*/
 data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if not missing(molecule_name); run; /* - 39 */
-data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if molecule_name not in ("LIXISENATIDE", "ALBIGLUTIDE"); run; /* - 16656 */
+
 
  /*============================================================*
  | 6) exclude claims with age < 18
@@ -258,63 +269,25 @@ data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if age_at_cla
 
 /* 25,047,990 obs*/
 
-* distinct number of adult patients before excluding reversed and rejected claims (N= 1,061,808);
+* distinct number of adult patients before excluding reversed and rejected claims (N= 1066899);
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx18_24_glp1_long_v00;
 quit;
 
-/*============================================================*
- | 7) only leave paitents who have at least one approved claims (N= 956,043)
- *============================================================*/
-proc sql;
-    create table input.rx18_24_glp1_long_v01 as
-    select *
-    from input.rx18_24_glp1_long_v00 as a
-    where a.patient_id in (
-        select distinct patient_id
-        from input.rx18_24_glp1_long_v00
-        where rjct_grp=0
-    );
-quit; /* 24,527,473 obs */
-
-proc sql; 
-    select count(distinct patient_id) as count_patient_all
-    from input.rx18_24_glp1_long_v01;
-quit;  /* 955,808 individuals */
 
 /*============================================================*
- | 7) only leave paitents who have at least one paid claims (N= 832,589)
- *============================================================*/
-proc sql;
-    create table input.rx18_24_glp1_long_v01 as
-    select *
-    from input.rx18_24_glp1_long_v01 as a
-    where a.patient_id in (
-        select distinct patient_id
-        from input.rx18_24_glp1_long_v00
-        where encnt_outcm_cd = "PD"
-    );
-quit; /* 23,931,972 obs*/
-
-proc sql; 
-    select count(distinct patient_id) as count_patient_all
-    from input.rx18_24_glp1_long_v01;
-quit;  /* 832,373 individuals */
-
-
-/*============================================================*
- | 8) 180 days wash out period (from patient level dataset: exclude individual whose first claim was in between Jan 2017 and May 2017)
+ | 7) 180 days wash out period (from patient level dataset: exclude individual whose first claim was in between Jan 2017 and May 2017)
  *============================================================*/
 
 /* go and get patient_v0 file*/
-proc sort data=input.rx18_24_glp1_long_v01;  by patient_id svc_dt; run;
-proc sort data=input.rx18_24_glp1_long_v01 out=rx_sorted;
+proc sort data=input.rx18_24_glp1_long_v00;  by patient_id svc_dt; run;
+proc sort data=input.rx18_24_glp1_long_v00 out=rx_sorted;
     by patient_id svc_dt;
 run;
 
 data patients_duration; 
-    set input.rx18_24_glp1_long_v01;
+    set input.rx18_24_glp1_long_v00;
     by patient_id;
     retain first_date;
     format first_date yymmdd10.;    
@@ -322,32 +295,32 @@ data patients_duration;
     if last.patient_id then output;                /* one row per patient */
 run; 
 
+proc print data=patients_duration (obs=10); run;
+
 /* remain if patient's first_date > "30JUN2017"d */
 proc sql;
-	create table input.rx18_24_glp1_long_v01 as
+	create table input.rx18_24_glp1_long_v00 as
 	select *
-	from input.rx18_24_glp1_long_v01 as a
+	from input.rx18_24_glp1_long_v00 as a
 	where a.patient_id in (
 		select patient_id
 		from patients_duration
 		where first_date > "30JUN2017"d
 	);
-quit; /* 20,496,719 obs*/
-
-
+quit; /* 21,595,225 obs */
 
 proc sql; 
     select count(distinct patient_id) as count_patient_all
-    from rx18_24_glp1_long_v01;
-quit;  /* 768,630 individuals */
+    from input.rx18_24_glp1_long_v00;
+quit;  /* 999,714 individuals */
 
 
 /*============================================================*
- | 9) add glp1 indication based on molecule_name & molecule
+ | 8) add glp1 indication based on molecule_name & molecule
  *============================================================*/
 
-data input.rx18_24_glp1_long_v01;
-    set input.rx18_24_glp1_long_v01;
+data input.rx18_24_glp1_long_v00;
+    set input.rx18_24_glp1_long_v00;
     length indication $20.;
     
     if upcase(molecule_name) in (
@@ -358,8 +331,8 @@ data input.rx18_24_glp1_long_v01;
     else indication = "diabetes"; 
 run;
 
-data input.rx18_24_glp1_long_v01;
-    set input.rx18_24_glp1_long_v01;
+data input.rx18_24_glp1_long_v00;
+    set input.rx18_24_glp1_long_v00;
     length molecule $50;
 
     select (upcase(molecule_name));
@@ -375,9 +348,8 @@ run;
 *  10) add States & region based on zip codes
 *****************************/
 
-
-data input.rx18_24_glp1_long_v01;
-    set input.rx18_24_glp1_long_v01;
+data input.rx18_24_glp1_long_v00;
+    set input.rx18_24_glp1_long_v00;
 
     length state $2 region $10;
     zip = put(provider_zip, z5.);
@@ -391,8 +363,7 @@ data input.rx18_24_glp1_long_v01;
       when ('MT','ID','WY','CO','NM','AZ','UT','NV','WA','OR','CA','AK','HI') region='West';
       otherwise region='Unknown';
     end;
-run;
-
+run; /* 21,595,225 obs */
 
 /*****************************
 *  11) add patients gender
@@ -432,9 +403,8 @@ proc sql;
     ;
 quit; 
 proc sort data=gender nodupkey; by patient_id; run;
-data gender; set gender (drop=patient_gender); rename patient_gender_clean = patient_gender; run; /* 951,434 obs */
+data gender; set gender (drop=patient_gender); rename patient_gender_clean = patient_gender; run; /* 12170856 obs */
 
-proc contents data=gender; run;
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from gender;
@@ -442,10 +412,82 @@ quit;
 
 /* 2) merge with our dataset */
 proc sql; 
-	create table input.rx18_24_glp1_long_v01 as
+	create table input.rx18_24_glp1_long_v00 as
  	select distinct a.*, b.patient_gender
-    from input.rx18_24_glp1_long_v01 as a
+    from input.rx18_24_glp1_long_v00 as a
 	left join gender as b
  	on a.patient_id = b.patient_id;
 quit; /* 20,496,719 obs*/
+
+
+
+/*============================================================*
+ | 7) only leave paitents who have at least one approved claims (N= 890,360)
+ *============================================================*/
+* check - individuals who don't have any approved claim = only have rejected claims = 109,354 individuals ; 
+proc sql;
+    create table onlyrejected as
+    select patient_id
+    from input.rx18_24_glp1_long_v00
+    group by patient_id
+    having min(rjct_grp) > 0;
+quit;
+
+proc sql; 
+    select count(distinct patient_id) as count_onlyrejected
+    from onlyrejected;
+quit; /* 109,354 individuals */
+
+* excluded them from cohort;
+proc sql;
+    create table input.rx18_24_glp1_long_v01 as
+    select *
+    from input.rx18_24_glp1_long_v00 as a
+    where a.patient_id in (
+        select distinct patient_id
+        from input.rx18_24_glp1_long_v00
+        where rjct_grp=0
+    );
+quit; /* 21084629 obs */
+
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from input.rx18_24_glp1_long_v01;
+quit;  /* 890,360 individuals */
+
+/*============================================================*
+ | 7) only leave paitents who have at least one paid claims (N= 768,630)
+ *============================================================*/
+* check - individuals who don't have any approved claim = only have rejected claims = 109,354 individuals ; 
+proc sql;
+    create table nopaidclaims as
+    select patient_id
+    from input.rx18_24_glp1_long_v01
+    group by patient_id
+    having sum(case when encnt_outcm_cd = "PD" then 1 else 0 end) = 0;
+quit;
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from nopaidclaims;
+quit; /* 121,730 individuals */
+
+
+* excluded them from cohort;
+proc sql;
+    create table input.rx18_24_glp1_long_v01 as
+    select *
+    from input.rx18_24_glp1_long_v01 as a
+    where a.patient_id in (
+        select distinct patient_id
+        from input.rx18_24_glp1_long_v00
+        where encnt_outcm_cd = "PD"
+    );
+quit; /* 20496719 obs*/
+
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from input.rx18_24_glp1_long_v01;
+quit;  /* 768,630 individuals */
+
+
 
