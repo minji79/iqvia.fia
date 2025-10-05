@@ -422,21 +422,44 @@ quit; /* 20,496,719 obs*/
 
 
 /*============================================================*
- | 7) only leave paitents who have at least one approved claims (N= 890,360)
+ | 12) only remain paitents who have at least one paid claims (N= 768,646 individuals, 20,496,809 obs)
  *============================================================*/
-* check - individuals who don't have any approved claim = only have rejected claims = 109,354 individuals ; 
-proc sql;
-    create table onlyrejected as
-    select patient_id
-    from input.rx18_24_glp1_long_v00
-    group by patient_id
-    having min(rjct_grp) > 0;
+
+* identify; 
+proc sql; 
+  create table disposition as
+  select
+    	 patient_id,
+         sum(case when encnt_outcm_cd = "PD" then 1 else 0 end) as count_PD, 
+		 sum(case when encnt_outcm_cd = "RV" then 1 else 0 end) as count_RV, 
+		 sum(case when encnt_outcm_cd = "RJ" then 1 else 0 end) as count_RJ
+  
+  from input.rx18_24_glp1_long_v00
+  group by patient_id;
 quit;
 
+data input.disposition; set disposition; if count_PD = 0 then no_PD_ever = 1; else no_PD_ever = 0; run;
+data input.disposition; set input.disposition; if count_PD = 0 and count_RV = 0 then no_PD_only_RJ = 1; else no_PD_only_RJ = 0; run;
+proc print data=input.disposition (obs=30); run;
+
 proc sql; 
-    select count(distinct patient_id) as count_onlyrejected
-    from onlyrejected;
-quit; /* 109,354 individuals */
+    select count(distinct patient_id) as no_PD_ever
+    from input.disposition;
+quit; /* 999,714 individuals */
+
+proc sql; 
+    select count(distinct patient_id) as no_PD_ever
+    from input.disposition
+	where no_PD_ever =1;
+quit; /* 231,068 individuals */
+
+proc sql; 
+    select count(distinct patient_id) as no_PD_only_RJ 
+    from input.disposition
+	where no_PD_only_RJ =1;
+quit;  /* 109,517 individuals */
+
+
 
 * excluded them from cohort;
 proc sql;
@@ -445,49 +468,15 @@ proc sql;
     from input.rx18_24_glp1_long_v00 as a
     where a.patient_id in (
         select distinct patient_id
-        from input.rx18_24_glp1_long_v00
-        where rjct_grp=0
+        from input.disposition
+        where no_PD_ever = 0
     );
-quit; /* 21084629 obs */
+quit; /* 20,496,809 obs */
 
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx18_24_glp1_long_v01;
-quit;  /* 890,360 individuals */
+quit;  /* 768,646 individuals */
 
-/*============================================================*
- | 7) only leave paitents who have at least one paid claims (N= 768,630)
- *============================================================*/
-* check - individuals who don't have any approved claim = only have rejected claims = 109,354 individuals ; 
-proc sql;
-    create table nopaidclaims as
-    select patient_id
-    from input.rx18_24_glp1_long_v01
-    group by patient_id
-    having sum(case when encnt_outcm_cd = "PD" then 1 else 0 end) = 0;
-quit;
-proc sql; 
-    select count(distinct patient_id) as count_patient_all
-    from nopaidclaims;
-quit; /* 121,730 individuals */
-
-
-* excluded them from cohort;
-proc sql;
-    create table input.rx18_24_glp1_long_v01 as
-    select *
-    from input.rx18_24_glp1_long_v01 as a
-    where a.patient_id in (
-        select distinct patient_id
-        from input.rx18_24_glp1_long_v00
-        where encnt_outcm_cd = "PD"
-    );
-quit; /* 20496719 obs*/
-
-proc sql; 
-    select count(distinct patient_id) as count_patient_all
-    from input.rx18_24_glp1_long_v01;
-quit;  /* 768,630 individuals */
-
-
-
+* check row data;
+proc print data=input.rx18_24_glp1_long_v00 (obs=30); where patient_id = 568700; var patient_id svc_dt encnt_outcm_cd plan_type plan_id; run;
