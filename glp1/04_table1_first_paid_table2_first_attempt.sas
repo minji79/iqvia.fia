@@ -179,8 +179,12 @@ proc print data=rx18_24_glp1_long_v02 (obs=20); var patient_id svc_dt first0_dat
 proc means data=rx18_24_glp1_long_v02 n nmiss median q1 q3 min max; var gap; run;
 proc means data=rx18_24_glp1_long_v02 n nmiss median q1 q3 min max; class plan_type; var gap; run;
 
-* if gap > 30, we con; 
-
+* how many people fill at the date of first rejection? (N = 9196);
+proc sql;
+  select count(distinct patient_id) as count_pt
+  from rx18_24_glp1_long_v02
+  where gap = 0;
+quit;
 
 
 /*============================================================*
@@ -193,24 +197,100 @@ data first_paid_claim; set first_paid_claim; by patient_id svc_dt; if first.pati
 
 
 /*============================================================*
- | 7) long data clean - one svc_dt can have only one row - paid priority
+ | the amount of overall rejection & reasons by plan type
  *============================================================*/
- 
-data first_claim;
-    set input.rx18_24_glp1_long_v01;        
-    if rjct_grp = 0 then paid_priority = 1;   /* 1 if rjct_grp=0, else 0 */
-    else paid_priority = 0;
+* overall:
+proc sql; 
+  create table overall as
+  select distinct
+         count(*) as all,
+         sum(case when encnt_outcm_cd = "PD" then 1 else 0 end) as count_PD, 
+         sum(case when encnt_outcm_cd = "RV" then 1 else 0 end) as count_RV, 
+         sum(case when encnt_outcm_cd = "RJ" then 1 else 0 end) as count_RJ_all, 
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 2 then 1 else 0 end) as count_RJ_PA, 
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 1 then 1 else 0 end) as count_RJ_step, 
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 4 then 1 else 0 end) as count_RJ_QLim,
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 3 then 1 else 0 end) as count_RJ_NtCv, 
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 5 then 1 else 0 end) as count_RJ_other
+    
+  from rx18_24_glp1_long_v00;
+quit;
+data overall; set overall; 
+      pct_count_PD = count_PD / all;
+      pct_count_RV = count_RV / all;
+      pct_count_RJ = count_RJ_all / all;
+      pct_count_RJ_PA = count_RJ_PA / all;
+      pct_count_RJ_step = count_RJ_step / all;
+      pct_count_RJ_QLim = count_RJ_QLim / all;
+      pct_count_RJ_NtCv = count_RJ_NtCv / all;
+      pct_count_RJ_other = count_RJ_other / all;
 run;
+proc print data=overall (obs=50); run;
 
-/* 2) Sort by patient → earliest svc_dt → prefer paid on that date */
-proc sort data=first_claim; by patient_id svc_dt descending paid_priority; run;
+* by plan_type;
+proc sort data=rx18_24_glp1_long_v00 out=input.rx18_24_glp1_long_v00; by plan_type encnt_outcm_cd; run;
+proc sql; 
+  create table overall_plan_type as
+  select distinct
+         plan_type,
+         count(*) as all,
+         sum(case when encnt_outcm_cd = "PD" then 1 else 0 end) as count_PD, 
+         sum(case when encnt_outcm_cd = "RV" then 1 else 0 end) as count_RV, 
+         sum(case when encnt_outcm_cd = "RJ" then 1 else 0 end) as count_RJ_all, 
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 2 then 1 else 0 end) as count_RJ_PA, 
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 1 then 1 else 0 end) as count_RJ_step, 
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 4 then 1 else 0 end) as count_RJ_QLim,
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 3 then 1 else 0 end) as count_RJ_NtCv, 
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 5 then 1 else 0 end) as count_RJ_other
+    
+  from rx18_24_glp1_long_v00
+  group by plan_type;
+quit;
 
-/* 3) Keep the first record per patient (earliest date; paid preferred if tie) */
-data first_claim;
-    set first_claim;
-    by patient_id svc_dt;
-    if first.svc_dt then output;
-    drop paid_priority;
-run; /* 1,061,808 obs */
+data overall_plan_type; set overall_plan_type; 
+      pct_count_PD = count_PD / all;
+      pct_count_RV = count_RV / all;
+      pct_count_RJ = count_RJ_all / all;
+      pct_count_RJ_PA = count_RJ_PA / all;
+      pct_count_RJ_step = count_RJ_step / all;
+      pct_count_RJ_QLim = count_RJ_QLim / all;
+      pct_count_RJ_NtCv = count_RJ_NtCv / all;
+      pct_count_RJ_other = count_RJ_other / all;
+run;
+proc print data=overall_plan_type (obs=50); run;
+
+
+* by indication;
+proc sort data=rx18_24_glp1_long_v00 out=input.rx18_24_glp1_long_v00; by indication encnt_outcm_cd; run;
+proc sql; 
+  create table overall_indication as
+  select distinct
+         indication,
+         count(*) as all,
+         sum(case when encnt_outcm_cd = "PD" then 1 else 0 end) as count_PD, 
+         sum(case when encnt_outcm_cd = "RV" then 1 else 0 end) as count_RV, 
+         sum(case when encnt_outcm_cd = "RJ" then 1 else 0 end) as count_RJ_all, 
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 2 then 1 else 0 end) as count_RJ_PA, 
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 1 then 1 else 0 end) as count_RJ_step, 
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 4 then 1 else 0 end) as count_RJ_QLim,
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 3 then 1 else 0 end) as count_RJ_NtCv, 
+         sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 5 then 1 else 0 end) as count_RJ_other
+    
+  from rx18_24_glp1_long_v00
+  group by indication;
+quit;
+
+data overall_indication; set overall_indication; 
+      pct_count_PD = count_PD / all;
+      pct_count_RV = count_RV / all;
+      pct_count_RJ = count_RJ_all / all;
+      pct_count_RJ_PA = count_RJ_PA / all;
+      pct_count_RJ_step = count_RJ_step / all;
+      pct_count_RJ_QLim = count_RJ_QLim / all;
+      pct_count_RJ_NtCv = count_RJ_NtCv / all;
+      pct_count_RJ_other = count_RJ_other / all;
+run;
+proc print data=overall_indication (obs=50); run;
+
 
  
