@@ -65,6 +65,9 @@ proc import datafile="/dcs07/hpm/data/iqvia_fia/ref/patient.dta" out=input.patie
 proc import datafile="/dcs07/hpm/data/iqvia_fia/ref/provider.dta" out=input.provider dbms=dta replace; run;
 proc import datafile="/dcs07/hpm/data/iqvia_fia/ref/plan.dta" out=input.plan dbms=dta replace; run;
 proc import datafile="/dcs07/hpm/data/iqvia_fia/reduced/RxFact_2018_2024_ili.dta" out=input.RxFact_2018_2024_ili dbms=dta replace; run;
+proc import datafile="/dcs07/hpm/data/iqvia_fia/reduced/mapped_all_patient_years.dta" out=input.joe_plan_mapping dbms=dta replace; run;
+
+
 
 proc import datafile="/dcs07/hpm/data/iqvia_fia/full_raw/LevyPDRJRV.dta" out=input.LevyPDRJRV dbms=stata replace; run;
 
