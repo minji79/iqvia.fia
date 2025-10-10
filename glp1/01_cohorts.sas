@@ -234,7 +234,6 @@ proc sql;
     from biosim.patient
     group by patient_id;
 quit; /* 12170856 obs */
-proc means data=id_age n nmiss min max mean std median q1 q3; var patient_birth_year; run;
 
 proc sql;
     select count(distinct patient_id) as id_count
@@ -312,11 +311,16 @@ quit; /* 21,595,225 obs */
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx18_24_glp1_long_v00;
-quit;  /* 999,714 individuals */
-
+quit;  /* 984,398 individuals */
 
 /*============================================================*
- | 8) add glp1 indication based on molecule_name & molecule
+ | 8) exclude not-final claim per unit prescription (- 10,595,606 | cohort 1 = 1-,999,619 at transaction level)
+ *============================================================*/
+proc freq data=input.rx18_24_glp1_long_v00; table final_claim_ind; run;
+data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if final_claim_ind = 'Y'; run;
+ 
+/*============================================================*
+ | 9) add glp1 indication based on molecule_name & molecule
  *============================================================*/
 
 data input.rx18_24_glp1_long_v00;
@@ -363,7 +367,7 @@ data input.rx18_24_glp1_long_v00;
       when ('MT','ID','WY','CO','NM','AZ','UT','NV','WA','OR','CA','AK','HI') region='West';
       otherwise region='Unknown';
     end;
-run; /* 21,595,225 obs */
+run; /* 10,999,619 obs */
 
 /*****************************
 *  11) add patients gender
@@ -417,7 +421,7 @@ proc sql;
     from input.rx18_24_glp1_long_v00 as a
 	left join gender as b
  	on a.patient_id = b.patient_id;
-quit; /* 20,496,719 obs*/
+quit; /* 10,999,619 obs*/
 
 
 
@@ -443,21 +447,21 @@ data input.disposition; set input.disposition; if count_PD = 0 and count_RV = 0 
 proc print data=input.disposition (obs=30); run;
 
 proc sql; 
-    select count(distinct patient_id) as no_PD_ever
+    select count(distinct patient_id) as total_patient_number
     from input.disposition;
-quit; /* 999,714 individuals */
+quit; /* 984,398 individuals */
 
 proc sql; 
     select count(distinct patient_id) as no_PD_ever
     from input.disposition
 	where no_PD_ever =1;
-quit; /* 231,068 individuals */
+quit; /* 215,752 individuals */
 
 proc sql; 
     select count(distinct patient_id) as no_PD_only_RJ 
     from input.disposition
 	where no_PD_only_RJ =1;
-quit;  /* 109,517 individuals */
+quit;  /* 112,592 individuals */
 
 
 
@@ -471,7 +475,7 @@ proc sql;
         from input.disposition
         where no_PD_ever = 0
     );
-quit; /* 20,496,809 obs */
+quit; /* 10,617,368 obs */
 
 proc sql; 
     select count(distinct patient_id) as count_patient_all
