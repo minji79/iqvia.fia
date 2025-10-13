@@ -53,7 +53,7 @@ quit;
 proc sort data=disc_patient_v1 nodupkey; by patient_id; run;
 data disc_patient_v1; set disc_patient_v1; if missing(disc1_date) then disc1_date = '31DEC9999'd; format disc1_date mmddyy10.; run;
 
-proc freq data=disc_patient_v1; table discontinuation1; run; /* 52% */
+proc freq data=disc_patient_v1; table discontinuation1; run; /* 52.47 % */
 
 
 /*==========================*
@@ -71,7 +71,7 @@ data disc_patient_v1; set disc_patient_v1;
   end;
  run;
  
-proc freq data=disc_patient_v1; table discontinuation1; run; /* 49% */
+proc freq data=disc_patient_v1; table discontinuation1; run; /* 49.14 % */
 
 
 /*==========================*
@@ -115,14 +115,13 @@ data disc_patient_v2; set rx18_24_glp1_long_paid_v2; keep patient_id discontinua
 proc sort data=disc_patient_v2 nodupkey; by patient_id; run;
 data disc_patient_v2; set disc_patient_v2; if missing(disc2_date) then disc2_date = '31DEC9999'd; format disc2_date mmddyy10.; run;
 
-proc freq data=disc_patient_v2; table discontinuation2; run;
+proc freq data=disc_patient_v2; table discontinuation2; run; /* 58.84 % */
 
 
 
 /*==========================*
  |  merge with patient files 
  *==========================*/
-
 proc sql; 
   create table patients_v1 as
   select a.*, b1.discontinuation1, b1.disc1_date, b2.discontinuation2, b2.disc2_date
@@ -145,19 +144,20 @@ proc freq data=patients_v1; table disc_at_1y*first_indication /norow nopercent; 
 proc freq data=patients_v1; table first_indication; run;
 data input.patients_v1; set patients_v1; run;
 
+
 /*==========================*
  |  discontinuation at 1 yr
  *==========================*/
 proc freq data=input.patients_v1; table disc_at_1y; run;
 
 * by first_payer;
-proc freq data=input.patients_v1; table disc_at_1y*first_plan_type /norow nopercent; run;
+proc freq data=input.patients_v1; table disc_at_1y*first_payer_type /norow nopercent; run;
 
 * by first_indication;
 proc freq data=input.patients_v1; table disc_at_1y*first_indication /norow nopercent; run;
 
 data subgroup; set input.patients_v1; if first_indication ="diabetes"; run;
-proc freq data=subgroup; table disc_at_1y*first_plan_type /norow nopercent; run;
+proc freq data=subgroup; table disc_at_1y*first_payer_type /norow nopercent; run;
 
 
 /*==========================*
@@ -165,7 +165,7 @@ proc freq data=subgroup; table disc_at_1y*first_plan_type /norow nopercent; run;
  *==========================*/
 proc freq data=input.patients_v1; table disc_at_6m; run;
 * by first_payer;
-proc freq data=input.patients_v1; table disc_at_6m*first_plan_type /norow nopercent; run;
+proc freq data=input.patients_v1; table disc_at_6m*first_payer_type /norow nopercent; run;
 
 
  /*==========================*
@@ -173,15 +173,11 @@ proc freq data=input.patients_v1; table disc_at_6m*first_plan_type /norow noperc
  *==========================*/
  proc freq data=input.patients_v1; table disc_at_2y; run;
 * by first_payer;
-proc freq data=input.patients_v1; table disc_at_2y*first_plan_type /norow nopercent; run;
+proc freq data=input.patients_v1; table disc_at_2y*first_payer_type /norow nopercent; run;
 
 
 
 data patients_v1; set input.patients_v1; format first_date last_date glp1_switch_date plan_switch_date mmddyy10.; run;
 data patients_v1; set patients_v1; if discontinuation = 1 then time_to_disc_in_month = (disc_date - first_date)/31; else time_to_disc_in_month =.;run;
 proc means data=patients_v1 n nmiss min max mean std median q1 q3; var time_to_disc_in_month; run;
-
-proc print data=patients_v1 (obs=10); run;
-
-proc freq data=input.patients_v1; table discontinuation*first_plan_type /norow nopercent; run;
 
