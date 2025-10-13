@@ -147,6 +147,20 @@ data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00;
  else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=5 then RJ_reason = 'RJ_NotForm';
  else RJ_reason = 'NA';
 run;
+
+data input.rx18_24_glp1_long_v01; set input.rx18_24_glp1_long_v01; 
+ length RJ_reason $100.;
+ RJ_reason = "";
+ if encnt_outcm_cd in ("RV","PD") then RJ_reason = 'Approved';
+ else if encnt_outcm_cd = 'RJ' and enrollment = 0 then RJ_reason = 'Plan Switching';
+ else if encnt_outcm_cd = 'RJ' and payer_type_indicator = "secondary_payer" then RJ_reason = 'RJ by Secondary Payer';
+ else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=1 then RJ_reason = 'RJ_Step';
+ else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=2 then RJ_reason = 'RJ_PrAu';
+ else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=3 then RJ_reason = 'RJ_NtCv';
+ else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=4 then RJ_reason = 'RJ_PlLm';
+ else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=5 then RJ_reason = 'RJ_NotForm';
+ else RJ_reason = 'NA';
+run;
 proc freq data=input.rx18_24_glp1_long_v00; table RJ_reason ; run;
 proc print data= rx18_24_glp1_long_v00; where RJ_reason = 'NA' and not missing(encnt_outcm_cd); run; /* 6 rows with invalid information */
 
