@@ -1,6 +1,6 @@
 
 /*============================================================*
- | 1) start with the first claim data (N=827,123)
+ | 1) 2nd cohort (N==768646)
  *============================================================*/
 /* Sort by patient → earliest svc_dt → prefer paid on that date */
 data rx18_24_glp1_long_v01;
@@ -79,7 +79,7 @@ run;
 data input.patients_v0; set input.patients_v0; 
 keep patient_id days_supply_cnt first_indication first_glp1 after_glp1 first_payer_type after_payer_type glp1_switcher plan_switcher claim_count reject_count reversed_count glp1_switch_count plan_switch_count
     first_plan_name after_plan_name first_model_type after_model_type first_date last_date glp1_switch_date plan_switch_date total_oop total_days_to_adjudct_cnt first_npi first_provider_id first_provider_zip;
-run; /* 827,123 obs */
+run; /* 768,646 obs */
 
 data input.patients_v0; set input.patients_v0; 
 paid_count = claim_count - reject_count - reversed_count;
