@@ -3,16 +3,16 @@
  | 1) start with the first claim data (N=827,123)
  *============================================================*/
 /* Sort by patient → earliest svc_dt → prefer paid on that date */
-data rx18_24_glp1_long_v00;
-    set input.rx18_24_glp1_long_v00;
+data rx18_24_glp1_long_v01;
+    set input.rx18_24_glp1_long_v01;
     if encnt_outcm_cd = "PD" then paid_priority = 1;   /* 1 if encnt_outcm_cd = "PD", else 0 */
     else paid_priority = 0;
 run;
-proc sort data=rx18_24_glp1_long_v00; by patient_id svc_dt descending paid_priority; run;
+proc sort data=rx18_24_glp1_long_v01; by patient_id svc_dt descending paid_priority; run;
 
 /* pool claim level data at patient level */
 data input.patients_v0; 
-  set rx18_24_glp1_long_v00;       
+  set rx18_24_glp1_long_v01;       
   by patient_id;
   length first_glp1 after_glp1 first_payer_type after_payer_type first_plan_name after_plan_name first_model_type after_model_type first_npi first_provider_id first_indication $50;
   retain first_glp1 after_glp1 first_payer_type after_payer_type glp1_switcher plan_switcher claim_count reject_count reversed_count glp1_switch_count plan_switch_count first_indication
