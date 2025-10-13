@@ -156,7 +156,7 @@ proc freq data=input.patients_v1; table disc_at_1y*first_payer_type /norow noper
 * by first_indication;
 proc freq data=input.patients_v1; table disc_at_1y*first_indication /norow nopercent; run;
 
-data subgroup; set input.patients_v1; if first_indication ="diabetes"; run;
+data subgroup; set input.patients_v1; if first_indication ="obesity"; run;
 proc freq data=subgroup; table disc_at_1y*first_payer_type /norow nopercent; run;
 
 
