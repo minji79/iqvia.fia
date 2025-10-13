@@ -423,10 +423,107 @@ proc sql;
  	on a.patient_id = b.patient_id;
 quit; /* 10,999,619 obs*/
 
+/*============================================================*
+ | 12) **** merge with model_type_name with plan file to identify payer_type ****
+ *============================================================*/
+* merge with plan file;
+proc sql;
+    create table input.rx18_24_glp1_long_v00 as
+    select a.*, b.model_type_name
+    from input.rx18_24_glp1_long_v00 as a
+    left join biosim.plan as b
+      on a.plan_id = b.plan_id
+    ;
+quit;
+data check; set input.rx18_24_glp1_long_v00; if missing(plan_id); run; /* 1443 obs */
+
+* categorize - payer_payer; 
+data input.rx18_24_glp1_long_v00; 
+    set input.rx18_24_glp1_long_v00; 
+    length payer_type payer_type_indicator $100.;
+    payer_type = "";
+    payer_type_indicator = "";
+
+    select (upcase(model_type_name));
+        when ("MEDICARE D UNSPECIFIED", 
+              "EMPLOYER-SPONSORED PBM RETIREE PRESCRIPTION DRUG PROGRAM",
+              "GENERAL MEDICARE D SPECIAL NEEDS PLAN",
+              "MEDICARE D SPECIAL NEEDS PLAN",
+              "DUAL ELIGIBLE MEDICARE MEDICAID PLAN",
+              "MEDICARE")
+              do; payer_type = "Medicare D: Unspec"; payer_type_indicator = "dominant_payer"; end;
+
+        when ("GENERAL MEDICARE D PRESCRIPTION DRUG PROGRAM",
+              "MEDICARE D PRESCRIPTION DRUG PROGRAM - PLAN SPECIFIC")
+              do; payer_type = "Medicare D: TM"; payer_type_indicator = "dominant_payer"; end;
+
+        when ("GENERAL MEDICARE D ADVANTAGE",
+              "MEDICARE D ADVANTAGE - PLAN SPECIFIC")
+              do; payer_type = "Medicare D: ADV"; payer_type_indicator = "dominant_payer"; end;
+
+        when ("MANAGED MEDICAID/MEDICARE SUPPLEMENT/MEDIGAP/STATE ASSISTANCE",
+              "WORKER'S COMPENSATION",
+              "STATE ASSISTANCE PROGRAM",
+              "CHILDRENS HEALTH INSURANCE PROGRAM")
+              do; payer_type = "Medicaid: Unspec"; payer_type_indicator = "dominant_payer"; end;
+
+        when ("FEE FOR SERVICE MEDICAID") 
+              do; payer_type = "Medicaid: FFS"; payer_type_indicator = "dominant_payer"; end;
+
+        when ("MANAGED MEDICAID") 
+              do; payer_type = "Medicaid: MCO"; payer_type_indicator = "dominant_payer"; end;
+
+        when ("Employer","EMPLOYER","STATE EMPLOYEES","FEDERAL EMPLOYEE",
+              "EMPLOYER-SPONSORED CMS RETIREE PRESCRIPTION DRUG PROGRAM")
+              do; payer_type = "Commercial"; payer_type_indicator = "dominant_payer"; end;
+
+        when ("EXCHANGE","HEALTH INSURANCE EXCHANGE EPO GENERAL",
+              "HEALTH INSURANCE EXCHANGE GENERAL","HEALTH INSURANCE EXCHANGE HMO",
+              "HEALTH INSURANCE EXCHANGE POS GENERAL",
+              "HEALTH INSURANCE EXCHANGE PPO GENERAL")
+              do; payer_type = "Exchange"; payer_type_indicator = "dominant_payer"; end;
+
+        when ("CASH") do; payer_type = "Cash"; payer_type_indicator = "secondary_payer"; end;
+        when ("COUPON/VOUCHER PROGRAM") do; payer_type = "Coupon"; payer_type_indicator = "secondary_payer"; end;
+		when ("UNSPECIFIED PLAN") do; payer_type = "Unspec"; payer_type_indicator = "secondary_payer"; end;
+		when ("MEDICARE B") do; payer_type = "Part B"; payer_type_indicator = "secondary_payer"; end;
+
+        when ("PHARMACY BENEFIT MANAGER", 
+              "PBM BOOK OF BUSINESS - UNIDENTIFIED PLANS")
+              do; payer_type = "PBM"; payer_type_indicator = "secondary_payer"; end;
+
+        when ("DISCOUNT CARD PROGRAM") 
+              do; payer_type = "Discount Card"; payer_type_indicator = "secondary_payer"; end;
+			  
+		when ("HMO",
+			  "PREFERRED PROVIDER ORGANIZATION",
+			  "EXCLUSIVE PROVIDER ORGANIZATION",
+			  "HMO - COMBINATION MODEL",
+			  "HMO - GROUP PRACTICE MODEL",
+			  "HMO - INDEPENDENT PRACTICE ASSOCIATION MODEL",
+			  "HMO - NETWORK MODEL",
+			  "HMO - STAFF MODEL")
+              do; payer_type = "PPO/HMO"; payer_type_indicator = "secondary_payer"; end;
+			  
+		when ("HEALTH INSURANCE EXCHANGE HMO GENERAL",
+		      "BEHAVIORAL HEALTH",
+			  "CONSUMER DIRECTED HEALTH PLAN",
+			  "THIRD PARTY ADMINISTRATOR",
+			  "CLAIMS PROCESSOR",
+			  "THIRD PARTY",
+			  "FEDERAL ASSISTANCE PROGRAM",
+			  "NON-HMO",
+			  "POINT OF SERVICE",
+			  "UNKNOWN THIRD PARTY")
+              do; payer_type = "PPO/HMO"; payer_type_indicator = "secondary_payer"; end;
+			  
+        otherwise do; payer_type = "missing"; payer_type_indicator = "missing"; end;
+    end;
+run;
 
 
 /*============================================================*
- | 12) only remain paitents who have at least one paid claims (N= 768,646 individuals, 20,496,809 obs)
+ | 13) only remain paitents who have at least one paid claims (N= 768,646 individuals, 20,496,809 obs)
  *============================================================*/
 
 * identify; 
