@@ -424,7 +424,7 @@ proc sql;
 quit; /* 10,999,619 obs*/
 
 /*============================================================*
- | 12) **** merge with model_type_name with plan file to identify payer_type ****
+ | 12) **** update payer_type ****
  *============================================================*/
 * merge with plan file;
 proc sql;
@@ -521,7 +521,7 @@ data input.rx18_24_glp1_long_v00;
     end;
 run;
 
-
+ 
 /*============================================================*
  | 13) only remain paitents who have at least one paid claims (N= 768,646 individuals, 20,496,809 obs)
  *============================================================*/
