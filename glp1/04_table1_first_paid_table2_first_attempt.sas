@@ -18,7 +18,7 @@ data input.first_attempt;
     by patient_id svc_dt;
     if first.patient_id then output;
     drop paid_priority;
-run; /* 999714 obs */
+run; /* 984,398 obs */
 
 
 /* 4) count people who got approved glp1 after the first rejection in the same date  */
@@ -47,7 +47,7 @@ proc sql;
         where encnt_outcm_cd = "RJ"
     )
     group by a.patient_id;
-quit;  /* 151400 */
+quit;  /* 220,341 obs */
 
 proc print data=first_attempt_firstdate_v1 (obs=10); run;
 data first_attempt_firstdate_v2; set first_attempt_firstdate_v1; if count_claims > 1; run; /* 86246 among 174523 */
@@ -56,10 +56,10 @@ data first_attempt_firstdate_v2; set first_attempt_firstdate_v1; if count_claims
 /*****************************
 *  distribution by plan_type
 *****************************/
-proc freq data=input.first_attempt; table plan_type; run;
+proc freq data=input.first_attempt; table payer_type; run;
 
 proc freq data=input.first_attempt; table encnt_outcm_cd; run;
-proc freq data=input.first_attempt; table encnt_outcm_cd*plan_type /norow nopercent; run;
+proc freq data=input.first_attempt; table encnt_outcm_cd*payer_type /norow nopercent; run;
 
 /*****************************
 *  indication of GLP1
@@ -129,7 +129,7 @@ run;
 *  reason of rejections among rejection
 *****************************/
 data rejection; set input.first_attempt; if rjct_grp ne 0; run;
-proc freq data=rejection; table rjct_grp; run;
+proc freq data=rejection; table RJ_reason; run;
 proc freq data=rejection; table rjct_grp*plan_type  /norow nopercent; run;
 
 
