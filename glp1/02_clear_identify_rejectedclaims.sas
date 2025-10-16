@@ -121,57 +121,89 @@ quit;
 
 
 /*****************************
-* 5. exclude rejection if enrollment = 0 or payer_type_indicator = "secondary_payer";
-
-RJ_reason
-  RJ_reason = 'Approved' if rjct_grp=0;
-  RJ_reason = 'Plan Switching' if encnt_='RJ' and enrollment = 0;
-  RJ_reason = 'RJ by Secondary Payer' if encnt_='RJ' and payer_type_indicator = "secondary_payer";
-  RJ_reason = 'RJ_Step' = if (encnt_='RJ' and enrollment = 1 and rjct_grp=1); 
-  RJ_PrAu = (encnt_='RJ' and rjct_grp=2); 
-  RJ_NtCv = (encnt_='RJ' and rjct_grp=3); 
-  RJ_PlLm = (encnt_='RJ' and rjct_grp=4); 
-  RJ_NotForm = (encnt_='RJ' and rjct_grp=5); 
+* 5. re-categorize rejection reasons
 *****************************/
+
+data input.rx18_24_glp1_long_v00; 
+    set input.rx18_24_glp1_long_v00; 
+    length rj_grp $100.;
+    rj_grp = "";
+
+  if rjct_cd in ('88','608','088','0608') then rj_grp="rj_step";
+  else if rjct_cd in ('3N','3P','3S','3T','3W','03N','03P','03S','03T','03W',
+                      '3X','3Y','64','6Q','75','03X','03Y','064','06Q','075',
+                      '80','EU','EV','MV','PA','080','0EU','0EV','0MV','0PA')
+       then rj_grp="rj_pa";
+  else if rjct_cd in ('60','61','63','060','061','063',
+                      '7Y','8A','8H','9R','9T','9Y','BB',
+                      '07Y','08A','08H','09R','09T','09Y','0BB')
+       then rj_grp="rj_not_covered";
+  else if rjct_cd in ('MR','0MR','70','070','9Q','09Q') then rj_grp="rj_ndc_block";
+  else if rjct_cd in ('76','7X','AG','RN','076','07X','0AG','0RN')
+       then rj_grp="rj_qty_limit";
+  else if rjct_cd in ('','00','000') then rj_grp="approved";
+  else if rjct_cd in ('65','065','67','067','68','068','69','069') then rj_grp="rj_coverage_not_active";
+  else rj_grp="rj_others_non_formulary";
+run;
+
 
 data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; 
  length RJ_reason $100.;
  RJ_reason = "";
- if encnt_outcm_cd in ("RV","PD") then RJ_reason = 'Approved';
- else if encnt_outcm_cd = 'RJ' and enrollment = 0 then RJ_reason = 'Plan Switching';
+ if encnt_outcm_cd = "PD" then RJ_reason = 'Approved - paid';
+ else if encnt_outcm_cd = "RV" then RJ_reason = 'Approved - reversed';
  else if encnt_outcm_cd = 'RJ' and payer_type_indicator = "secondary_payer" then RJ_reason = 'RJ by Secondary Payer';
- else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=1 then RJ_reason = 'RJ_Step';
- else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=2 then RJ_reason = 'RJ_PrAu';
- else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=3 then RJ_reason = 'RJ_NtCv';
- else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=4 then RJ_reason = 'RJ_PlLm';
- else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=5 then RJ_reason = 'RJ_NotForm';
+ else if encnt_outcm_cd = 'RJ' and rj_grp="rj_step" then RJ_reason = 'RJ_Step';
+ else if encnt_outcm_cd = 'RJ' and rj_grp="rj_pa" then RJ_reason = 'RJ_PrAu';
+ else if encnt_outcm_cd = 'RJ' and rj_grp in ("rj_not_covered", "rj_ndc_block") then RJ_reason = 'RJ_NtCv';
+ else if encnt_outcm_cd = 'RJ' and rj_grp="rj_qty_limit" then RJ_reason = 'RJ_QtyLimit';
+ else if encnt_outcm_cd = 'RJ' and rj_grp="rj_coverage_not_active" then RJ_reason = 'RJ_Coverage_Not_Active';
+ else if encnt_outcm_cd = 'RJ' and rj_grp="rj_others_non_formulary" then RJ_reason = 'RJ_Others_NotForm';
  else RJ_reason = 'NA';
 run;
+
+proc freq data=rx18_24_glp1_long_v00; table RJ_reason; run;
+proc freq data=rx18_24_glp1_long_v00; table rj_grp; run;
+proc freq data=rx18_24_glp1_long_v00; table rj_grp*payer_type_indicator /nocol nopercent; run;
+proc freq data=rx18_24_glp1_long_v00; table rj_grp*enrollment /nocol nopercent; run;
+
+
+
+data input.rx18_24_glp1_long_v01; 
+    set input.rx18_24_glp1_long_v01; 
+    length rj_grp $100.;
+    rj_grp = "";
+
+  if rjct_cd in ('88','608','088','0608') then rj_grp="rj_step";
+  else if rjct_cd in ('3N','3P','3S','3T','3W','03N','03P','03S','03T','03W',
+                      '3X','3Y','64','6Q','75','03X','03Y','064','06Q','075',
+                      '80','EU','EV','MV','PA','080','0EU','0EV','0MV','0PA')
+       then rj_grp="rj_pa";
+  else if rjct_cd in ('60','61','63','060','061','063',
+                      '7Y','8A','8H','9R','9T','9Y','BB',
+                      '07Y','08A','08H','09R','09T','09Y','0BB')
+       then rj_grp="rj_not_covered";
+  else if rjct_cd in ('MR','0MR','70','070','9Q','09Q') then rj_grp="rj_ndc_block";
+  else if rjct_cd in ('76','7X','AG','RN','076','07X','0AG','0RN')
+       then rj_grp="rj_qty_limit";
+  else if rjct_cd in ('','00','000') then rj_grp="approved";
+  else if rjct_cd in ('65','065','67','067','68','068','69','069') then rj_grp="rj_coverage_not_active";
+  else rj_grp="rj_others_non_formulary";
+run;
+
 
 data input.rx18_24_glp1_long_v01; set input.rx18_24_glp1_long_v01; 
  length RJ_reason $100.;
  RJ_reason = "";
- if encnt_outcm_cd in ("RV","PD") then RJ_reason = 'Approved';
- else if encnt_outcm_cd = 'RJ' and enrollment = 0 then RJ_reason = 'Plan Switching';
+ if encnt_outcm_cd = "PD" then RJ_reason = 'Approved - paid';
+ else if encnt_outcm_cd = "RV" then RJ_reason = 'Approved - reversed';
  else if encnt_outcm_cd = 'RJ' and payer_type_indicator = "secondary_payer" then RJ_reason = 'RJ by Secondary Payer';
- else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=1 then RJ_reason = 'RJ_Step';
- else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=2 then RJ_reason = 'RJ_PrAu';
- else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=3 then RJ_reason = 'RJ_NtCv';
- else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=4 then RJ_reason = 'RJ_PlLm';
- else if encnt_outcm_cd = 'RJ' and enrollment = 1 and rjct_grp=5 then RJ_reason = 'RJ_NotForm';
- else RJ_reason = 'NA';
-run;
-proc freq data=input.rx18_24_glp1_long_v00; table RJ_reason ; run;
-proc print data= rx18_24_glp1_long_v00; where RJ_reason = 'NA' and not missing(encnt_outcm_cd); run; /* 6 rows with invalid information */
-
-
-data rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; 
- length RJ_reason $100.;
- RJ_reason = "";
- if encnt_outcm_cd in ("RV","PD") then RJ_reason = 'Approved';
- else if encnt_outcm_cd = 'RJ' and enrollment = 0 then RJ_reason = 'Plan Switching';
- else if encnt_outcm_cd = 'RJ' and payer_type_indicator = "secondary_payer" then RJ_reason = 'RJ by Secondary Payer';
- else if encnt_outcm_cd = 'RJ' and enrollment = 1 then RJ_reason = 'RJ by Formularly Reasons';
+ else if encnt_outcm_cd = 'RJ' and rj_grp="rj_step" then RJ_reason = 'RJ_Step';
+ else if encnt_outcm_cd = 'RJ' and rj_grp="rj_pa" then RJ_reason = 'RJ_PrAu';
+ else if encnt_outcm_cd = 'RJ' and rj_grp in ("rj_not_covered", "rj_ndc_block") then RJ_reason = 'RJ_NtCv';
+ else if encnt_outcm_cd = 'RJ' and rj_grp="rj_qty_limit" then RJ_reason = 'RJ_QtyLimit';
+ else if encnt_outcm_cd = 'RJ' and rj_grp="rj_coverage_not_active" then RJ_reason = 'RJ_Coverage_Not_Active';
+ else if encnt_outcm_cd = 'RJ' and rj_grp="rj_others_non_formulary" then RJ_reason = 'RJ_Others_NotForm';
  else RJ_reason = 'NA';
 run;
 
@@ -181,6 +213,81 @@ proc freq data=sample; table RJ_reason* payer_type /norow nopercent; run;
 
 proc freq data=input.rx18_24_glp1_long_v00; table encnt_outcm_cd; run;
 proc freq data=input.rx18_24_glp1_long_v00; table rjct_grp; run;
+
+
+
+/*============================================================*
+ | test
+ *============================================================*/
+
+/* investigate the */
+data sample; set input.rx_24_glp1 input.rx_23_glp1 input.rx_22_glp1 input.rx_21_glp1 input.rx_20_glp1 input.rx_19_glp1 input.rx_18_glp1 input.rx_17_glp1; run;
+data sample; set sample;
+    length rj_grp $100.;
+    rj_grp = "";
+
+  if rjct_cd in ('88','608','088','0608') then rj_grp="rj_step";
+  else if rjct_cd in ('3N','3P','3S','3T','3W','03N','03P','03S','03T','03W',
+                      '3X','3Y','64','6Q','75','03X','03Y','064','06Q','075',
+                      '80','EU','EV','MV','PA','080','0EU','0EV','0MV','0PA')
+       then rj_grp="rj_pa";
+  else if rjct_cd in ('60','61','63','060','061','063',
+                      '7Y','8A','8H','9R','9T','9Y','BB',
+                      '07Y','08A','08H','09R','09T','09Y','0BB')
+       then rj_grp="rj_not_covered";
+  else if rjct_cd in ('MR','0MR','70','070','9Q','09Q') then rj_grp="rj_ndc_block";
+  else if rjct_cd in ('76','7X','AG','RN','076','07X','0AG','0RN')
+       then rj_grp="rj_qty_limit";
+  else if rjct_cd in ('','00','000') then rj_grp="approved";
+  else if rjct_cd in ('65','065','67','067','68','068','69','069') then rj_grp="rj_coverage_not_active";
+  else rj_grp="rj_others_non_formulary";
+run;
+
+proc freq data=sample; table rj_grp; run;
+proc freq data=sample; table rj_grp*final_claim_ind /nocol nopercent; run;
+
+proc freq data=sample order=freq; table rjct_cd*final_claim_ind /nocol nopercent; run;
+
+data sample; set sample; length rjct_cd_v1 $100.; rjct_cd_v1 = "";
+	if rjct_cd in ('','00','000') then rjct_cd_v1 = "null,00,000 - approved";
+	else if rjct_cd in ('75','075') then rjct_cd_v1 = "75,075 - PA";
+	else if rjct_cd in ('88','088') then rjct_cd_v1 = "88,088 - step";
+	else if rjct_cd in ('79','079') then rjct_cd_v1 = "79,079 - refill restriction";
+	else if rjct_cd in ('70','070') then rjct_cd_v1 = "70,070 - not covered (ndc_block)";
+	else if rjct_cd in ('76','076') then rjct_cd_v1 = "76,076 - qty limit";
+	else if rjct_cd in ('608','0608') then rjct_cd_v1 = "608,0608 - step";
+	else rjct_cd_v1 = rjct_cd; 
+run;
+
+proc sort data=sample; by rjct_cd_v1; run;
+data sample_summary;
+    set sample;
+    by rjct_cd_v1;
+
+    retain count_Y count_N count_total 0;
+
+    if first.rjct_cd_v1 then do;
+        count_Y = 0;
+        count_N = 0;
+        count_total = 0;
+    end;
+
+    /* Add counts */
+    if final_claim_ind = "Y" then count_Y + 1;
+    else if final_claim_ind = "N" then count_N + 1;
+
+    count_total + 1;
+
+    /* Output only once per rjct_cd_v1 group */
+    if last.rjct_cd_v1 then output;
+run;
+data sample_summary; set sample_summary; keep rjct_cd_v1 count_Y count_N count_total; run;
+
+data sample_summary; set sample_summary; pct_Y = count_Y / count_total; pct_N = count_N / count_total; run;
+
+proc sort data=sample_summary; by descending count_total descending pct_Y; run;
+proc print data=sample_summary (obs=20); run;
+
 
 
 
