@@ -49,18 +49,20 @@ quit;
 %yearly(year=17, refer=biosim.rxfact2018);
 
 data input.rx_all_med; set rx_24_diabetes_med rx_23_diabetes_med rx_22_diabetes_med rx_21_diabetes_med rx_20_diabetes_med rx_19_diabetes_med rx_18_diabetes_med; run;
-
-data input.rx_all_med; set input.rx_diabetes_med; trun;
+proc sort data=input.rx_all_med nodupkey; by patient_id svc_dt; run; /* 177,470,368 obs */
 
 
 /*============================================================*
  | 3. within (-180, 0) days - identify patients who had at least two paid claims for anti-diabetes medications
  *============================================================*/
 * remain only paid claims;
-data input.rx_all_med; set input.rx_all_med; if rjct_cd in ('','00','000'); run;
+data input.rx_all_med; set input.rx_all_med; if rjct_cd in ('','00','000'); run; /* 159,391,112 obs */
 
 * remain (-180 days, index date); 
-data input.rx_all_med; set input.rx_all_med; if svc_dt <= start_date and svc_dt > (start_date - 180) ; run;
+data input.rx_all_med; set input.rx_all_med; if svc_dt <= start_date and svc_dt > (start_date - 180) ; run; /* 12,849,846 obs */
+
+proc print data=input.rx_all_med (obs=10); run;
+
 
 * remain only diabetes med;
 proc sql; 
