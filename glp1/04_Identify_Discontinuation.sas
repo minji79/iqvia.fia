@@ -144,6 +144,26 @@ proc freq data=patients_v1; table disc_at_1y*first_indication /norow nopercent; 
 proc freq data=patients_v1; table first_indication; run;
 data input.patients_v1; set patients_v1; run;
 
+/*============================================================*
+| merge discontinuation indicator with the long dataset
+*============================================================*/
+proc sql; 
+  create table input.rx18_24_glp1_long_v00 as
+  select a.*, b.discontinuation, b.disc_date, b.disc_at_6m, b.disc_at_1y, b.disc_at_2y
+  from input.rx18_24_glp1_long_v00 as a
+  left join input.patients_v1 as b
+  on a.patient_id = b.patient_id;  
+quit;
+proc sort data=input.rx18_24_glp1_long_v00; by patient_id svc_dt; run;
+
+proc sql; 
+  create table input.rx18_24_glp1_long_v01 as
+  select a.*, b.discontinuation, b.disc_date, b.disc_at_6m, b.disc_at_1y, b.disc_at_2y
+  from input.rx18_24_glp1_long_v01 as a
+  left join input.patients_v1 as b
+  on a.patient_id = b.patient_id;  
+quit;
+proc sort data=input.rx18_24_glp1_long_v01; by patient_id svc_dt; run;
 
 /*==========================*
  |  discontinuation at 1 yr
