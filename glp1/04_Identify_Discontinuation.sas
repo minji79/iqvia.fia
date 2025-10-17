@@ -13,6 +13,7 @@ proc sort data=rx18_24_glp1_long_paid; by patient_id svc_dt; run;
 /*==========================*
  |  Definition 1; GAP >=60 (with consideration of 30-days stockpiling)
  *==========================*/
+data rx18_24_glp1_long_paid_v1; set rx18_24_glp1_long_paid_v1; drop prev_svc_dt gap disc1_date prev_days_supply discontinuation1; run;
 
 data rx18_24_glp1_long_paid_v1;
     set rx18_24_glp1_long_paid;
@@ -48,7 +49,7 @@ data rx18_24_glp1_long_paid_v1;
         /* Define discontinuation */
         if gap >= (60 + prev_stockpiling_adj) then do;
             discontinuation1 = 1;
-            disc1_date = prev_svc_dt + prev_stockpiling_adj;  /* add days to last service date */
+            disc1_date = prev_svc_dt + days_supply_cnt;  /* add days to last service date */
         end;
         else do;
             discontinuation1 = 0;
@@ -77,7 +78,7 @@ proc sql;
 quit;
 proc sort data=disc_patient_v1 nodupkey; by patient_id; run;
 data disc_patient_v1; set disc_patient_v1; if missing(disc1_date) then disc1_date = '31DEC9999'd; format disc1_date mmddyy10.; run;
-
+proc print data=disc_patient_v1 (obs=10); run;
 proc freq data=disc_patient_v1; table discontinuation1; run; /* 52.47 -> 44.86%  */
 
 
@@ -168,6 +169,9 @@ data input.patients_v1; set patients_v1; run;
 /*============================================================*
 | merge discontinuation indicator with the long dataset
 *============================================================*/
+data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; drop disc_date disc_at_6m disc_at_1y disc_at_2y; run;
+data input.rx18_24_glp1_long_v01; set input.rx18_24_glp1_long_v01; drop disc_date disc_at_6m disc_at_1y disc_at_2y; run;
+
 proc sql; 
   create table input.rx18_24_glp1_long_v00 as
   select a.*, b.discontinuation, b.disc_date, b.disc_at_6m, b.disc_at_1y, b.disc_at_2y
