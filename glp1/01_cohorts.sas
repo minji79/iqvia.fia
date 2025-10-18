@@ -515,7 +515,7 @@ data input.rx18_24_glp1_long_v00;
 			  "NON-HMO",
 			  "POINT OF SERVICE",
 			  "UNKNOWN THIRD PARTY")
-              do; payer_type = "PPO/HMO"; payer_type_indicator = "secondary_payer"; end;
+              do; payer_type = "Unspecified"; payer_type_indicator = "secondary_payer"; end;
 			  
         otherwise do; payer_type = "missing"; payer_type_indicator = "missing"; end;
     end;
