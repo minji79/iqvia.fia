@@ -118,14 +118,19 @@ proc freq data=input.first_attempt; table diabetes_history*dominant_payer /norow
 * calculate oop for 30days; 
 data input.first_attempt; set input.first_attempt; oop_30days = final_opc_amt / days_supply_cnt *30; run;
 
+data oop;
+    set input.first_attempt;
+    if encnt_outcm_cd in ("RV","PD") and not missing(oop_30days);
+run;
+
 *only remain valid rows for calculating OOP;
 
 data oop;
     set input.first_attempt;
-    if encnt_outcm_cd = "RV" and not missing(oop_30days);
+    if encnt_outcm_cd = "PD" and not missing(oop_30days);
 run;
 
-proc means data=oop n nmiss median q1 q3 min max; var oop_30days; run;
+proc means data=oop n nmiss median q1 q3 mean std min max; var oop_30days; run;
 proc means data=oop n nmiss median q1 q3 min max;
     class dominant_payer;
     var oop_30days;
@@ -206,14 +211,31 @@ quit;
 
 
 /*============================================================*
- |      TABLE 00 - first paid claim characteristics
+ |     Figure 2(1) - rejection % & rejection reason by donimant payer type
  *============================================================*/
-data first_paid_claim; set input.rx18_24_glp1_long_v01; if encnt_outcm_cd = "PD"; run;
-proc sort data=first_paid_claim; by patient_id svc_dt; run;
-data first_paid_claim; set first_paid_claim; by patient_id svc_dt; if first.patient_id; run;
+proc freq data=input.rx18_24_glp1_long_v00; table encnt_outcm_cd; run;
+proc freq data=input.rx18_24_glp1_long_v00; table encnt_outcm_cd*dominant_payer /norow nopercent; run;
+
+proc freq data=input.rx18_24_glp1_long_v00; table RJ_reason; run;
+
+data rejection; set input.rx18_24_glp1_long_v00; if rjct_grp ne 0; run;
+proc freq data=rejection; table RJ_reason; run;
+proc freq data=rejection; table RJ_reason*dominant_payer  /norow nopercent; run;
+
+/*============================================================*
+ |     Figure 2(2) - rejection % & rejection reason by diabetes_history
+ *============================================================*/
+
+proc freq data=input.rx18_24_glp1_long_v00; table encnt_outcm_cd*diabetes_history /norow nopercent; run;
+
+data rejection; set input.rx18_24_glp1_long_v00; if rjct_grp ne 0; run;
+proc freq data=rejection; table RJ_reason; run;
+proc freq data=rejection; table RJ_reason*diabetes_history  /norow nopercent; run;
 
 
 
+
+ 
 /*============================================================*
  | the amount of overall rejection & reasons by plan type
  *============================================================*/
@@ -231,7 +253,7 @@ proc sql;
          sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 3 then 1 else 0 end) as count_RJ_NtCv, 
          sum(case when encnt_outcm_cd = "RJ" and rjct_grp = 5 then 1 else 0 end) as count_RJ_other
     
-  from rx18_24_glp1_long_v00;
+  from input.rx18_24_glp1_long_v00;
 quit;
 data overall; set overall; 
       pct_count_PD = count_PD / all;
