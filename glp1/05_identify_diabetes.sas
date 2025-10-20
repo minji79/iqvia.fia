@@ -112,6 +112,7 @@ proc sql;
 quit;
 data patients_v0; set patients_v0; if missing(diabetes_history) then diabetes_history =0; run;
 proc freq data=patients_v0; table diabetes_history; run;
+proc freq data=patients_v0; table diabetes_history*first_indication /norow nopercent; run;
 
 
 
