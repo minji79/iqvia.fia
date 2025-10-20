@@ -88,11 +88,47 @@ else pct_fill = .;
 run;
 
 
+/*============================================================*
+ | 2) coupon / discount card use indicator
+ *============================================================*/
 
+proc print data=input.rx18_24_glp1_long_v01 (obs=10); run;
+proc freq data= input.rx18_24_glp1_long_v01; table payer_type; run;
 
+data patients_v1; 
+  set input.rx18_24_glp1_long_v01;       
+  by patient_id;
 
+  if first.patient_id then do;
+  	cash_count =.;
+	coupon_count =.;
+	discount_card_count =.;
+  end;
+  
+  claim_count +1; 
+  if payer_type = "Cash" then cash_count +1;
+  else if payer_type = "Coupon" then coupon_count +1;
+  else if payer_type = "Discount Card" then discount_card_count +1;
 
- 
+ if last.patient_id then output;
+run;
+data patients_v1; set patients_v1; keep patient_id claim_count cash_count coupon_count discount_card_count; run; 
+data patients_v1; set patients_v1; if cash_count >0 then cash_ever = 1; else cash_ever = 0; run;
+data patients_v1; set patients_v1; if coupon_count >0 then coupon_ever = 1; else coupon_ever = 0; run;
+data patients_v1; set patients_v1; if discount_card_count >0 then discount_card_ever = 1; else discount_card_ever = 0; run;
+
+proc print data=patients_v1 (obs=10); run;
+
+* merge with the dataset; 
+proc sql;
+	 create table input.patients_v1 as
+	 select distinct a.*, b.cash_ever, b.coupon_ever, b.discount_card_ever 
+	 from input.patients_v1 as a
+	 left join patients_v1 as b
+	 on a.patient_id = b.patient_id;
+quit;
+
+proc freq data=input.patients_v1; table discount_card_ever; run;
 
 
  
