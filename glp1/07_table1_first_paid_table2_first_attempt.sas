@@ -33,7 +33,7 @@ data first_attempt_firstdate;
 
     /* Keep only rows where svc_dt = first_date */
     if svc_dt = first_date;
-run;
+run;  /* 1,024,260 obs */
 
 
 proc sql;
@@ -49,35 +49,35 @@ proc sql;
     group by a.patient_id;
 quit;  /* 220,341 obs */
 
-proc print data=first_attempt_firstdate_v1 (obs=10); run;
-data first_attempt_firstdate_v2; set first_attempt_firstdate_v1; if count_claims > 1; run; /* 86246 among 174523 */
+proc print data=first_attempt_firstdate (obs=10); run;
+data first_attempt_firstdate_v2; set first_attempt_firstdate_v1; if count_claims > 1; run; /* 8036 among 220,341 */
 
 
 /*****************************
 *  distribution by plan_type
 *****************************/
-proc freq data=input.first_attempt; table payer_type; run;
+proc freq data=input.first_attempt; table dominant_payer; run;
 
 proc freq data=input.first_attempt; table encnt_outcm_cd; run;
-proc freq data=input.first_attempt; table encnt_outcm_cd*payer_type /norow nopercent; run;
+proc freq data=input.first_attempt; table encnt_outcm_cd*dominant_payer /norow nopercent; run;
 
 /*****************************
 *  indication of GLP1
 *****************************/
 proc freq data=input.first_attempt; table indication; run;
-proc freq data=input.first_attempt; table indication*plan_type /norow nopercent; run;
+proc freq data=input.first_attempt; table indication*dominant_payer /norow nopercent; run;
 
 /*****************************
 *  retail channel
 *****************************/
 proc freq data=input.first_attempt; table chnl_cd; run;
-proc freq data=input.first_attempt; table chnl_cd*plan_type /norow nopercent; run;
+proc freq data=input.first_attempt; table chnl_cd*dominant_payer /norow nopercent; run;
 
 /*****************************
 *  gender
 *****************************/
 proc freq data=input.first_attempt; table patient_gender; run;
-proc freq data=input.first_attempt; table patient_gender*plan_type /norow nopercent; run;
+proc freq data=input.first_attempt; table patient_gender*dominant_payer /norow nopercent; run;
 
 
 /*****************************
@@ -85,18 +85,32 @@ proc freq data=input.first_attempt; table patient_gender*plan_type /norow noperc
 *****************************/
 proc means data=input.first_attempt n nmiss median q1 q3 min max; var age_at_claim; run;
 proc means data=input.first_attempt n nmiss median q1 q3 min max;
-    class plan_type;
+    class dominant_payer;
     var age_at_claim;
 run;
+
+/*****************************
+*  coupon use
+*****************************/
+proc freq data=input.first_attempt; table plan_type; run;
+proc freq data=input.first_attempt; table plan_type*dominant_payer /norow nopercent; run;
+
 
 /*****************************
 *  GLP1 types, indication of GLP1
 *****************************/
 proc freq data=input.first_attempt; table molecule; run;
-proc freq data=input.first_attempt; table molecule*plan_type /norow nopercent; run;
+proc freq data=input.first_attempt; table molecule*dominant_payer /norow nopercent; run;
 
 proc freq data=input.first_attempt; table region; run;
-proc freq data=input.first_attempt; table region*plan_type /norow nopercent; run;
+proc freq data=input.first_attempt; table region*dominant_payer /norow nopercent; run;
+
+/*****************************
+*  history of diabetes
+*****************************/
+proc freq data=input.first_attempt; table diabetes_history; run;
+proc freq data=input.first_attempt; table diabetes_history*dominant_payer /norow nopercent; run;
+
 
 /*****************************
 *  OOP at index
@@ -104,24 +118,26 @@ proc freq data=input.first_attempt; table region*plan_type /norow nopercent; run
 * calculate oop for 30days; 
 data input.first_attempt; set input.first_attempt; oop_30days = final_opc_amt / days_supply_cnt *30; run;
 
-proc print data=input.first_attempt (obs=20); run;
-
-proc means data=input.first_attempt n nmiss median q1 q3 min max; var oop_30days; run;
-proc means data=input.first_attempt n nmiss median q1 q3 min max;
-    class plan_type;
-    var oop_30days;
-run;
-
 *only remain valid rows for calculating OOP;
+
 data oop;
     set input.first_attempt;
-    if encnt_outcm_cd = "PD" and not missing(oop_30days);
+    if encnt_outcm_cd = "RV" and not missing(oop_30days);
 run;
 
 proc means data=oop n nmiss median q1 q3 min max; var oop_30days; run;
 proc means data=oop n nmiss median q1 q3 min max;
-    class plan_type;
+    class dominant_payer;
     var oop_30days;
+run;
+
+/*****************************
+*  days_supply_cnt
+*****************************/
+proc means data=input.first_attempt n nmiss median q1 q3 min max; var days_supply_cnt; run;
+proc means data=input.first_attempt n nmiss median q1 q3 min max;
+    class dominant_payer;
+    var days_supply_cnt;
 run;
 
 
@@ -130,7 +146,7 @@ run;
 *****************************/
 data rejection; set input.first_attempt; if rjct_grp ne 0; run;
 proc freq data=rejection; table RJ_reason; run;
-proc freq data=rejection; table rjct_grp*plan_type  /norow nopercent; run;
+proc freq data=rejection; table RJ_reason*dominant_payer  /norow nopercent; run;
 
 
 
@@ -140,8 +156,8 @@ proc freq data=rejection; table rjct_grp*plan_type  /norow nopercent; run;
  *============================================================*/
 data rx18_24_glp1_long_v00;
     set input.rx18_24_glp1_long_v00;
-    if encnt_outcm_cd = "PD" then fill = 1;
-    else fill = 0;
+    if encnt_outcm_cd in ("PD", "RV") then approved = 1;
+    else approved = 0;
 run;
 
 proc sort data=rx18_24_glp1_long_v00; by patient_id svc_dt; run;
@@ -149,20 +165,20 @@ data rx18_24_glp1_long_v02;
     set rx18_24_glp1_long_v00;
     by patient_id svc_dt;
 
-    retain first0_date first1_date gap first_fill;
+    retain first0_date first1_date gap first_approved;
     format first0_date first1_date yymmdd10.;
 
     if first.patient_id then do;
         first0_date  = .;
         first1_date  = .;
-        gap          = .;
-        first_fill   = fill;   /* record the very first fill value */
+        gap          = 0;
+        first_approved   = approved;   /* record the very first fill value */
     end;
 
     /* Only process patients whose first fill=0 */
-    if first_fill = 0 then do;
-        if fill=0 and missing(first0_date) then first0_date = svc_dt;  /* capture first date with fill=0 */        
-        if fill=1 and missing(first1_date) then first1_date = svc_dt;  /* capture first date with fill=1 */
+    if first_approved = 0 then do;
+        if approved=0 and missing(first0_date) then first0_date = svc_dt;  /* capture first date with approved=0 */        
+        if approved=1 and missing(first1_date) then first1_date = svc_dt;  /* capture first date with approved=1 */
         if last.patient_id then do;
             if not missing(first0_date) and not missing(first1_date) then
                 gap = first1_date - first0_date;
@@ -171,13 +187,15 @@ data rx18_24_glp1_long_v02;
         end;
 
     end;
-run; /* 331129 obs */
+run; /* 225003 obs */
 
-proc print data=rx18_24_glp1_long_v02 (obs=20); var patient_id svc_dt first0_date first1_date first_fill gap; run;
+proc print data=rx18_24_glp1_long_v02 (obs=20); var patient_id svc_dt first0_date first1_date first_approved gap; run;
+proc print data=rx18_24_glp1_long_v00; where patient_id = 5014876	; run;
+
 
 *test;
-proc means data=rx18_24_glp1_long_v02 n nmiss median q1 q3 min max; var gap; run;
-proc means data=rx18_24_glp1_long_v02 n nmiss median q1 q3 min max; class plan_type; var gap; run;
+proc means data=rx18_24_glp1_long_v02 n nmiss median q1 q3 min max; var gap; run; /* 112592 missing -> # of individuals who never paid claim after their first rejection */
+proc means data=rx18_24_glp1_long_v02 n nmiss median q1 q3 min max; class dominant_payer; var gap; run;
 
 * how many people fill at the date of first rejection? (N = 9196);
 proc sql;
