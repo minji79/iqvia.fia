@@ -69,4 +69,4 @@ proc sql;
   left join input.rx_diabetes_med as b
   on a.patient_id = b.patient_id;
 quit;
-
+data input.final_claims; set input.final_claims; if missing(diabetes_history) then diabetes_history =0; run;
