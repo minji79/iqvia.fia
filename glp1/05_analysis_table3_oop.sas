@@ -66,7 +66,7 @@ data rx18_24_glp1_long_paid_clean;
         output;
     end;
 
-    keep patient_id svc_dt plan_type indication count oop_30day;
+    keep patient_id svc_dt payer_type indication count oop_30day;
 run;
 
 proc print data=rx18_24_glp1_long_paid_clean (obs=10); where count >1;  run;
@@ -91,13 +91,13 @@ data rx18_24_glp1_long_paid_clean;
     end;
 run;
 
-proc print data=rx18_24_glp1_long_paid_clean (obs=10);  run;
-
 data rx18_24_glp1_long_paid_clean;
     set rx18_24_glp1_long_paid_clean;
     gap_from_m3 = abs(svc_dt - m3_after);
     gap_from_m6 = abs(svc_dt - m6_after);
 run;
+
+proc print data=rx18_24_glp1_long_paid_clean (obs=10);  run;
 
 /*==========================*
  |  calculate OOP for eeach date
@@ -116,7 +116,7 @@ data index_best;
     output;
   end;
 run;
-proc print data=m3_best (obs=10);  run;
+proc print data=index_best (obs=10);  run;
 
 
  /*--- Pick the closest claim to 3 months (break ties by earliest date) ---*/
@@ -159,9 +159,9 @@ proc sql;
     create table input.oop_summary as
     select distinct 
            i.patient_id,
-           c.index_date, c.oop_index, c.plan_type as index_plan_type, c.indication as index_indication,
-           a.svc_for_oop_m3, a.oop_m3, a.plan_type as m3_plan_type, a.indication as m3_indication,
-           b.svc_for_oop_m6, b.oop_m6, b.plan_type as m6_plan_type, b.indication as m6_indication
+           c.index_date, c.oop_index, c.payer_type as index_payer_type, c.indication as index_indication,
+           a.svc_for_oop_m3, a.oop_m3, a.payer_type as m3_payer_type, a.indication as m3_indication,
+           b.svc_for_oop_m6, b.oop_m6, b.payer_type as m6_payer_type, b.indication as m6_indication
     from input.patients_v0 as i
     left join index_best as c 
         on i.patient_id = c.patient_id
@@ -183,7 +183,7 @@ proc means data=input.oop_summary n nmiss median q1 q3 min max;
     var oop_index;
 run;
 proc means data=input.oop_summary n nmiss median q1 q3 min max;
-    class index_plan_type;
+    class index_payer_type;
     var oop_index;
 run;
 
@@ -191,7 +191,7 @@ run;
 data input.oop_summary; set input.oop_summary; if oop_index > 100 then oop100_index = 1; else oop100_index =0; run;
 proc freq data=input.oop_summary; table oop100_index; run;
 proc freq data=input.oop_summary; table oop100_index*index_indication /norow nopercent; run;
-proc freq data=input.oop_summary; table oop100_index*index_plan_type /norow nopercent; run;
+proc freq data=input.oop_summary; table oop100_index*index_payer_type /norow nopercent; run;
 
 * m3 after;
 proc means data=input.oop_summary n nmiss median q1 q3 min max; var oop_m3; run;
@@ -199,8 +199,8 @@ proc means data=input.oop_summary n nmiss median q1 q3 min max;
     class m3_indication;
     var oop_m3;
 run;
-proc means data=input.oop_summary n nmiss median q1 q3 min max;
-    class m3_plan_type;
+proc means data=input.oop_summary n nmiss median q1 q3 mean std min max;
+    class m3_payer_type;
     var oop_m3;
 run;
 
@@ -211,7 +211,7 @@ proc means data=input.oop_summary n nmiss median q1 q3 min max;
     var oop_m6;
 run;
 proc means data=input.oop_summary n nmiss median q1 q3 min max;
-    class m6_plan_type;
+    class m6_payer_type;
     var oop_m6;
 run;
 
@@ -219,14 +219,14 @@ run;
 data input.oop_summary; set input.oop_summary; if oop_m6 > 200 then oop200_m6 = 1; else oop200_m6 =0; run;
 proc freq data=input.oop_summary; table oop200_m6; run;
 proc freq data=input.oop_summary; table oop200_m6*m6_indication /norow nopercent; run;
-proc freq data=input.oop_summary; table oop200_m6*m6_plan_type /norow nopercent; run;
+proc freq data=input.oop_summary; table oop200_m6*m6_payer_type /norow nopercent; run;
 
 * quantile based on oop at index;
 proc univariate data=input.oop_summary noprint;
     var oop_index;
     output out=quantiles pctlpre=P_ pctlpts=25 50 75;
 run;
-
+proc print data=quantiles (obs=10); run;
 data input.oop_summary; set input.oop_summary; 
  if oop_index <= 0 then oop_index_q = 1; 
  else if 0 < oop_index <= 19.995 then oop_index_q = 2; 
@@ -235,7 +235,7 @@ data input.oop_summary; set input.oop_summary;
 run;
 proc freq data=input.oop_summary; table oop_index_q; run;
 
-* oop_index_q = 1; 
+* oop_index_q = 1 ~ 4; 
 data oop_summary; set input.oop_summary; if oop_index_q = 4;  run;
 proc means data=oop_summary n nmiss median q1 q3 min max; var oop_index; run;
 proc means data=oop_summary n nmiss median q1 q3 min max; var oop_m3; run;
@@ -279,7 +279,7 @@ proc sgplot data=pred_probs_all_v1;
 run;
 
 /*==========================*
- |  by plan_type
+ |  by payer_type
  *==========================*/
 * preprocessing for fitting;
 proc logistic data=input.rx18_24_glp1_long_v00;
