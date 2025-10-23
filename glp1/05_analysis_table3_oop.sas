@@ -278,24 +278,60 @@ proc sgplot data=pred_probs_all_v1;
  keylegend / position = bottom;
 run;
 
+* with year - continuous variable; 
+proc logistic data=input.rx18_24_glp1_long_v00;
+    class payer_type (ref='Commercial') indication (ref='diabetes') patient_gender(ref='M') molecule (ref='SEMAGLUTIDE') / param=glm order=internal;
+    model reject(event='1') = year payer_type indication patient_gender age_at_claim;
+    store logit_model_all; 
+run;
+
+proc plm restore=logit_model_all;
+    effectplot fit(x=year) / clm;
+    ods output FITPLOT=pred_plot_all;
+run;
+
+proc sgplot data=pred_plot_all;
+    band x=_XCONT1 lower=_LCLM upper=_UCLM / transparency=0.3;
+    series x=_XCONT1 y=_PREDICTED / lineattrs=(thickness=2 color=blue);
+    yaxis label="Predicted Probability of Rejection" min=0 max=0.1;
+    xaxis label="Year";
+run;
+
+
 /*==========================*
- |  by payer_type
+ |  by payer_type | https://communities.sas.com/t5/Statistical-Procedures/Editing-slicefit-type-of-effectplot-in-proc-plm-through-proc/td-p/902652
  *==========================*/
 * preprocessing for fitting;
 proc logistic data=input.rx18_24_glp1_long_v00;
-    class plan_type (ref='Commercial') indication (ref='diabetes') patient_gender(ref='M') molecule (ref='SEMAGLUTIDE') year (ref='2017') / param=glm order=internal;
-    model reject(event='1') = plan_type indication patient_gender age_at_claim year*plan_type;
+    class payer_type (ref='Commercial') indication (ref='diabetes') patient_gender(ref='M') molecule (ref='SEMAGLUTIDE') / param=glm order=internal;
+    model reject(event='1') = payer_type indication patient_gender age_at_claim year*payer_type;
     store logit_model; 
 run;
 
 proc plm restore=logit_model;
-    lsmeans plan_type*year / ilink cl;
+    effectplot slicefit(x=year sliceby=payer_type)
+        / at(age_at_claim=50 patient_gender='M' indication='diabetes')
+          clm;
+    ods output sliceFITPLOT=pred_plot;
+run;
+
+PROC SGPLOT DATA=pred_plot; 
+BAND UPPER = _UCLM LOWER = _LCLM X=_XCONT1/TRANSPARENCY=.3 group=_group;
+SERIES Y = _PREDICTED X=_XCONT1/group=_group;
+run;
+
+
+
+
+
+
+
+proc plm restore=logit_model;
+    lsmeans plan_type / ilink cl;
     ods output lsmeans=pred_probs;
 run;
-data pred_probs_v1; set pred_probs; if year ne 2017; run;
-proc print data=pred_probs; run;
 
-proc sgplot data=pred_probs_v1; 
+proc sgplot data=pred_probs; 
  series x=year y=Mu / group=plan_type lineattrs=(thickness=2) name="lines";
  scatter x=year y=Mu / group=plan_type markerattrs=(symbol=circlefilled) legendlabel="" name = "dots";
  band x=year upper=UpperMu lower=LowerMu / 
