@@ -60,13 +60,3 @@ data final_claim_non_disc; set final_claim_non_disc; by patient_id; if first.pat
 *============================================================*/
 
 data input.final_claims; set final_claim_disc final_claim_non_disc; run;
-
-
-proc sql; 
-  create table input.final_claims as
-  select distinct a.*, b.diabetes_history
-  from input.final_claims as a 
-  left join input.rx_diabetes_med as b
-  on a.patient_id = b.patient_id;
-quit;
-data input.final_claims; set input.final_claims; if missing(diabetes_history) then diabetes_history =0; run;
