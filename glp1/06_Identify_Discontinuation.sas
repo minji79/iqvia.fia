@@ -76,9 +76,7 @@ proc sql;
     group by patient_id;
 quit;
 proc sort data=disc_patient_v1 nodupkey; by patient_id; run;
-data disc_patient_v1; set disc_patient_v1; if missing(disc1_date) then disc1_date = '31DEC9999'd; format disc1_date mmddyy10.; run;
-data disc_patient_v1; set disc_patient_v1; if patient_id = 6993 then disc1_date = '19SEP2024'd; format disc1_date mmddyy10.; run;
-proc print data=disc_patient_v1 (obs=10); run;
+
 proc freq data=disc_patient_v1; table discontinuation1; run; /* 44.86% */
 
 
@@ -139,14 +137,13 @@ run;
 /* patient level clean dataset */
 data disc_patient_v2; set rx18_24_glp1_long_paid_v2; keep patient_id discontinuation2 disc2_date; run;
 proc sort data=disc_patient_v2 nodupkey; by patient_id; run;
-data disc_patient_v2; set disc_patient_v2; if missing(disc2_date) then disc2_date = '31DEC9999'd; format disc2_date mmddyy10.; run;
 
 proc freq data=disc_patient_v2; table discontinuation2; run; /* 58.84 % */
 
 
 
 /*==========================*
- |  merge with patient files 
+ |  2. merge with patient files 
  *==========================*/
 proc sql; 
   create table patients_v1 as
@@ -163,11 +160,11 @@ data patients_v1; set patients_v1; if discontinuation =1 and disc_date <= (first
 data patients_v1; set patients_v1; if discontinuation =1 and disc_date <= (first_date  + 180) then disc_at_6m =1; else disc_at_6m =0; run; 
 
 proc freq data=patients_v1; table disc_at_1y; run;
-proc freq data=patients_v1; table disc_at_1y*first_indication /norow nopercent; run;
+proc freq data=patients_v1; table disc_at_1y*diabetes_history /norow nopercent; run;
 data input.patients_v1; set patients_v1; run;
 
 /*============================================================*
-| merge discontinuation indicator with the long dataset
+|  3. merge discontinuation indicator with the long dataset
 *============================================================*/
 data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; drop disc_date disc_at_6m disc_at_1y disc_at_2y; run;
 data input.rx18_24_glp1_long_v01; set input.rx18_24_glp1_long_v01; drop disc_date disc_at_6m disc_at_1y disc_at_2y; run;
