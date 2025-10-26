@@ -63,7 +63,9 @@ proc sql;
       b.chnl_cd as final_claim_chnl_cd,
       b.indication as final_claim_indication,
       b.age_at_claim as final_claim_age_at_claim,
-      b.dominant_payer as final_claim_dominant_payer
+      b.dominant_payer as final_claim_dominant_payer,
+      b.patient_gender,
+      b.region
       
   from input.patients_v1 as a 
   left join input.final_claims as b
@@ -89,7 +91,6 @@ data input.secondary_cohort_wide; set input.secondary_cohort_wide;
     else if final_claim_payer_type in ("Medicare D: ADV","Medicare D: TM","Medicare D: Unspec") then payer_type_adj = "Medicare"; 
     else payer_type_adj = final_claim_payer_type; 
 run;
-proc freq data=input.secondary_cohort_wide; table disc_at_1y*payer_type_adj /norow nopercent; run;
 
 * pool payer_type; 
 data input.secondary_cohort_wide; set input.secondary_cohort_wide;
@@ -98,7 +99,6 @@ data input.secondary_cohort_wide; set input.secondary_cohort_wide;
     else if final_claim_dominant_payer in ("Medicare D: ADV","Medicare D: TM","Medicare D: Unspec") then dominant_payer_adj = "Medicare"; 
     else dominant_payer_adj = final_claim_dominant_payer; 
 run;
-proc freq data=input.secondary_cohort_wide; table disc_at_1y*dominant_payer_adj/norow nopercent; run;
 
 * pool final_claim_molecule_name;
 data input.secondary_cohort_wide; set input.secondary_cohort_wide;
@@ -106,7 +106,6 @@ data input.secondary_cohort_wide; set input.secondary_cohort_wide;
     if final_claim_molecule_name in ("DULAGLUTIDE","EXENATIDE","LIRAGLUTIDE","LIRAGLUTIDE (WEIGHT MANAGEMENT)") then molecule_name_adj = "Other GLP1s"; 
     else molecule_name_adj = final_claim_molecule_name; 
 run;
-proc freq data=input.secondary_cohort_wide; table disc_at_1y*molecule_name_adj /norow nopercent; run;
 
 * payment type;
 data input.secondary_cohort_wide; set input.secondary_cohort_wide;
@@ -167,7 +166,6 @@ proc freq data=input.secondary_cohort_wide; table disc_at_1y*first_claim_year /n
 /*============================================================*
 |  4. cohorts with / without diabetes: N of events (disc_at_1y) / N of patients
 *============================================================*/
-
 data sample; set input.secondary_cohort_wide; if diabetes_history =1; run;
 
 * Overall;
