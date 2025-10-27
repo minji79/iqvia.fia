@@ -8,7 +8,7 @@ module load sas
 sas -helpbrowser SAS -xrm "SAS.webBrowser:'/usr/bin/chromium-browser'" -xrm "SAS.helpBrowser:'/usr/bin/chromium-browser'"
 
 /* set library */
-libname coupon "/dcs07/hpm/data/iqvia_fia/glp1_coupon";   /* my own directory */
+libname coupon "/dcs07/hpm/data/iqvia_fia/glp1_disc/glp1_coupon";   /* my own directory */
 libname input "/dcs07/hpm/data/iqvia_fia/glp1_disc";   /* discontinuation study data */
 libname home "/dcs07/hpm/data/iqvia_fia";   /* home directory */
 libname fia100 "/dcs07/hpm/data/iqvia_fia/full_raw";   /* 100% rqw data */
