@@ -41,4 +41,32 @@ proc sql;
     from coupon.cohort_long_v00;
 quit;
 
+/*============================================================*
+ | 4) required at least 2 fills for a given product
+ *============================================================*/ 
+proc sort data=coupon.cohort_long_v00; by patient_id svc_dt; run;
+
+data criteria;
+  set coupon.cohort_long_v00;    
+  by patient_id;
+  if first.patient_id then do;
+	claim_count = 0;
+  end;
+  
+  claim_count + 1;
+
+  if last.patient_id then output;
+run;
+data criteria; set criteria; if claim_count > 1; keep patient_id claim_count; run; /* 336166 obs */
+
+proc sql;
+	create table coupon.cohort_long_v00 as
+	select distinct a.*, b.claim_count
+	from coupon.cohort_long_v00 as a
+	inner join criteria as b
+	on a.patient_id = b.patient_id;
+quit;
+
+proc print data=coupon.cohort_long_v00 (obs=10); run;
+proc freq data=coupon.cohort_long_v00; table payer_type; run;
 
