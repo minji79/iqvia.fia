@@ -69,4 +69,3 @@ quit;
 
 proc print data=coupon.cohort_long_v00 (obs=10); run;
 proc freq data=coupon.cohort_long_v00; table payer_type; run;
-
