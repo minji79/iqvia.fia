@@ -301,73 +301,52 @@ run;
 /*==========================*
  |  by payer_type | https://communities.sas.com/t5/Statistical-Procedures/Editing-slicefit-type-of-effectplot-in-proc-plm-through-proc/td-p/902652
  *==========================*/
+proc contents data=input.rx18_24_glp1_long_v00; run;
+
+data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00;
+    length dominant_payer_adj $100.; 
+    if dominant_payer in ("Medicaid: FFS","Medicaid: MCO","Medicaid: Unspec") then dominant_payer_adj = "Medicaid"; 
+    else if dominant_payer in ("Medicare D: ADV","Medicare D: TM","Medicare D: Unspec") then dominant_payer_adj = "Medicare"; 
+    else dominant_payer_adj = dominant_payer; 
+run;
+data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; oop_30day = final_opc_amt / days_supply_cnt * 30; run;
+ 
+
 * preprocessing for fitting;
 proc logistic data=input.rx18_24_glp1_long_v00;
-    class payer_type (ref='Commercial') indication (ref='diabetes') patient_gender(ref='M') molecule (ref='SEMAGLUTIDE') / param=glm order=internal;
-    model reject(event='1') = payer_type indication patient_gender age_at_claim year*payer_type;
+    class dominant_payer_adj (ref='Commercial') diabetes_history (ref='1') patient_gender(ref='M') molecule (ref='SEMAGLUTIDE') / param=glm order=internal;
+    model reject(event='1') = dominant_payer_adj diabetes_history patient_gender age_at_claim year*dominant_payer_adj;
     store logit_model; 
 run;
 
 proc plm restore=logit_model;
-    effectplot slicefit(x=year sliceby=payer_type)
-        / at(age_at_claim=50 patient_gender='M' indication='diabetes')
-          clm;
-    ods output sliceFITPLOT=pred_plot;
+    effectplot slicefit(x=year sliceby=dominant_payer_adj)  / clm;
+    ods output sliceFITPLOT=pred_plot_payer;
 run;
 
-PROC SGPLOT DATA=pred_plot; 
+PROC SGPLOT DATA=pred_plot_payer;
 BAND UPPER = _UCLM LOWER = _LCLM X=_XCONT1/TRANSPARENCY=.3 group=_group;
 SERIES Y = _PREDICTED X=_XCONT1/group=_group;
 run;
 
 
+/*==========================*
+ |  by diabetes_history
+ *==========================*/
 
-
-
-
+proc logistic data=input.rx18_24_glp1_long_v00;
+    class dominant_payer_adj (ref='Commercial') diabetes_history (ref='1') patient_gender(ref='M') molecule (ref='SEMAGLUTIDE') / param=glm order=internal;
+    model reject(event='1') = dominant_payer_adj diabetes_history patient_gender age_at_claim year*diabetes_history;
+    store logit_model; 
+run;
 
 proc plm restore=logit_model;
-    lsmeans plan_type / ilink cl;
-    ods output lsmeans=pred_probs;
+    effectplot slicefit(x=year sliceby=diabetes_history) / clm;
+    ods output sliceFITPLOT=pred_plot_dm;
 run;
 
-proc sgplot data=pred_probs; 
- series x=year y=Mu / group=plan_type lineattrs=(thickness=2) name="lines";
- scatter x=year y=Mu / group=plan_type markerattrs=(symbol=circlefilled) legendlabel="" name = "dots";
- band x=year upper=UpperMu lower=LowerMu / 
-        group=plan_type 
-        transparency=0.4 
-        legendlabel="95% CI";
- xaxis type=discrete label ="Year";
- yaxis label = "Predicted Probability of Claim denial" min = 0 max=1.0;
- keylegend "lines" / title = "Payer type" position = bottom;
-run;
-
-/*==========================*
- |  by indication -> error....
- *==========================*/
-* preprocessing for fitting;
-proc logistic data=input.rx18_24_glp1_long_v00;
-    class plan_type (ref='Commercial') indication (ref='diabetes') patient_gender(ref='M') molecule (ref='SEMAGLUTIDE') year (ref='2017') / param=glm order=internal;
-    model reject(event='1') = plan_type indication patient_gender age_at_claim year*indication;
-    store logit_model_indication; 
-run;
-
-proc plm restore=logit_model_indication;
-    lsmeans indication*year / ilink cl;
-    ods output lsmeans=pred_probs_indication;
-run;
-data pred_probs_indication_v1; set pred_probs_indication; if year ne 2017; run;
-
-proc sgplot data=pred_probs_indication_v1; 
- series x=year y=Mu / group=indication lineattrs=(thickness=2) name="lines";
- scatter x=year y=Mu / group=indication markerattrs=(symbol=circlefilled) legendlabel="" name = "dots";
- band x=year upper=UpperMu lower=LowerMu / 
-        group=indication
-        transparency=0.4 
-        legendlabel="95% CI";
- xaxis type=discrete label ="Year";
- yaxis label = "Predicted Probability of Claim denial" min = 0 max=1.0;
- keylegend "lines" / title = "Indication fo GLP-1 RAs" position = bottom;
+PROC SGPLOT DATA=pred_plot_dm;
+BAND UPPER = _UCLM LOWER = _LCLM X=_XCONT1/TRANSPARENCY=.3 group=_group;
+SERIES Y = _PREDICTED X=_XCONT1/group=_group;
 run;
 
