@@ -5,7 +5,6 @@ proc contents data=input.patients_v0; run;
 proc contents data=input.rx18_24_glp1_long_v00; run;
 proc contents data=input.rx18_24_glp1_long_v01; run;
 
-
 /*============================================================*
 |  1. final claim's OOP 
 *============================================================*/
@@ -205,4 +204,28 @@ proc freq data=sample; table disc_at_1y*molecule_name_adj /norow nopercent; run;
 proc freq data=sample; table disc_at_1y*first_claim_year /norow nopercent; run;
 
 
+/*============================================================*
+|  5. last_date = first_date; run; /* 65498 individuals */
+*============================================================*/
+
+data idlist; set input.secondary_cohort_wide; if last_date = first_date; run; /* 65498 individuals */
+
+proc sql;
+  create table sample as 
+  select a.*, b.first_date, b.final_claim_svc_dt
+  from input.rx18_24_glp1_long_v01 as a
+  inner join idlist as b
+  on a.patient_id = b.patient_id;  
+quit; /* 1062810 obs */
+proc print data=sample (obs=50); var patient_id svc_dt encnt_outcm_cd first_date final_claim_svc_dt payer_type; run;
+
+proc sql;
+  create table sample2 as 
+  select a.*, b.first_date, b.final_claim_svc_dt
+  from input.rx18_24_glp1_long_v00 as a
+  inner join idlist as b
+  on a.patient_id = b.patient_id;  
+quit; /* 1062810 obs */
+proc sort data=sample2; by patient_id svc_dt; run;
+proc print data=sample2 (obs=50); var patient_id svc_dt encnt_outcm_cd first_date final_claim_svc_dt payer_type; run;
 
