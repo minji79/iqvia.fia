@@ -123,7 +123,7 @@ quit;
 /*****************************
 * 5. re-categorize rejection reasons
 *****************************/
-
+* for input.rx18_24_glp1_long_v00; 
 data input.rx18_24_glp1_long_v00; 
     set input.rx18_24_glp1_long_v00; 
     length rj_grp $100.;
@@ -152,7 +152,7 @@ data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00;
  RJ_reason = "";
  if encnt_outcm_cd = "PD" then RJ_reason = 'Approved - paid';
  else if encnt_outcm_cd = "RV" then RJ_reason = 'Approved - reversed';
- else if encnt_outcm_cd = 'RJ' and payer_type_indicator = "secondary_payer" then RJ_reason = 'RJ by Secondary Payer';
+ *else if encnt_outcm_cd = 'RJ' and payer_type_indicator = "secondary_payer" then RJ_reason = 'RJ by Secondary Payer';
  else if encnt_outcm_cd = 'RJ' and rj_grp="rj_step" then RJ_reason = 'RJ_Step';
  else if encnt_outcm_cd = 'RJ' and rj_grp="rj_pa" then RJ_reason = 'RJ_PrAu';
  else if encnt_outcm_cd = 'RJ' and rj_grp in ("rj_not_covered", "rj_ndc_block") then RJ_reason = 'RJ_NtCv';
@@ -168,7 +168,7 @@ proc freq data=rx18_24_glp1_long_v00; table rj_grp*payer_type_indicator /nocol n
 proc freq data=rx18_24_glp1_long_v00; table rj_grp*enrollment /nocol nopercent; run;
 
 
-
+* for input.rx18_24_glp1_long_v01; 
 data input.rx18_24_glp1_long_v01; 
     set input.rx18_24_glp1_long_v01; 
     length rj_grp $100.;
@@ -197,7 +197,7 @@ data input.rx18_24_glp1_long_v01; set input.rx18_24_glp1_long_v01;
  RJ_reason = "";
  if encnt_outcm_cd = "PD" then RJ_reason = 'Approved - paid';
  else if encnt_outcm_cd = "RV" then RJ_reason = 'Approved - reversed';
- else if encnt_outcm_cd = 'RJ' and payer_type_indicator = "secondary_payer" then RJ_reason = 'RJ by Secondary Payer';
+ *else if encnt_outcm_cd = 'RJ' and payer_type_indicator = "secondary_payer" then RJ_reason = 'RJ by Secondary Payer';
  else if encnt_outcm_cd = 'RJ' and rj_grp="rj_step" then RJ_reason = 'RJ_Step';
  else if encnt_outcm_cd = 'RJ' and rj_grp="rj_pa" then RJ_reason = 'RJ_PrAu';
  else if encnt_outcm_cd = 'RJ' and rj_grp in ("rj_not_covered", "rj_ndc_block") then RJ_reason = 'RJ_NtCv';
