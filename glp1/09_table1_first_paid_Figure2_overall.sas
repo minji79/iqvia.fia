@@ -149,6 +149,8 @@ run;
 /*****************************
 *  reason of rejections among rejection
 *****************************/
+proc freq data=input.first_attempt; table RJ_reason; run;
+
 data rejection; set input.first_attempt; if rjct_grp ne 0; run;
 proc freq data=rejection; table RJ_reason; run;
 proc freq data=rejection; table RJ_reason*dominant_payer  /norow nopercent; run;
