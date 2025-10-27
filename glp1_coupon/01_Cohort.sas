@@ -43,7 +43,7 @@ data medi;
   end;
 
   if payer_type in ("Medicaid: FFS","Medicaid: MCO","Medicaid: Unspec") then medicaid_count + 1;
-  if payer_type in ("Medicare D: ADV","Medicare D: TM","Medicare D: TM","Part B") then medicare_count + 1;
+  if payer_type in ("Medicare D: ADV","Medicare D: TM","Medicare D: Unspec","Part B") then medicare_count + 1;
 
   if last.patient_id then output;
 run;
@@ -59,12 +59,12 @@ proc sql;
 	left join medi as b
 	on a.patient_id = b.patient_id; 
 quit;
-data coupon.cohort_long_v00; set coupon.cohort_long_v00; if medi_enroll = 0; run; /* 4757398 obs */
+data coupon.cohort_long_v00; set coupon.cohort_long_v00; if medi_enroll = 0; run; /* 3693474 obs */
 
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from coupon.cohort_long_v00;
-quit; /* 472220 individuals */
+quit; /* 359,029 individuals */
 
 /*============================================================*
  | 4) required at least 2 fills for a given product (N=336166)
