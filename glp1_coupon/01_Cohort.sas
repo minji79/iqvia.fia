@@ -42,7 +42,7 @@ proc sql;
 quit;
 
 /*============================================================*
- | 4) required at least 2 fills for a given product
+ | 4) required at least 2 fills for a given product (N=336166)
  *============================================================*/ 
 proc sort data=coupon.cohort_long_v00; by patient_id svc_dt; run;
 
