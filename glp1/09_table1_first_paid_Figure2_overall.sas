@@ -52,6 +52,21 @@ quit;  /* 220,341 obs */
 proc print data=first_attempt_firstdate (obs=10); run;
 data first_attempt_firstdate_v2; set first_attempt_firstdate_v1; if count_claims > 1; run; /* 8036 among 220,341 */
 
+/* test */
+proc freq data=input.first_attempt; table encnt_outcm_cd*payer_type /norow nopercent; run;
+
+
+'Coupon'
+
+data sample; set input.first_attempt; if encnt_outcm_cd = "RJ" and RJ_reason = 'RJ_Others_NotForm' and payer_type in ('Discount Card'); run;
+proc freq data=sample order=freq; table rjct_cd*payer_type /norow nopercent; run;
+
+proc freq data=input.first_attempt; table RJ_reason*payer_type /norow nopercent; run;
+
+
+proc freq data=sample; table RJ_reason*payer_type /norow nopercent; run;
+
+
 
 /*****************************
 *  distribution by plan_type
