@@ -5,6 +5,7 @@ proc contents data=input.patients_v0; run;
 proc contents data=input.rx18_24_glp1_long_v00; run;
 proc contents data=input.rx18_24_glp1_long_v01; run;
 
+
 /*============================================================*
 |  1. final claim's OOP 
 *============================================================*/
@@ -16,7 +17,7 @@ proc univariate data=final_claims_paid noprint;
     var oop_30day;
     output out=quantiles pctlpre=P_ pctlpts=25 50 75;
 run;
-proc print data=quantiles (obs=10); run;
+*proc print data=quantiles (obs=10); run;
 
 data input.final_claims; set input.final_claims;
  if oop_30day <= 0 and encnt_outcm_cd ="PD" then oop_30day_q = 1; 
@@ -25,7 +26,7 @@ data input.final_claims; set input.final_claims;
  else if 26.7857 < oop_30day and encnt_outcm_cd ="PD" then oop_30day_q = 4; 
  else oop_30day_q = 0; 
 run;
-proc freq data=input.final_claims; table oop_30day_q; run;
+*proc freq data=input.final_claims; table oop_30day_q; run;
 
 /* final claim's OOP */
 data input.final_claims; set input.final_claims; 
@@ -37,7 +38,7 @@ data input.final_claims; set input.final_claims;
     else if RJ_reason = "RJ_Step" then final_claim_disposition = "RJ_Step";
     else if RJ_reason = "RJ_QtyLimit" then final_claim_disposition = "RJ_QtyLimit";
     else if RJ_reason in ("RJ_Coverage_Not_Active","RJ_Others_NotForm") then final_claim_disposition = "RJ_Non_formulary";
-    else if RJ_reason = "RJ by Secondary Payer" then final_claim_disposition = "RJ by Secondary Payer";
+    *else if RJ_reason = "RJ by Secondary Payer" then final_claim_disposition = "RJ by Secondary Payer";
     else final_claim_disposition = "NA";
 run;
 
