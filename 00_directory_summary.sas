@@ -27,6 +27,19 @@
 /dcs07/hpm/data/iqvia_fia/glp1_disc/joe_plan_mapping.sas7bdat   /* = "/dcs07/hpm/data/iqvia_fia/reduced/mapped_all_patient_years.dta" */
 
 
+/************************************************************************************
+	4.  forming cohorts
+************************************************************************************/
+
+/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r/convert_dta_to_fst.R 
+/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r/convert_dta_to_fst.sh
+
+/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r/adalimumab_gather.R
+/dcs07/hpm/data/iqvia_fia/tutorial/gather_by_drug/r/adalimumab_gather.sh
+
+
+
+ 
 
 
 
