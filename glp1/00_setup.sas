@@ -52,7 +52,7 @@ glp_switchers.do   -> similar as the above
 */
 
 /************************************************************************************
-	2.   Coverting DTA files to SAS files
+	2.   Converting DTA files to SAS files
 ************************************************************************************/
 * raw claims;
 proc import datafile="/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2024.dta" out=input.RxFact2024 dbms=dta replace; run;
