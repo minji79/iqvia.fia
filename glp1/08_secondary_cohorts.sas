@@ -44,6 +44,10 @@ run;
 
 proc freq data=input.final_claims; table final_claim_disposition; run;
 
+/* lost to follow-up */
+data input.final_claims; set input.final_claims; lost_follow_date = svc_dt + days_supply_cnt; format lost_follow_date MMDDYY10.; run;
+proc print data=input.final_claims (obs=10); var lost_follow_date svc_dt days_supply_cnt; run;
+
 
 /*============================================================*
 |  2. Form a wide dataset of a secondary cohort for the COX analysis (N=768,646)
@@ -53,8 +57,10 @@ proc sql;
   create table input.secondary_cohort_wide as
   select distinct a.*,
       b.svc_dt as final_claim_svc_dt, 
+      b.lost_follow_date,
       b.oop_30day as final_claim_oop_30days, 
       b.oop_30day_q as final_claim_oop_30days_quantile, 
+      b.days_supply_cnt as final_claim_days_supply_cnt,
       b.final_claim_disposition, 
       b.molecule_name as final_claim_molecule_name,
       b.payer_type as final_claim_payer_type,
