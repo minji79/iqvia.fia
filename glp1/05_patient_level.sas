@@ -17,7 +17,7 @@ data input.patients_v0;
   length first_glp1 after_glp1 first_dominant_payer first_payer_type after_payer_type first_plan_name after_plan_name first_model_type after_model_type first_npi first_provider_id first_indication $50;
   retain first_glp1 after_glp1 first_payer_type after_payer_type glp1_switcher plan_switcher claim_count reject_count reversed_count glp1_switch_count plan_switch_count first_indication
     first_plan_name after_plan_name first_model_type after_model_type first_date last_date glp1_switch_date plan_switch_date total_oop total_days_to_adjudct_cnt first_npi first_provider_id first_provider_zip;
-  format first_date last_date glp1_switch_date plan_switch_date yymmdd10.;
+  format first_date last_date glp1_switch_date plan_switch_date lost_follow_date yymmdd10.;
   if first.patient_id then do;
         first_glp1 = molecule_name;
         after_glp1 = molecule_name;
@@ -74,7 +74,10 @@ data input.patients_v0;
     
     last_date = svc_dt;
 
-    if last.patient_id then output;
+    if last.patient_id then do; 
+	lost_follow_date = last_date + days_supply_cnt;
+	output;
+	end;
 run;
 
 data input.patients_v0; set input.patients_v0; 
