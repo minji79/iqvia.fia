@@ -58,5 +58,12 @@ data final_claim_non_disc; set final_claim_non_disc; by patient_id; if first.pat
 /*============================================================*
 | 3. pool both datasets
 *============================================================*/
-
 data input.final_claims; set final_claim_disc final_claim_non_disc; run;
+
+
+
+
+
+
+
+
