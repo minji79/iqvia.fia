@@ -1,6 +1,6 @@
 
 /*============================================================*
- |      TABLE 1 - first attempt (their first try to fill) 
+ |      primary cohort - first attempt (their first try to fill) 
  *============================================================*/
 
 data first_attempt;
@@ -55,19 +55,111 @@ data first_attempt_firstdate_v2; set first_attempt_firstdate_v1; if count_claims
 /* test */
 proc freq data=input.first_attempt; table encnt_outcm_cd*payer_type /norow nopercent; run;
 
-
-'Coupon'
-
 data sample; set input.first_attempt; if encnt_outcm_cd = "RJ" and RJ_reason = 'RJ_Others_NotForm' and payer_type in ('Discount Card'); run;
 proc freq data=sample order=freq; table rjct_cd*payer_type /norow nopercent; run;
 
 proc freq data=input.first_attempt; table RJ_reason*payer_type /norow nopercent; run;
-
-
 proc freq data=sample; table RJ_reason*payer_type /norow nopercent; run;
 
 
+/*============================================================*
+ |     people who rejected at the index date (N=220341)
+ *============================================================*/
+data reject_first_attempt; set input.first_attempt; if encnt_outcm_cd = "RJ"; run;
+data input.id_reject_first_attempt; set reject_first_attempt; keep patient_id svc_dt; run;
+data input.id_reject_first_attempt; set input.id_reject_first_attempt; rename svc_dt =index_date; run;
 
+proc sql; 
+ create table reject_first_attempt as
+ select distinct a.*, b.index_date
+ from input.rx18_24_glp1_long_v00 as a
+ inner join input.id_reject_first_attempt as b
+ on a.patient_id = b.patient_id; 
+quit;
+proc sort data=reject_first_attempt out=input.reject_first_attempt; by patient_id svc_dt; run;
+proc print data=input.reject_first_attempt (obs=30); var patient_id svc_dt index_date encnt_outcm_cd; run;
+
+data input.reject_first_attempt_summary;
+  set input.reject_first_attempt;
+  by patient_id svc_dt;
+
+  retain index_date first_PD_date had_PD_after_RJ;
+  
+  if first.patient_id then do;
+    index_date = .;
+    first_PD_date = .;
+    had_PD_after_RJ = 0;
+  end;
+
+  if first.patient_id and encnt_outcm_cd = "RJ" then index_date = svc_dt;
+
+  if encnt_outcm_cd = "PD" and not missing(index_date) and svc_dt > index_date and first_PD_date = . then do;
+    first_PD_date = svc_dt;
+    had_PD_after_RJ = 1;
+  end;
+
+  if last.patient_id then do;
+    if had_PD_after_RJ then days_to_first_PD = first_PD_date - index_date;
+    else days_to_first_PD = .;
+    output;
+  end;
+  keep patient_id index_date had_PD_after_RJ first_PD_date days_to_first_PD;
+run;
+proc print data=input.reject_first_attempt_summary (obs=30); run;
+
+* number;
+proc freq 
+
+/*============================================================*
+ |     people who reversed at the index date (N=220341)
+ *============================================================*/
+data reverse_first_attempt; set input.first_attempt; if encnt_outcm_cd = "RV"; run;
+data input.id_reverse_first_attempt; set reverse_first_attempt; keep patient_id svc_dt; run;
+data input.id_reverse_first_attempt; set input.id_reverse_first_attempt; rename svc_dt =index_date; run;
+
+proc sql; 
+ create table reverse_first_attempt as
+ select distinct a.*, b.index_date
+ from input.rx18_24_glp1_long_v00 as a
+ inner join input.id_reverse_first_attempt as b
+ on a.patient_id = b.patient_id; 
+quit;
+proc sort data=reverse_first_attempt out=input.reverse_first_attempt; by patient_id svc_dt; run;
+proc print data=input.reverse_first_attempt (obs=30); var patient_id svc_dt index_date encnt_outcm_cd; run;
+
+data input.reverse_first_attempt_summary;
+  set input.reverse_first_attempt;
+  by patient_id svc_dt;
+
+  retain index_date first_PD_date had_PD_after_RV;
+  
+  if first.patient_id then do;
+    index_date = .;
+    first_PD_date = .;
+    had_PD_after_RV = 0;
+  end;
+
+  if first.patient_id and encnt_outcm_cd = "RV" then index_date = svc_dt;
+
+  if encnt_outcm_cd = "PD" and not missing(index_date) and svc_dt > index_date and first_PD_date = . then do;
+    first_PD_date = svc_dt;
+    had_PD_after_RV = 1;
+  end;
+
+  if last.patient_id then do;
+    if had_PD_after_RV then days_to_first_PD = first_PD_date - index_date;
+    else days_to_first_PD = .;
+    output;
+  end;
+  keep patient_id index_date had_PD_after_RV first_PD_date days_to_first_PD;
+run;
+proc print data=input.reverse_first_attempt_summary (obs=30); run;
+
+
+
+/*============================================================*
+ |      TABLE 1 - first attempt (their first try to fill) 
+ *============================================================*/
 /*****************************
 *  distribution by plan_type
 *****************************/
