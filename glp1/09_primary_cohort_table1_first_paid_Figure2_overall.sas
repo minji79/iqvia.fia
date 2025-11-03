@@ -83,32 +83,37 @@ data input.reject_first_attempt_summary;
   set input.reject_first_attempt;
   by patient_id svc_dt;
 
-  retain index_date first_PD_date had_PD_after_RJ;
+  retain index_date first_PD_date had_PD_afterward first_dominant_payer;
   
   if first.patient_id then do;
     index_date = .;
     first_PD_date = .;
-    had_PD_after_RJ = 0;
+    had_PD_afterward = 0;
+    first_dominant_payer = dominant_payer;
   end;
 
   if first.patient_id and encnt_outcm_cd = "RJ" then index_date = svc_dt;
 
   if encnt_outcm_cd = "PD" and not missing(index_date) and svc_dt > index_date and first_PD_date = . then do;
     first_PD_date = svc_dt;
-    had_PD_after_RJ = 1;
+    had_PD_afterward = 1;
   end;
 
   if last.patient_id then do;
-    if had_PD_after_RJ then days_to_first_PD = first_PD_date - index_date;
+    if had_PD_afterward then days_to_first_PD = first_PD_date - index_date;
     else days_to_first_PD = .;
     output;
   end;
-  keep patient_id index_date had_PD_after_RJ first_PD_date days_to_first_PD;
+  keep patient_id index_date first_dominant_payer had_PD_afterward first_PD_date days_to_first_PD;
 run;
 proc print data=input.reject_first_attempt_summary (obs=30); run;
 
 * number;
-proc freq 
+proc freq data= input.reject_first_attempt_summary; table had_PD_afterward; run;
+proc freq data= input.reject_first_attempt_summary; table had_PD_afterward*first_dominant_payer /norow nopercent; run;
+
+proc means data=input.reject_first_attempt_summary n nmiss median q1 q3; var days_to_first_PD; run;
+proc means data=input.reject_first_attempt_summary n nmiss median q1 q3; class first_dominant_payer; var days_to_first_PD; run;
 
 /*============================================================*
  |     people who reversed at the index date (N=220341)
@@ -131,32 +136,53 @@ data input.reverse_first_attempt_summary;
   set input.reverse_first_attempt;
   by patient_id svc_dt;
 
-  retain index_date first_PD_date had_PD_after_RV;
+  retain index_date first_PD_date had_PD_afterward first_dominant_payer;
   
   if first.patient_id then do;
     index_date = .;
     first_PD_date = .;
-    had_PD_after_RV = 0;
+    had_PD_afterward = 0;
+    first_dominant_payer = dominant_payer;
   end;
 
   if first.patient_id and encnt_outcm_cd = "RV" then index_date = svc_dt;
 
   if encnt_outcm_cd = "PD" and not missing(index_date) and svc_dt > index_date and first_PD_date = . then do;
     first_PD_date = svc_dt;
-    had_PD_after_RV = 1;
+    had_PD_afterward = 1;
   end;
 
   if last.patient_id then do;
-    if had_PD_after_RV then days_to_first_PD = first_PD_date - index_date;
+    if had_PD_afterward then days_to_first_PD = first_PD_date - index_date;
     else days_to_first_PD = .;
     output;
   end;
-  keep patient_id index_date had_PD_after_RV first_PD_date days_to_first_PD;
+  keep patient_id index_date first_dominant_payer had_PD_afterward first_PD_date days_to_first_PD;
 run;
 proc print data=input.reverse_first_attempt_summary (obs=30); run;
 
+* number;
+proc freq data= input.reverse_first_attempt_summary; table had_PD_afterward; run;
+proc freq data= input.reverse_first_attempt_summary; table had_PD_afterward*first_dominant_payer /norow nopercent; run;
 
+proc means data=input.reverse_first_attempt_summary n nmiss median q1 q3; var days_to_first_PD; run;
+proc means data=input.reverse_first_attempt_summary n nmiss median q1 q3; class first_dominant_payer; var days_to_first_PD; run;
 
+/*============================================================*
+ |     people who rejected at the index date (N=220341) + people who reversed at the index date (N=220341)
+ *============================================================*/
+
+data pool; set input.reject_first_attempt_summary input.reverse_first_attempt_summary; run;
+
+proc freq data=pool; table had_PD_afterward; run;
+proc freq data=pool; table had_PD_afterward*first_dominant_payer /norow nopercent; run;
+
+* check whether the number is same as the number from secondary cohorts; 
+proc freq data=input.patients_v1; table first_dominant_payer; run;
+
+proc freq data=input.rx18_24_glp1_long_v01; table dominant_payer; run;
+
+ 
 /*============================================================*
  |      TABLE 1 - first attempt (their first try to fill) 
  *============================================================*/
