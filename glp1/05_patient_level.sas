@@ -1,6 +1,19 @@
 
 /*============================================================*
- | 1) 2nd cohort (N==768646)
+ | 1) the first paid claims (input.index_claim)
+ *============================================================*/
+
+proc sort data=input.rx18_24_glp1_long_v01; by patient_id svc_dt; run;
+proc print data=input.rx18_24_glp1_long_v01 (obs=20); var patient_id svc_dt; run;
+
+data input.index_claim; set input.rx18_24_glp1_long_v01; if encnt_outcm_cd = "PD"; run; /* 876149 obs */
+data input.index_claim; set input.index_claim; by patient_id; if first.patient_id; run; /* N = 768646 */
+
+proc freq data= input.index_claim; table dominant_payer; run;
+
+
+/*============================================================*
+ | 2) 2nd cohort (N==768646)
  *============================================================*/
 /* Sort by patient → earliest svc_dt → prefer paid on that date */
 data rx18_24_glp1_long_v01;
@@ -9,6 +22,7 @@ data rx18_24_glp1_long_v01;
     else paid_priority = 0;
 run;
 proc sort data=rx18_24_glp1_long_v01; by patient_id svc_dt descending paid_priority; run;
+
 
 /* pool claim level data at patient level */
 data input.patients_v0; 
@@ -21,7 +35,7 @@ data input.patients_v0;
   if first.patient_id then do;
         first_glp1 = molecule_name;
         after_glp1 = molecule_name;
-		first_dominant_payer =dominant_payer;
+		first_dominant_payer = dominant_payer;
         first_payer_type = payer_type;
         after_payer_type = payer_type;
         first_plan_name = plan_name;
@@ -93,7 +107,7 @@ run;
 
 
 /*============================================================*
- | 2) coupon / discount card use indicator
+ | 3) coupon / discount card use indicator
  *============================================================*/
 proc print data=input.rx18_24_glp1_long_v01 (obs=10); run;
 proc freq data= input.rx18_24_glp1_long_v01; table payer_type; run;
