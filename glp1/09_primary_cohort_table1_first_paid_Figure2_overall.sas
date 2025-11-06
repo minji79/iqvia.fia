@@ -291,16 +291,15 @@ proc freq data=rejection; table RJ_reason*dominant_payer  /norow nopercent; run;
 /*============================================================*
  |      TABLE 1 - for diabetic population among primary cohort (N=517964)
  *============================================================*/
- data subgroup; set input.first_attempt; if diabetes_history =1; run;
-/*****************************
-*  distribution by plan_type
-*****************************/
+data subgroup; set input.first_attempt; if diabetes_history =1; run;
+
 proc freq data=subgroup; table dominant_payer; run;
 
 proc freq data=subgroup; table encnt_outcm_cd; run;
 proc freq data=subgroup; table encnt_outcm_cd*dominant_payer /norow nopercent; run;
 
-
+proc freq data=input.first_attempt; table encnt_outcm_cd; run; /* missing 259 individuals */
+proc freq data=input.rx18_24_glp1_long_v00; table encnt_outcm_cd; run; /* missing 3220 claims */
 
 /*============================================================*
  | Median days from first rejection to first approved fill (IQR)
