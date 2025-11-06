@@ -100,7 +100,7 @@ run;
 proc print data=rx18_24_glp1_long_paid_clean (obs=10);  run;
 
 /*==========================*
- |  calculate OOP for eeach date
+ |  calculate OOP for each date
  *==========================*/
  /*--- Pick the closest claim to index (break ties by earliest date) ---*/
 data index_candidates; set rx18_24_glp1_long_paid_clean; where svc_dt = start_date; run;
@@ -117,10 +117,10 @@ data index_best;
   end;
 run;
 proc print data=index_best (obs=10);  run;
-
+proc contents data=index_best; run;
 
  /*--- Pick the closest claim to 3 months (break ties by earliest date) ---*/
-data m3_candidates; set rx18_24_glp1_long_paid_clean; where svc_dt < m3_after; run;
+data m3_candidates; set rx18_24_glp1_long_paid_clean; if svc_dt < m3_after and svc_dt > start_date; run;
 proc sort data=m3_candidates; by patient_id gap_from_m3 svc_dt; run;
 
 data m3_best;
@@ -134,9 +134,10 @@ data m3_best;
   end;
 run;
 proc print data=m3_best (obs=10);  run;
+proc contents data=m3_best; run;
 
  /*--- Pick the closest claim to 6 months (break ties by earliest date) ---*/
-data m6_candidates; set rx18_24_glp1_long_paid_clean; where svc_dt < m6_after; run;
+data m6_candidates; set rx18_24_glp1_long_paid_clean; if svc_dt < m6_after and svc_dt > m3_after; run;
 proc sort data=m6_candidates; by patient_id gap_from_m6 svc_dt; run;
 
 data m6_best;
@@ -150,7 +151,7 @@ data m6_best;
   end;
 run;
 proc print data=m6_best (obs=10);  run;
-
+proc contents data=input.patients_v1; run;
 
 /*==========================*
  |  /* Merge everything (index + 3M + 6M) */
@@ -158,11 +159,11 @@ proc print data=m6_best (obs=10);  run;
 proc sql;
     create table input.oop_summary as
     select distinct 
-           i.patient_id,
-           c.index_date, c.oop_index, c.payer_type as index_payer_type, c.indication as index_indication,
-           a.svc_for_oop_m3, a.oop_m3, a.payer_type as m3_payer_type, a.indication as m3_indication,
-           b.svc_for_oop_m6, b.oop_m6, b.payer_type as m6_payer_type, b.indication as m6_indication
-    from input.patients_v0 as i
+           i.patient_id, i.diabetes_history,
+           c.index_date, c.oop_index, c.payer_type as index_payer_type,
+           a.svc_for_oop_m3, a.oop_m3, a.payer_type as m3_payer_type,
+           b.svc_for_oop_m6, b.oop_m6, b.payer_type as m6_payer_type
+    from input.patients_v1 as i
     left join index_best as c 
         on i.patient_id = c.patient_id
     left join m3_best as a 
@@ -177,12 +178,12 @@ proc print data=input.oop_summary (obs=10); run;
  |  analysis
  *==========================*/
 * index;
-proc means data=input.oop_summary n nmiss median q1 q3 min max; var oop_index; run;
-proc means data=input.oop_summary n nmiss median q1 q3 min max;
-    class index_indication;
+proc means data=input.oop_summary n nmiss median q1 q3 mean std min max; var oop_index; run;
+proc means data=input.oop_summary n nmiss median q1 q3 mean std min max;
+    class diabetes_history;
     var oop_index;
 run;
-proc means data=input.oop_summary n nmiss median q1 q3 min max;
+proc means data=input.oop_summary n nmiss median q1 q3 mean std min max;
     class index_payer_type;
     var oop_index;
 run;
@@ -190,13 +191,13 @@ run;
 *share oop > $100 at index;
 data input.oop_summary; set input.oop_summary; if oop_index > 100 then oop100_index = 1; else oop100_index =0; run;
 proc freq data=input.oop_summary; table oop100_index; run;
-proc freq data=input.oop_summary; table oop100_index*index_indication /norow nopercent; run;
+proc freq data=input.oop_summary; table oop100_index*diabetes_history /norow nopercent; run;
 proc freq data=input.oop_summary; table oop100_index*index_payer_type /norow nopercent; run;
 
 * m3 after;
-proc means data=input.oop_summary n nmiss median q1 q3 min max; var oop_m3; run;
-proc means data=input.oop_summary n nmiss median q1 q3 min max;
-    class m3_indication;
+proc means data=input.oop_summary n nmiss median q1 q3 mean std min max; var oop_m3; run;
+proc means data=input.oop_summary n nmiss median q1 q3 mean std min max;
+    class diabetes_history;
     var oop_m3;
 run;
 proc means data=input.oop_summary n nmiss median q1 q3 mean std min max;
@@ -205,21 +206,41 @@ proc means data=input.oop_summary n nmiss median q1 q3 mean std min max;
 run;
 
 * m6 after;
-proc means data=input.oop_summary n nmiss median q1 q3 min max; var oop_m6; run;
-proc means data=input.oop_summary n nmiss median q1 q3 min max;
-    class m6_indication;
+proc means data=input.oop_summary n nmiss median q1 q3 mean std min max; var oop_m6; run;
+proc means data=input.oop_summary n nmiss median q1 q3 mean std min max;
+    class diabetes_history;
     var oop_m6;
 run;
-proc means data=input.oop_summary n nmiss median q1 q3 min max;
+proc means data=input.oop_summary n nmiss median q1 q3 mean std min max;
     class m6_payer_type;
     var oop_m6;
 run;
 
-*share oop > $200 at m6;
-data input.oop_summary; set input.oop_summary; if oop_m6 > 200 then oop200_m6 = 1; else oop200_m6 =0; run;
-proc freq data=input.oop_summary; table oop200_m6; run;
-proc freq data=input.oop_summary; table oop200_m6*m6_indication /norow nopercent; run;
-proc freq data=input.oop_summary; table oop200_m6*m6_payer_type /norow nopercent; run;
+*share ever oop > $200 at m6;
+data ever_over200;
+    set rx18_24_glp1_long_paid_clean;
+    by patient_id;
+    retain count_over200;
+    count_over200 =0;
+    
+    if oop_30day > 200 then count_over200 +1;
+    if last.patient_id then output;
+run;
+
+proc sql;
+    create table ever_over200  as
+    select distinct a.*, b.diabetes_history
+    from ever_over200 as a
+    left join input.patients_v1 as b
+    on a.patient_id = b.patient_id;
+quit;
+proc print data=ever_over200 (obs=10); run;
+
+data ever_over200; set ever_over200; if count_over200 > 0 then ever_over200 = 1; else ever_over200 =0; run;
+proc freq data=ever_over200; table ever_over200; run;
+proc freq data=ever_over200; table ever_over200*diabetes_history /norow nopercent; run;
+proc freq data=ever_over200; table ever_over200*payer_type /norow nopercent; run;
+
 
 * quantile based on oop at index;
 proc univariate data=input.oop_summary noprint;
@@ -234,14 +255,22 @@ data input.oop_summary; set input.oop_summary;
  else oop_index_q = 4; 
 run;
 proc freq data=input.oop_summary; table oop_index_q; run;
+proc sql;
+    create table ever_over200  as
+    select distinct a.*, b.oop_index_q
+    from ever_over200 as a
+    left join input.oop_summary as b
+    on a.patient_id = b.patient_id;
+quit;
 
 * oop_index_q = 1 ~ 4; 
 data oop_summary; set input.oop_summary; if oop_index_q = 4;  run;
-proc means data=oop_summary n nmiss median q1 q3 min max; var oop_index; run;
-proc means data=oop_summary n nmiss median q1 q3 min max; var oop_m3; run;
-proc means data=oop_summary n nmiss median q1 q3 min max; var oop_m6; run;
+data ever_over200_sample; set ever_over200; if oop_index_q = 4;  run;
+proc means data=oop_summary n nmiss median q1 q3 mean std min max; var oop_index; run;
+proc means data=oop_summary n nmiss median q1 q3 mean std min max; var oop_m3; run;
+proc means data=oop_summary n nmiss median q1 q3 mean std min max; var oop_m6; run;
 proc freq data=oop_summary; table oop100_index; run;
-proc freq data=oop_summary; table oop200_m6; run;
+proc freq data=ever_over200_sample; table ever_over200; run;
 
 
 
