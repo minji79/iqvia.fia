@@ -184,7 +184,7 @@ proc freq data=input.rx18_24_glp1_long_v01; table dominant_payer; run;
 
  
 /*============================================================*
- |      TABLE 1 - first attempt (their first try to fill) 
+ |      TABLE 1 - for primary cohort (N=984398)
  *============================================================*/
 /*****************************
 *  distribution by plan_type
@@ -278,7 +278,6 @@ proc means data=input.first_attempt n nmiss median q1 q3 min max;
     var days_supply_cnt;
 run;
 
-
 /*****************************
 *  reason of rejections among rejection
 *****************************/
@@ -288,6 +287,18 @@ data rejection; set input.first_attempt; if rjct_grp ne 0; run;
 proc freq data=rejection; table RJ_reason; run;
 proc freq data=rejection; table RJ_reason*dominant_payer  /norow nopercent; run;
 
+
+/*============================================================*
+ |      TABLE 1 - for diabetic population among primary cohort (N=517964)
+ *============================================================*/
+ data subgroup; set input.first_attempt; if diabetes_history =1; run;
+/*****************************
+*  distribution by plan_type
+*****************************/
+proc freq data=subgroup; table dominant_payer; run;
+
+proc freq data=subgroup; table encnt_outcm_cd; run;
+proc freq data=subgroup; table encnt_outcm_cd*dominant_payer /norow nopercent; run;
 
 
 
