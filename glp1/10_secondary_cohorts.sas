@@ -125,6 +125,16 @@ data input.secondary_cohort_wide; set input.secondary_cohort_wide; first_claim_y
 
 proc contents data=input.secondary_cohort_wide; run;
 
+/* check the finally users */
+proc sql; 
+    create table secondary_cohort_wide as
+    select distinct a.*, b.dominant_payer
+    from input.secondary_cohort_wide as a
+    left join input.first_attempt as b
+    on a.patient_id = b.patient_id;
+quit;
+
+proc freq data=secondary_cohort_wide; table diabetes_history*dominant_payer /norow nopercent; run;
 
 /*============================================================*
 |  3. Overall cohort: N of events (disc_at_1y) / N of patients
