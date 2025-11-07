@@ -77,7 +77,6 @@ proc sql;
  on a.patient_id = b.patient_id; 
 quit;
 proc sort data=reject_first_attempt out=input.reject_first_attempt; by patient_id svc_dt; run;
-proc print data=input.reject_first_attempt (obs=30); var patient_id svc_dt index_date encnt_outcm_cd; run;
 
 data input.reject_first_attempt_summary;
   set input.reject_first_attempt;
@@ -290,16 +289,81 @@ proc freq data=rejection; table RJ_reason*dominant_payer  /norow nopercent; run;
 
 /*============================================================*
  |      TABLE 1 - for diabetic population among primary cohort (N=517964)
+ |      TABLE 1 - for obesity population among primary cohort (N=466434)
  *============================================================*/
-data subgroup; set input.first_attempt; if diabetes_history =1; run;
-
-proc freq data=subgroup; table dominant_payer; run;
-
-proc freq data=subgroup; table encnt_outcm_cd; run;
-proc freq data=subgroup; table encnt_outcm_cd*dominant_payer /norow nopercent; run;
-
 proc freq data=input.first_attempt; table encnt_outcm_cd; run; /* missing 259 individuals */
 proc freq data=input.rx18_24_glp1_long_v00; table encnt_outcm_cd; run; /* missing 3220 claims */
+
+
+data subpopulation; set input.first_attempt; if diabetes_history =0; run;
+
+* distribution by plan_type;
+proc freq data=subpopulation; table dominant_payer; run;
+
+*  age at claim;
+proc means data=subpopulation n nmiss median q1 q3 min max; var age_at_claim; run;
+proc means data=subpopulation n nmiss median q1 q3 min max;
+    class dominant_payer;
+    var age_at_claim;
+run;
+
+* gender; 
+proc freq data=subpopulation; table patient_gender; run;
+proc freq data=subpopulation; table patient_gender*dominant_payer /norow nopercent; run;
+
+* region;
+proc freq data=subpopulation; table region; run;
+proc freq data=subpopulation; table region*dominant_payer /norow nopercent; run;
+
+* disposition;
+proc freq data=subpopulation; table encnt_outcm_cd; run;
+proc freq data=subpopulation; table encnt_outcm_cd*dominant_payer /norow nopercent; run;
+
+* rejection reason;
+data rejection; set subpopulation; if encnt_outcm_cd = "RJ"; run;
+data rejection; set rejection; if RJ_reason in ("RJ_Others_NotForm","RJ_Coverage_Not_Active") then RJ_reason_adj = "RJ_Others"; else RJ_reason_adj = RJ_reason; run;
+
+proc freq data=rejection; table RJ_reason_adj; run;
+proc freq data=rejection; table RJ_reason_adj*dominant_payer  /norow nopercent; run;
+
+* cash, coupon, discount card use;
+proc freq data=subpopulation; table plan_type; run;
+proc freq data=subpopulation; table plan_type*dominant_payer /norow nopercent; run;
+
+/*****************************
+*  OOP at index
+*****************************/
+data subpopulation; set subpopulation; oop_30days = final_opc_amt / days_supply_cnt *30; run;
+
+*only remain valid rows for calculating OOP;
+data oop;
+    set subpopulation;
+    if encnt_outcm_cd = "PD" and not missing(oop_30days);
+run;
+
+proc means data=oop n nmiss median q1 q3 mean std min max; var oop_30days; run;
+proc means data=oop n nmiss median q1 q3 min max;
+    class dominant_payer;
+    var oop_30days;
+run;
+
+* days; 
+proc means data=subpopulation n nmiss median q1 q3 min max; var days_supply_cnt; run;
+proc means data=subpopulation n nmiss median q1 q3 min max;
+    class dominant_payer;
+    var days_supply_cnt;
+run;
+
+* chennel;
+proc freq data=subpopulation; table chnl_cd; run;
+proc freq data=subpopulation; table chnl_cd*dominant_payer /norow nopercent; run;
+
+* molecule;
+proc freq data=subpopulation; table molecule_name; run;
+proc freq data=subpopulation; table molecule_name*dominant_payer /norow nopercent; run;
+
+
+
 
 /*============================================================*
  | Median days from first rejection to first approved fill (IQR)
