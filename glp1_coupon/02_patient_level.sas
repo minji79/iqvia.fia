@@ -77,8 +77,15 @@ data coupon.cohort_long_v01; set coupon.cohort_long_v01; oop_30day = final_opc_a
 data coupon.cohort_long_v01; set coupon.cohort_long_v01; if primary_coupon=1 then primary_coupon_offset = pri_payer_pay_amt; else primary_coupon_offset=.; run;
 data coupon.cohort_long_v01; set coupon.cohort_long_v01; if secondary_coupon=1 then secondary_coupon_offset = sec_payer_pay_amt; else secondary_coupon_offset=.; run;
 
+/*============================================================*
+ | 6) total cost per 30 days
+ *============================================================*/ 
+data coupon.cohort_long_v01; set coupon.cohort_long_v01; total_drug_cost_30day = sum(pri_payer_pay_amt, sec_payer_pay_amt, final_opc_amt)/ days_supply_cnt * 30; run;
+
+proc means data=coupon.cohort_long_v01 n nmiss median q1 q3 min max; var total_drug_cost_30day; run;
+ 
  /*============================================================*
- | 4) aggregate long data at patient level
+ | 7) aggregate long data at patient level
  *============================================================*/ 
 proc sort data=coupon.cohort_long_v01; by patient_id svc_dt; run;
 
