@@ -42,7 +42,6 @@ quit; /* 359029 individuals !!! */
  /*============================================================*
  | 2) merge with secondary coupon use
  *============================================================*/ 
-
 proc sql; 
    create table coupon.cohort_long_v01 as
    select distinct a.*, b.sec_plan_id, b.sec_payer_pay_amt, b.secondary_coupon
@@ -80,9 +79,13 @@ data coupon.cohort_long_v01; set coupon.cohort_long_v01; if secondary_coupon=1 t
 /*============================================================*
  | 6) total cost per 30 days
  *============================================================*/ 
-data coupon.cohort_long_v01; set coupon.cohort_long_v01; total_drug_cost_30day = sum(pri_payer_pay_amt, sec_payer_pay_amt, final_opc_amt)/ days_supply_cnt * 30; run;
+ data coupon.cohort_long_v01; set coupon.cohort_long_v01; drop drug_cost_30day; run;
+data coupon.cohort_long_v01; set coupon.cohort_long_v01; 
+	drug_cost = sum(pri_payer_pay_amt, sec_payer_pay_amt, final_opc_amt);
+	drug_cost_30day = drug_cost / days_supply_cnt * 30; 
+run;
 
-proc means data=coupon.cohort_long_v01 n nmiss median q1 q3 min max; var total_drug_cost_30day; run;
+proc means data=coupon.cohort_long_v01 n nmiss median q1 q3 min max; var drug_cost_30day; run;
  
  /*============================================================*
  | 7) aggregate long data at patient level
