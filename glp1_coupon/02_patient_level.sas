@@ -170,6 +170,7 @@ data coupon.cohort_wide_v00; set coupon.cohort_wide_v00; if state_program_count 
 
 * duration;
 data coupon.cohort_wide_v00; set coupon.cohort_wide_v00; duration_days = intck('day', index_date, last_date); run;
+data coupon.cohort_wide_v00; set coupon.cohort_wide_v00; duration_months = duration_days/30; run;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max; var duration_days; run;
 
 
@@ -196,10 +197,10 @@ proc freq data=coupon.cohort_wide_v00; table diabetes_history; run;
 proc freq data=coupon.cohort_wide_v00; table diabetes_history*coupon_user /norow nopercent; run;
 
 * duration of episode; 
-proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max; var duration_days; run;
+proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max; var duration_months; run;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max;
     class coupon_user;
-    var duration_days;
+    var duration_months;
 run;
 
 
