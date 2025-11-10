@@ -59,28 +59,6 @@ data coupon.cohort_long_v01; set coupon.cohort_long_v01; if payer_type = "Coupon
 data coupon.cohort_long_v01; set coupon.cohort_long_v01; if primary_coupon=1 or secondary_coupon=1 then coupon = 1; else coupon =0; run;
 proc print data=coupon.cohort_long_v01 (obs=20); where coupon=1; var patient_id svc_dt payer_type primary_coupon secondary_coupon coupon; run;
 
-proc sort data=coupon.cohort_long_v01; by patient_id svc_dt; run;
-data coupon;
-  set coupon.cohort_long_v01;
-  by patient_id;
-  retain coupon_count;
-
-  if first.patient_id then coupon_count = 0;
-  if coupon = 1 then coupon_count + 1;
-  if last.patient_id then output;
-
-run; /* 359029 individuals */
-data coupon; set coupon; if coupon_count = 0 then coupon_user = 0; else coupon_user =1; run; 
-proc freq data=coupon; table coupon_user; run;
-
-proc sql;
-  create table coupon.cohort_long_v01 as
-  select distinct a.*, b.coupon_user, b.coupon_count
-  from coupon.cohort_long_v01 as a
-  left join coupon as b
-  on a.patient_id = b.patient_id; 
-quit; /* 2364194 obs */
-
  /*============================================================*
  | 3) state_program enrollee
  *============================================================*/ 
@@ -109,7 +87,6 @@ data coupon.cohort_wide_v00;
   by patient_id;
   if first.patient_id then do;
 	claim_count =0;
-	coupon_count =0;
 	primary_coupon_count =0;
 	secondary_coupon_count =0;
 	state_program_count =0;
@@ -124,7 +101,6 @@ data coupon.cohort_wide_v00;
   cumulative_2_coupon_offset + secondary_coupon_offset;
 
   if state_program =1 then state_program_count +1;
-  if coupon =1 then coupon_count +1;
   if primary_coupon =1 then primary_coupon_count +1;
   if secondary_coupon =1 then secondary_coupon_count +1;
   
@@ -133,6 +109,13 @@ data coupon.cohort_wide_v00;
   output;
   end;
 run;
+
+/* indicate coupon_user*/
+data coupon.cohort_wide_v00; set coupon.cohort_wide_v00; drop coupon_user coupon_count; run;
+data coupon.cohort_wide_v00; set coupon.cohort_wide_v00; if primary_coupon_count =0 and secondary_coupon_count =0 then coupon_user=0; else coupon_user=1; run;
+data coupon.cohort_wide_v00; set coupon.cohort_wide_v00; coupon_count = primary_coupon_count + secondary_coupon_count; run;
+proc freq data=coupon.cohort_wide_v00; table coupon_user; run;
+
 
 /* aggregate charateristics at the index claim */
 proc sort data=coupon.cohort_long_v01; by patient_id svc_dt; run;
