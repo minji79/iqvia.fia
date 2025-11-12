@@ -88,7 +88,6 @@ libname ref22 "/dcl02/alexande/data/MARKETSCAN2024";   /* output file directory 
 libname output "/dcs04/hpm/data/marketscan/stata";   /* output file directory */
 
 
-
 * make 22 dataset and then save;
 data input.ccaea22; set ref22.ccae_a; if year = 2022; run;
 data input.ccaed22; set ref22.ccae_d; if year = 2022; run;
@@ -107,14 +106,27 @@ proc export data=input.ccaet22 outfile="/dcs04/hpm/data/marketscan/stata/ccaet22
 proc export data=ref22.ccae_o2022  outfile="/dcs04/hpm/data/marketscan/stata/ccaeo22.dta"  dbms=stata replace; run;
 
 * 23;
+data input.ccaet23; set ref23.ccae_t; if year = 2023; run;
+data input.ccaes23; set ref23.ccae_s; if year = 2023; run;
+data input.ccaei23; set ref23.ccae_i; if year = 2023; run;
+data input.ccaef23; set ref23.ccae_f; if year = 2023; run;
+data input.ccaed23; set ref23.ccae_d; if year = 2023; run;
+data input.ccaea23; set ref23.ccae_a; if year = 2023; run;
+data input.ccaeo23; set ref23.ccae_o; if year = 2023; run;
 
-proc export data=ref23.ccae_a  outfile="/dcs04/hpm/data/marketscan/stata/ccaea23.dta"  dbms=stata replace; run;
-proc export data=ref23.ccae_d  outfile="/dcs04/hpm/data/marketscan/stata/ccaed23.dta"  dbms=stata replace; run;
-proc export data=ref23.ccae_f  outfile="/dcs04/hpm/data/marketscan/stata/ccaef23.dta"  dbms=stata replace; run;
-proc export data=ref23.ccae_i  outfile="/dcs04/hpm/data/marketscan/stata/ccaei23.dta"  dbms=stata replace; run;
-proc export data=ref23.ccae_o  outfile="/dcs04/hpm/data/marketscan/stata/ccaeo23.dta"  dbms=stata replace; run;
-proc export data=ref23.ccae_s  outfile="/dcs04/hpm/data/marketscan/stata/ccaes23.dta"  dbms=stata replace; run;
-proc export data=ref23.ccae_t  outfile="/dcs04/hpm/data/marketscan/stata/ccaet23.dta"  dbms=stata replace; run;
+proc export data=input.ccaea23  outfile="/dcs04/hpm/data/marketscan/stata/ccaea23.dta"  dbms=stata replace; run;
+proc export data=input.ccaed23 outfile="/dcs04/hpm/data/marketscan/stata/ccaed23.dta"  dbms=stata replace; run;
+proc export data=input.ccaef23  outfile="/dcs04/hpm/data/marketscan/stata/ccaef23.dta"  dbms=stata replace; run;
+proc export data=input.ccaei23  outfile="/dcs04/hpm/data/marketscan/stata/ccaei23.dta"  dbms=stata replace; run;
+proc export data=input.ccaeo23  outfile="/dcs04/hpm/data/marketscan/stata/ccaeo23.dta"  dbms=stata replace; run;
+proc export data=input.ccaes23  outfile="/dcs04/hpm/data/marketscan/stata/ccaes23.dta"  dbms=stata replace; run;
+proc export data=input.ccaet23  outfile="/dcs04/hpm/data/marketscan/stata/ccaet23.dta"  dbms=stata replace; run;
+
+
+proc print data=input.ccaet23 (obs=10); ; run;
+
+proc freq data=input.ccaea23; table year; run; /* 207786229 obs */
+proc sort data=input.ccaea23 nodupkey out=ccaet23; by _ALL_; run;
 
 
 /************************************************************************************
