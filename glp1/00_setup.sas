@@ -128,6 +128,11 @@ proc print data=input.ccaet23 (obs=10); ; run;
 proc freq data=input.ccaea23; table year; run; /* 207786229 obs */
 proc sort data=input.ccaea23 nodupkey out=ccaet23; by _ALL_; run;
 
+/************************************************************************************
+	3.   converting usc 4 file to dta file
+************************************************************************************/
+proc export data=ref.usc4  outfile="/dcs07/hpm/data/iqvia_fia/ref/usc4.dta"  dbms=stata replace; run;
+proc contents data=ref.usc4; run;
 
 /************************************************************************************
 	3.   Read other files
