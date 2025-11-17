@@ -62,6 +62,22 @@ proc freq data=input.first_attempt; table RJ_reason*payer_type /norow nopercent;
 proc freq data=sample; table RJ_reason*payer_type /norow nopercent; run;
 
 
+/* RJ_reason_adj */
+data input.first_attempt; set input.first_attempt; length RJ_reason_adj $50.; 
+ if RJ_reason in ("RJ_PrAu","RJ_QtyLimit","RJ_Step") then RJ_reason_adj = "RJ_UM";
+ else if RJ_reason in ("NA","RJ_Coverage_Not_Active","RJ_Others_NotForm") then RJ_reason_adj = "RJ_NotFormulary";
+ else RJ_reason_adj = RJ_reason; 
+run;
+
+/* dominant_payer_adj */
+data input.first_attempt; set input.first_attempt; length dominant_payer_adj $50.;
+ if dominant_payer in ("Medicaid: FFS","Medicaid: MCO","Medicaid: Unspec") then dominant_payer_adj = "Medicaid";
+ else if dominant_payer in ("Medicare D: ADV","Medicare D: TM","Medicare D: Unspec") then dominant_payer_adj = "Medicare";
+ else dominant_payer_adj = dominant_payer; 
+run;
+
+proc freq data=input.first_attempt; table RJ_reason_adj*dominant_payer_adj /norow nopercent; run;
+
 /*============================================================*
  |     people who rejected at the index date (N=220341)
  *============================================================*/
