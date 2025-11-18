@@ -201,6 +201,7 @@ proc freq data=input.rx18_24_glp1_long_v01; table dominant_payer; run;
 /*============================================================*
  |      TABLE 1 - for primary cohort (N=984398)
  *============================================================*/
+
 /*****************************
 *  distribution by plan_type
 *****************************/
@@ -296,11 +297,37 @@ run;
 /*****************************
 *  reason of rejections among rejection
 *****************************/
-proc freq data=input.first_attempt; table RJ_reason; run;
+proc freq data=input.first_attempt; table rjct_grp; run;
 
-data rejection; set input.first_attempt; if rjct_grp ne 0; run;
-proc freq data=rejection; table RJ_reason; run;
-proc freq data=rejection; table RJ_reason*dominant_payer  /norow nopercent; run;
+data rejection; set input.first_attempt; if rjct_grp ; run;
+proc freq data=rejection; table RJ_reason_adj; run;
+proc freq data=rejection; table RJ_reason_adj*dominant_payer  /norow nopercent; run;
+
+
+
+
+/*============================================================*
+ |      TABLE 1 - for secondary cohort (N=984398)
+ *============================================================*/
+
+proc freq data=input.secondary_cohort_wide; table patient_gender; run;
+
+
+/*****************************
+*  gender
+*****************************/
+proc freq data=input.secondary_cohort_wide; table patient_gender; run;
+proc freq data=input.secondary_cohort_wide; table patient_gender*dominant_payer /norow nopercent; run;
+
+
+/*****************************
+*  age at claim
+*****************************/
+proc means data=input.first_attempt n nmiss median q1 q3 min max; var age_at_claim; run;
+proc means data=input.first_attempt n nmiss median q1 q3 min max;
+    class dominant_payer;
+    var age_at_claim;
+run;
 
 
 /*============================================================*
