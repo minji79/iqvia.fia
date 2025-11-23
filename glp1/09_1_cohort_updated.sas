@@ -6,13 +6,6 @@
  |   3. input.first_attempt
  *============================================================*/
 
-/* if excluded dula & exenatide from first cohort */
-proc freq data=input.first_attempt; table molecule; run;
-data id_first_claim; set input.first_attempt; if molecule_name in ("LIRAGLUTIDE","LIRAGLUTIDE (WEIGHT MANAGEMENT)","SEMAGLUTIDE","SEMAGLUTIDE (WEIGHT MANAGEMENT)","TIRZEPATIDE","TIRZEPATIDE (WEIGHT MANAGEMENT)"); run; 
-   /* 746402 individuals */
-
-proc contents data=id_first_claim; run; /* 73 variables, 746402 obs */ 
-
 /*============================================================*
  | primary cohort (N=842209) with 7482901 claims
  *============================================================*/
