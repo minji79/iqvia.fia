@@ -7,7 +7,7 @@ dspnsd_qty
  |   - remain only paid claims (N=827,108)
  *============================================================*/
 
-data rx18_24_glp1_long_paid; set input.rx18_24_glp1_long_v01; if encnt_outcm_cd ="PD"; run; /* 8760132 obs */
+data rx18_24_glp1_long_paid; set input.rx18_24_glp1_long_v01; if encnt_outcm_cd ="PD"; run; /* 5757244 obs */
 proc sort data=rx18_24_glp1_long_paid; by patient_id svc_dt; run;
 
 /*==========================*
@@ -77,7 +77,7 @@ proc sql;
 quit;
 proc sort data=disc_patient_v1 nodupkey; by patient_id; run;
 
-proc freq data=disc_patient_v1; table discontinuation1; run; /* 44.86% */
+proc freq data=disc_patient_v1; table discontinuation1; run; /* 44.86% -> 39.43% */
 
 
 /*==========================*
@@ -95,7 +95,7 @@ data disc_patient_v1; set disc_patient_v1;
   end;
  run;
  
-proc freq data=disc_patient_v1; table discontinuation1; run; /* 49.14 -> 44.62 % */
+proc freq data=disc_patient_v1; table discontinuation1; run; /* 44.62% -> 38.53% */
 
 
 /*==========================*
@@ -138,7 +138,7 @@ run;
 data disc_patient_v2; set rx18_24_glp1_long_paid_v2; keep patient_id discontinuation2 disc2_date; run;
 proc sort data=disc_patient_v2 nodupkey; by patient_id; run;
 
-proc freq data=disc_patient_v2; table discontinuation2; run; /* 58.84 % */
+proc freq data=disc_patient_v2; table discontinuation2; run; /* 58.84% -> 56.16% */
 
 
 
