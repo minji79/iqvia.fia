@@ -131,8 +131,6 @@ proc sql;
   on a.patient_id = b.patient_id;
 quit;
 data input.patients_v1; set input.patients_v1; if missing(diabetes_history) then diabetes_history =0; run;
-proc freq data=input.patients_v1; table diabetes_history; run;
-proc freq data=input.patients_v1; table diabetes_history*first_indication /norow nopercent; run;
 
 
 proc sql; 
@@ -154,4 +152,15 @@ quit;
 data input.rx18_24_glp1_long_v01; set input.rx18_24_glp1_long_v01; if missing(diabetes_history) then diabetes_history =0; run;
 
 proc freq data=input.rx18_24_glp1_long_v00; table diabetes_history; run;
+
+
+proc sql; 
+  create table input.secondary_cohort_wide as
+  select distinct a.*, b.diabetes_history
+  from input.secondary_cohort_wide as a 
+  left join input.rx_diabetes_med_v1 as b
+  on a.patient_id = b.patient_id;
+quit;
+data input.secondary_cohort_wide; set input.secondary_cohort_wide; if missing(diabetes_history) then diabetes_history =0; run;
+
 
