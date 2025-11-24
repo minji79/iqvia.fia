@@ -1,4 +1,6 @@
 
+proc sort data=input.rx18_24_glp1_long_v00 nodupkey; by _all_; run;
+
 /*============================================================*
  |      primary cohort - first attempt (their first try to fill) 
  *============================================================*/
@@ -18,13 +20,13 @@ data input.first_attempt;
     by patient_id svc_dt;
     if first.patient_id then output;
     drop paid_priority;
-run; /* 984,398 obs */
+run; /* 842027 obs */
 
 
 /* 4) count people who got approved glp1 after the first rejection in the same date  */
-proc sort data=first_attempt; by patient_id svc_dt;  run;
+proc sort data=input.rx18_24_glp1_long_v00; by patient_id svc_dt;  run;
 data first_attempt_firstdate;
-    set first_attempt;
+    set input.rx18_24_glp1_long_v00;
     by patient_id svc_dt;
 
     /* Identify the first date per patient */
@@ -33,24 +35,55 @@ data first_attempt_firstdate;
 
     /* Keep only rows where svc_dt = first_date */
     if svc_dt = first_date;
-run;  /* 1,024,260 obs */
+run;  /* 874421 obs */
+
+proc print data=first_attempt_firstdate (obs=20); where count_claims > 1; var patient_id svc_dt first_date encnt_outcm_cd molecule_name; run;
+
+proc freq data=input.first_attempt; table encnt_outcm_cd; run;
+proc freq data=first_attempt_firstdate; table encnt_outcm_cd; run;
 
 
 proc sql;
     create table first_attempt_firstdate_v1 as
-    select a.patient_id,
+    select a.patient_id, a.first_date, a.payer_type,
            count(*) as count_claims
     from first_attempt_firstdate as a
     where a.patient_id in (
         select patient_id
         from input.first_attempt
-        where encnt_outcm_cd = "RJ"
+        where payer_type ="Cash"
     )
     group by a.patient_id;
-quit;  /* 220,341 obs */
+quit;  /* 211507 obs */
 
-proc print data=first_attempt_firstdate (obs=10); run;
-data first_attempt_firstdate_v2; set first_attempt_firstdate_v1; if count_claims > 1; run; /* 8036 among 220,341 */
+
+proc sql;
+    create table input.cashuser_first_date as
+    select 
+        a.*,
+        b.first_date,
+        count(*) as count_claims_at_firstdate
+    from input.rx18_24_glp1_long_v00 as a
+         inner join first_attempt_firstdate_v1 as b
+         on a.patient_id = b.patient_id 
+        and a.svc_dt = b.first_date
+    group by a.patient_id, b.first_date;
+quit;
+
+
+proc sql;
+ create table input.cashuser_first_date as
+ select distinct a.*, b.first_date,
+    count(*) as count_claims_at_fisrtdate
+ from input.rx18_24_glp1_long_v00 as a
+ inner join first_attempt_firstdate_v1 as b
+ on a.patient_id = b.patient_id and a.svc_dt = b.first_date
+ by patient_id;
+quit;
+
+proc print data=input.cashuser_first_date (obs=20); where encnt_outcm_cd = "RJ" and count_claims_at_firstdate >1; var patient_id count_claims_at_firstdate svc_dt payer_type encnt_outcm_cd molecule_name; run;
+data cashuser_first_date;set input.cashuser_first_date;
+
 
 /* test */
 proc freq data=input.first_attempt; table encnt_outcm_cd*payer_type /norow nopercent; run;
@@ -76,7 +109,7 @@ data input.first_attempt; set input.first_attempt; length dominant_payer_adj $50
  else dominant_payer_adj = dominant_payer; 
 run;
 
-proc freq data=input.first_attempt; table RJ_reason_adj*dominant_payer_adj /norow nopercent; run;
+proc freq data=input.first_attempt; table RJ_reason_adj*payer_type /norow nopercent; run;
 
 /*============================================================*
  |     people who rejected at the index date (N=220341)
