@@ -238,28 +238,10 @@ proc freq data=input.rx18_24_glp1_long_v01; table dominant_payer; run;
 /*****************************
 *  distribution by plan_type
 *****************************/
-proc freq data=input.first_attempt; table dominant_payer; run;
+proc freq data=input.first_attempt; table dominant_payer_adj; run;
 
 proc freq data=input.first_attempt; table encnt_outcm_cd; run;
-proc freq data=input.first_attempt; table encnt_outcm_cd*dominant_payer /norow nopercent; run;
-
-/*****************************
-*  indication of GLP1
-*****************************/
-proc freq data=input.first_attempt; table indication; run;
-proc freq data=input.first_attempt; table indication*dominant_payer /norow nopercent; run;
-
-/*****************************
-*  retail channel
-*****************************/
-proc freq data=input.first_attempt; table chnl_cd; run;
-proc freq data=input.first_attempt; table chnl_cd*dominant_payer /norow nopercent; run;
-
-/*****************************
-*  gender
-*****************************/
-proc freq data=input.first_attempt; table patient_gender; run;
-proc freq data=input.first_attempt; table patient_gender*dominant_payer /norow nopercent; run;
+proc freq data=input.first_attempt; table encnt_outcm_cd*dominant_payer_adj /norow nopercent; run;
 
 
 /*****************************
@@ -267,25 +249,38 @@ proc freq data=input.first_attempt; table patient_gender*dominant_payer /norow n
 *****************************/
 proc means data=input.first_attempt n nmiss median q1 q3 min max; var age_at_claim; run;
 proc means data=input.first_attempt n nmiss median q1 q3 min max;
-    class dominant_payer;
+    class dominant_payer_adj;
     var age_at_claim;
 run;
+
+/*****************************
+*  gender
+*****************************/
+proc freq data=input.first_attempt; table patient_gender; run;
+proc freq data=input.first_attempt; table patient_gender*dominant_payer /norow nopercent; run;
+
+/*****************************
+*  region
+*****************************/
+proc freq data=input.first_attempt; table region; run;
+proc freq data=input.first_attempt; table region*dominant_payer /norow nopercent; run;
 
 /*****************************
 *  coupon use
 *****************************/
 proc freq data=input.first_attempt; table plan_type; run;
+proc freq data=input.first_attempt; table secondary_coupon; run;
+
 proc freq data=input.first_attempt; table plan_type*dominant_payer /norow nopercent; run;
 
 
 /*****************************
 *  GLP1 types, indication of GLP1
 *****************************/
-proc freq data=input.first_attempt; table molecule; run;
+proc freq data=input.first_attempt; table molecule_name; run;
 proc freq data=input.first_attempt; table molecule*dominant_payer /norow nopercent; run;
 
-proc freq data=input.first_attempt; table region; run;
-proc freq data=input.first_attempt; table region*dominant_payer /norow nopercent; run;
+
 
 /*****************************
 *  history of diabetes
@@ -309,7 +304,7 @@ run;
 
 data oop;
     set input.first_attempt;
-    if encnt_outcm_cd = "PD" and not missing(oop_30days);
+    if encnt_outcm_cd = "RV" and not missing(oop_30days);
 run;
 
 proc means data=oop n nmiss median q1 q3 mean std min max; var oop_30days; run;
@@ -332,7 +327,7 @@ run;
 *****************************/
 proc freq data=input.first_attempt; table rjct_grp; run;
 
-data rejection; set input.first_attempt; if rjct_grp ; run;
+data rejection; set input.first_attempt; if encnt_outcm_cd = "RJ"; run;
 proc freq data=rejection; table RJ_reason_adj; run;
 proc freq data=rejection; table RJ_reason_adj*dominant_payer  /norow nopercent; run;
 
@@ -340,71 +335,54 @@ proc freq data=rejection; table RJ_reason_adj*dominant_payer  /norow nopercent; 
 
 
 /*============================================================*
- |      TABLE 1 - for secondary cohort (N=984398)
+ |      TABLE 1 - People who never filled  & People who filled
  *============================================================*/
-
-proc freq data=input.secondary_cohort_wide; table patient_gender; run;
-
+proc sql;
+  create table input.first_attempt as
+  select distinct a.*,
+                  b.patient_id as secondary_cohort_id
+            
+  from input.first_attempt as a
+  left join input.secondary_cohort_wide as b
+  on a.patient_id = b.patient_id;
+quit;
+data input.first_attempt; set input.first_attempt; if missing(secondary_cohort_id) then secondary_cohort=0; else secondary_cohort=1; run;
 
 /*****************************
-*  gender
+
+*  data subpopulation; set input.first_attempt; if secondary_cohort=0 and encnt_outcm_cd ne "PD"; run; /* 219823 individuals */
+*  data subpopulation; set input.first_attempt; if secondary_cohort=1; run; /* 622204 individuals */
+
 *****************************/
-proc freq data=input.secondary_cohort_wide; table patient_gender; run;
-proc freq data=input.secondary_cohort_wide; table patient_gender*dominant_payer /norow nopercent; run;
-
-
-/*****************************
-*  age at claim
-*****************************/
-proc means data=input.first_attempt n nmiss median q1 q3 min max; var age_at_claim; run;
-proc means data=input.first_attempt n nmiss median q1 q3 min max;
-    class dominant_payer;
-    var age_at_claim;
-run;
-
-
-/*============================================================*
- |      TABLE 1 - for diabetic population among primary cohort (N=517964)
- |      TABLE 1 - for obesity population among primary cohort (N=466434)
- *============================================================*/
-proc freq data=input.first_attempt; table encnt_outcm_cd; run; /* missing 259 individuals */
-proc freq data=input.rx18_24_glp1_long_v00; table encnt_outcm_cd; run; /* missing 3220 claims */
-
-
-data subpopulation; set input.first_attempt; if diabetes_history =0; run;
-
-* distribution by plan_type;
-proc freq data=subpopulation; table dominant_payer; run;
 
 *  age at claim;
 proc means data=subpopulation n nmiss median q1 q3 min max; var age_at_claim; run;
-proc means data=subpopulation n nmiss median q1 q3 min max;
-    class dominant_payer;
-    var age_at_claim;
-run;
 
 * gender; 
 proc freq data=subpopulation; table patient_gender; run;
-proc freq data=subpopulation; table patient_gender*dominant_payer /norow nopercent; run;
 
 * region;
 proc freq data=subpopulation; table region; run;
-proc freq data=subpopulation; table region*dominant_payer /norow nopercent; run;
+
+* diabetes_history;
+proc freq data=subpopulation; table diabetes_history; run;
+
+* payers; 
+proc freq data=subpopulation; table dominant_payer_adj; run;
 
 * disposition;
 proc freq data=subpopulation; table encnt_outcm_cd; run;
-proc freq data=subpopulation; table encnt_outcm_cd*dominant_payer /norow nopercent; run;
 
 * rejection reason;
 data rejection; set subpopulation; if encnt_outcm_cd = "RJ"; run;
-data rejection; set rejection; if RJ_reason in ("RJ_Others_NotForm","RJ_Coverage_Not_Active") then RJ_reason_adj = "RJ_Others"; else RJ_reason_adj = RJ_reason; run;
-
 proc freq data=rejection; table RJ_reason_adj; run;
-proc freq data=rejection; table RJ_reason_adj*dominant_payer  /norow nopercent; run;
 
 * cash, coupon, discount card use;
 proc freq data=subpopulation; table plan_type; run;
-proc freq data=subpopulation; table plan_type*dominant_payer /norow nopercent; run;
+proc freq data=subpopulation; table secondary_coupon; run;
+
+* molecule;
+proc freq data=subpopulation; table molecule_name; run;
 
 /*****************************
 *  OOP at index
@@ -414,29 +392,13 @@ data subpopulation; set subpopulation; oop_30days = final_opc_amt / days_supply_
 *only remain valid rows for calculating OOP;
 data oop;
     set subpopulation;
-    if encnt_outcm_cd = "PD" and not missing(oop_30days);
+    if encnt_outcm_cd = "RV" and not missing(oop_30days);
 run;
 
 proc means data=oop n nmiss median q1 q3 mean std min max; var oop_30days; run;
-proc means data=oop n nmiss median q1 q3 min max;
-    class dominant_payer;
-    var oop_30days;
-run;
 
-* days; 
-proc means data=subpopulation n nmiss median q1 q3 min max; var days_supply_cnt; run;
-proc means data=subpopulation n nmiss median q1 q3 min max;
-    class dominant_payer;
-    var days_supply_cnt;
-run;
 
-* chennel;
-proc freq data=subpopulation; table chnl_cd; run;
-proc freq data=subpopulation; table chnl_cd*dominant_payer /norow nopercent; run;
 
-* molecule;
-proc freq data=subpopulation; table molecule_name; run;
-proc freq data=subpopulation; table molecule_name*dominant_payer /norow nopercent; run;
 
 
 
