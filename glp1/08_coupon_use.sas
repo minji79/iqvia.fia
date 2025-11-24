@@ -37,7 +37,7 @@ proc sql;
    on a.claim_id = b.claim_id;
 quit;
 
-
+proc contents data=input.rx18_24_glp1_long_v00; run;
 
 /*============================================================*
  | 2) coupon / discount card use indicator
