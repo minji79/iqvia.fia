@@ -34,10 +34,8 @@ data input.final_claims; set input.final_claims;
     if encnt_outcm_cd ="PD" then final_claim_disposition = "Approved - paid";
     else if encnt_outcm_cd ="RV" then final_claim_disposition = "Approved - reversed";
     else if RJ_reason = "RJ_NtCv" then final_claim_disposition = "RJ_NtCv";
-    else if RJ_reason = "RJ_PrAu" then final_claim_disposition = "RJ_PrAu";
-    else if RJ_reason = "RJ_Step" then final_claim_disposition = "RJ_Step";
-    else if RJ_reason = "RJ_QtyLimit" then final_claim_disposition = "RJ_QtyLimit";
-    else if RJ_reason in ("RJ_Coverage_Not_Active","RJ_Others_NotForm") then final_claim_disposition = "RJ_Non_formulary";
+    else if RJ_reason in ("RJ_PrAu","RJ_Step","RJ_QtyLimit") then final_claim_disposition = "RJ_UM";
+    else if RJ_reason in ("RJ_Coverage_Not_Active","RJ_Others_NotForm") then final_claim_disposition = "RJ_NotFormulary";
     *else if RJ_reason = "RJ by Secondary Payer" then final_claim_disposition = "RJ by Secondary Payer";
     else final_claim_disposition = "NA";
 run;
@@ -125,7 +123,7 @@ data input.secondary_cohort_wide; set input.secondary_cohort_wide; first_claim_y
 
 proc contents data=input.secondary_cohort_wide; run;
 
-/* check the finally users */
+/* check the final users */
 proc sql; 
     create table secondary_cohort_wide as
     select distinct a.*, b.dominant_payer
@@ -222,10 +220,12 @@ proc freq data=sample; table disc_at_1y*first_claim_year /norow nopercent; run;
 
 
 /*============================================================*
-|  5. last_date = first_date; run; /* 65498 individuals */
+|  5. last_date = first_date; run; /* 58608 individuals */
 *============================================================*/
 
-data idlist; set input.secondary_cohort_wide; if last_date = first_date; run; /* 65498 individuals */
+data idlist; set input.secondary_cohort_wide; if last_date = first_date; run; /* 58608 individuals */
+data idlist; set input.secondary_cohort_wide; if lost_follow_date = first_date; run; /* 4 individuals */ 
+
 
 proc sql;
   create table sample as 
