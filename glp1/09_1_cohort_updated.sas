@@ -7,7 +7,15 @@
  *============================================================*/
 
 /*============================================================*
- | primary cohort (N=842209) with 7482901 claims
+ | excluded * null in encnt_outcm_cd; ( - 2110 obs)
+ *============================================================*/
+* null in encnt_outcm_cd;
+proc freq data=input.rx18_24_glp1_long_v00; table encnt_outcm_cd; run;
+
+data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if not missing(encnt_outcm_cd); run;
+
+/*============================================================*
+ | primary cohort (N=842027) with 7480791 claims
  *============================================================*/
 /* excluded dula & exenatide from all claims */
 data input.rx18_24_glp1_long_v00; set input.rx18_24_glp1_long_v00; if molecule_name in ("LIRAGLUTIDE","LIRAGLUTIDE (WEIGHT MANAGEMENT)","SEMAGLUTIDE","SEMAGLUTIDE (WEIGHT MANAGEMENT)","TIRZEPATIDE","TIRZEPATIDE (WEIGHT MANAGEMENT)"); run;
@@ -36,13 +44,13 @@ data input.first_attempt;
     by patient_id svc_dt;
     if first.patient_id then output;
     drop paid_priority;
-run; /* 842209 obs */
+run; /* 842027 obs */
 
 proc contents data=input.first_attempt; run; /* 72 variables, 842209 obs */ 
 
 
 /*============================================================*
- | secondary cohort (N=622,204) from 7100432 claims
+ | secondary cohort (N=622,204) from 7099559 claims
  *============================================================*/
 * identify; 
 proc sql; 
@@ -65,7 +73,7 @@ proc freq data=input.disposition; table no_PD_ever; run;
 proc sql; 
     select count(distinct patient_id) as total_patient_number
     from input.disposition;
-quit; /* 842209 individuals */
+quit; /* 842027 individuals */
 
 
 proc sql;
@@ -77,16 +85,16 @@ proc sql;
         from input.disposition
         where no_PD_ever = 0
     );
-quit; /* 7100432 obs */
+quit; /* 7099559 obs */
 
 proc sql; 
     select count(distinct patient_id) as total_patient_number
     from rx18_24_glp1_long_v01;
 quit; /* 622204 individuals */
 
+data input.id_primary; set input.disposition; keep patient_id; run;
 data input.id_secondary; set input.disposition; if no_PD_ever =0; run;
-data input.id_secondary; set input.disposition; if no_PD_ever =0; run;
-
+data input.id_secondary; set input.id_secondary; keep patient_id; run;
 
 
 /*============================================================*
