@@ -1,6 +1,6 @@
 
 proc contents data=input.final_claims; run;
-proc contents data=input.patients_v1; run;
+proc contents data=input.secondary_cohort_wide; run;
 proc contents data=input.patients_v0; run;
 proc contents data=input.rx18_24_glp1_long_v00; run;
 proc contents data=input.rx18_24_glp1_long_v01; run;
