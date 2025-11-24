@@ -10,6 +10,7 @@ input.final_claims
  |     tracking 
  *============================================================*/
 
+
 proc contents data=input.secondary_cohort_wide; run;
 proc freq data=input.figure2; table RJ_reason_final; run;
 
@@ -17,7 +18,7 @@ proc sql;
   create table figure2 as
   select distinct a.patient_id, a.RJ_reason as RJ_reason_index, b.patient_id as secondary_cohort_id, b.discontinuation
   from input.first_attempt as a
-  left join input.secondary_cohort_wide as b
+  left join input.id_secondary as b
   on a.patient_id = b.patient_id;
 quit;
 
