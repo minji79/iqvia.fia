@@ -4,16 +4,14 @@
  *============================================================*/
 
 proc sort data=input.rx18_24_glp1_long_v01; by patient_id svc_dt; run;
-proc print data=input.rx18_24_glp1_long_v01 (obs=20); var patient_id svc_dt; run;
-
-data input.index_claim; set input.rx18_24_glp1_long_v01; if encnt_outcm_cd = "PD"; run; /* 876149 obs */
-data input.index_claim; set input.index_claim; by patient_id; if first.patient_id; run; /* N = 768646 */
+data input.index_claim; set input.rx18_24_glp1_long_v01; if encnt_outcm_cd = "PD"; run; /* 5757244 obs */
+data input.index_claim; set input.index_claim; by patient_id; if first.patient_id; run; /* N = 622204 */
 
 proc freq data= input.index_claim; table dominant_payer; run;
 
 
 /*============================================================*
- | 2) 2nd cohort (N==768646)
+ | 2) 2nd cohort (N= 622204)
  *============================================================*/
 /* Sort by patient → earliest svc_dt → prefer paid on that date */
 data rx18_24_glp1_long_v01;
@@ -24,6 +22,59 @@ run;
 proc sort data=rx18_24_glp1_long_v01; by patient_id svc_dt descending paid_priority; run;
 
 
+/* pool claim level data at patient level */
+data input.patients_v0; 
+  set rx18_24_glp1_long_v01;       
+  by patient_id;
+  length first_glp1 first_dominant_payer first_payer_type first_plan_name first_model_type $50;
+  retain first_glp1 first_dominant_payer first_payer_type first_plan_name first_model_type
+     claim_count reject_count reversed_count first_date last_date total_oop;
+  format first_date last_date lost_follow_date yymmdd10.;
+  if first.patient_id then do;
+        first_glp1 = molecule_name;
+		first_dominant_payer = dominant_payer;
+        first_payer_type = payer_type;
+        first_plan_name = plan_name;
+        first_model_type = model_type;
+        claim_count = 0;
+        reject_count = 0;
+		reversed_count = 0;
+        total_oop = 0;
+        total_days_to_adjudct_cnt	=0;
+        first_date = svc_dt;
+    end;
+
+    claim_count + 1;
+    
+    if encnt_outcm_cd = "RJ" then reject_count + 1;
+	if encnt_outcm_cd = "RV" then reversed_count + 1;
+    if encnt_outcm_cd = "PD" then total_oop + final_opc_amt;
+
+    last_date = svc_dt;
+
+    if last.patient_id then do; 
+	lost_follow_date = last_date + days_supply_cnt;
+	output;
+	end;
+run;
+
+data input.patients_v0; set input.patients_v0; 
+keep patient_id first_glp1 after_glp1 first_dominant_payer first_payer_type claim_count reject_count reversed_count first_plan_name first_model_type first_date last_date total_oop;
+run; /* 622204 obs */
+
+data input.patients_v0; set input.patients_v0; 
+paid_count = claim_count - reject_count - reversed_count;
+if claim_count > 0 then pct_fill = paid_count / claim_count;
+else pct_fill = .;
+run;
+
+
+
+
+
+/*============================================================*
+ | not used
+ *============================================================*/
 /* pool claim level data at patient level */
 data input.patients_v0; 
   set rx18_24_glp1_long_v01;       
