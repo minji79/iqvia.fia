@@ -62,7 +62,7 @@ data coupon;
   end;
 
   claim_count + 1;
-  if payer_type = "Cash" then cash_count_1st + 1;
+  if payer_type = "Cash" then cash_count + 1;
   else if payer_type = "Coupon" then coupon_count_1st + 1;
   else if payer_type = "Discount Card" then discount_card_count_1st + 1;
   else if secondary_coupon = 1 then coupon_count_2nd + 1;
@@ -77,12 +77,15 @@ data coupon; set coupon; if cash_count >0 then cash_ever = 1; else cash_ever = 0
 data coupon; set coupon; if coupon_count_1st >0 or coupon_count_2nd >0 then coupon_ever = 1; else coupon_ever = 0; run;
 data coupon; set coupon; if discount_card_count_1st >0 or discount_card_count_2nd >0 then discount_card_ever = 1; else discount_card_ever = 0; run;
 
+proc freq data=coupon; table cash_ever; run;
 proc print data=coupon (obs=10); run;
+
 
 
 * merge with the dataset; 
 data input.patients_v0; set input.patients_v0; drop claim_count cash_count coupon_count discount_card_count cash_ever coupon_ever discount_card_ever; run;
 data input.patients_v1; set input.patients_v1; drop claim_count cash_count coupon_count discount_card_count cash_ever coupon_ever discount_card_ever; run;
+data input.secondary_cohort_wide; set input.secondary_cohort_wide; drop claim_count cash_count coupon_count discount_card_count cash_ever coupon_ever discount_card_ever; run;
 
 
 proc sql;
@@ -104,5 +107,11 @@ quit;
 proc freq data=input.patients_v1; table discount_card_ever; run;
 
 
- 
-
+ proc sql;
+	 create table input.secondary_cohort_wide as
+	 select distinct a.*, b.claim_count, b.cash_count, b.coupon_count_1st, b.coupon_count_2nd, b.discount_card_count_1st, b.discount_card_count_2nd, b.cash_ever, b.coupon_ever, b.discount_card_ever 
+	 from input.secondary_cohort_wide as a
+	 left join coupon as b
+	 on a.patient_id = b.patient_id;
+quit;
+proc freq data=input.secondary_cohort_wide; table cash_ever; run;
