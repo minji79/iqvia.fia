@@ -5,7 +5,7 @@
 input.rx18_24_glp1_long_v00; 
 * make quater indicator; 
 
-data rx18_24_glp1_long_paid; set input.rx18_24_glp1_long_v00; if encnt_outcm_cd ="PD"; run; /* 8760132 obs */
+data rx18_24_glp1_long_paid; set input.rx18_24_glp1_long_v00; if encnt_outcm_cd ="PD"; run; /* 5757244 obs */
 proc sort data=rx18_24_glp1_long_paid; by patient_id svc_dt; run;
 
 
@@ -156,13 +156,25 @@ proc contents data=input.patients_v1; run;
 /*==========================*
  |  /* Merge everything (index + 3M + 6M) */
  *==========================*/
+/* re-categorize */
+data m6_best; set m6_best; 
+length payer_type_adj $100.;
+if payer_type in ("Medicare D: ADV","Medicare D: TM","Medicare D: Unspec") then payer_type_adj = "Medicare"; 
+else if payer_type in ("Medicaid: FFS","Medicaid: MCO","Medicaid: Unspec") then payer_type_adj = "Medicaid"; 
+else if payer_type = "Commercial" then payer_type_adj = "Commercial";
+else if payer_type = "Exchange" then payer_type_adj = "Exchange";
+else if payer_type in ("Cash","Coupon","Discount Card","PBM","PPO/HMO","Part B","Unspec","missing") then payer_type_adj = "Others";
+else payer_type_adj =""; 
+run;
+proc freq data=m6_best; table payer_type_adj; run;
+ 
 proc sql;
     create table input.oop_summary as
     select distinct 
            i.patient_id, i.diabetes_history,
-           c.index_date, c.oop_index, c.payer_type as index_payer_type,
-           a.svc_for_oop_m3, a.oop_m3, a.payer_type as m3_payer_type,
-           b.svc_for_oop_m6, b.oop_m6, b.payer_type as m6_payer_type
+           c.index_date, c.oop_index, c.payer_type_adj as index_payer_type,
+           a.svc_for_oop_m3, a.oop_m3, a.payer_type_adj as m3_payer_type,
+           b.svc_for_oop_m6, b.oop_m6, b.payer_type_adj as m6_payer_type
     from input.patients_v1 as i
     left join index_best as c 
         on i.patient_id = c.patient_id
@@ -236,10 +248,20 @@ proc sql;
 quit;
 proc print data=ever_over200 (obs=10); run;
 
+data ever_over200; set ever_over200; 
+length payer_type_adj $100.;
+if payer_type in ("Medicare D: ADV","Medicare D: TM","Medicare D: Unspec") then payer_type_adj = "Medicare"; 
+else if payer_type in ("Medicaid: FFS","Medicaid: MCO","Medicaid: Unspec") then payer_type_adj = "Medicaid"; 
+else if payer_type = "Commercial" then payer_type_adj = "Commercial";
+else if payer_type = "Exchange" then payer_type_adj = "Exchange";
+else if payer_type in ("Cash","Coupon","Discount Card","PBM","PPO/HMO","Part B","Unspec","missing") then payer_type_adj = "Others";
+else payer_type_adj =""; 
+run;
+
 data ever_over200; set ever_over200; if count_over200 > 0 then ever_over200 = 1; else ever_over200 =0; run;
 proc freq data=ever_over200; table ever_over200; run;
 proc freq data=ever_over200; table ever_over200*diabetes_history /norow nopercent; run;
-proc freq data=ever_over200; table ever_over200*payer_type /norow nopercent; run;
+proc freq data=ever_over200; table ever_over200*payer_type_adj /norow nopercent; run;
 
 
 * quantile based on oop at index;
@@ -264,8 +286,8 @@ proc sql;
 quit;
 
 * oop_index_q = 1 ~ 4; 
-data oop_summary; set input.oop_summary; if oop_index_q = 4;  run;
-data ever_over200_sample; set ever_over200; if oop_index_q = 4;  run;
+data oop_summary; set input.oop_summary; if oop_index_q = 1;  run;
+data ever_over200_sample; set ever_over200; if oop_index_q = 1;  run;
 proc means data=oop_summary n nmiss median q1 q3 mean std min max; var oop_index; run;
 proc means data=oop_summary n nmiss median q1 q3 mean std min max; var oop_m3; run;
 proc means data=oop_summary n nmiss median q1 q3 mean std min max; var oop_m6; run;
@@ -283,6 +305,7 @@ proc freq data=input.rx18_24_glp1_long_v00; table reject; run;
 /*==========================*
  |  overall
  *==========================*/
+ /*
 * preprocessing for fitting;
 proc logistic data=input.rx18_24_glp1_long_v00;
     class plan_type (ref='Commercial') indication (ref='diabetes') patient_gender(ref='M') molecule (ref='SEMAGLUTIDE') year (ref='2017') / param=glm order=internal;
@@ -306,6 +329,8 @@ proc sgplot data=pred_probs_all_v1;
  yaxis label = "Predicted Probability of Claim denial" min = 0 max=0.35;
  keylegend / position = bottom;
 run;
+*/
+
 
 * with year - continuous variable; 
 proc logistic data=input.rx18_24_glp1_long_v00;
