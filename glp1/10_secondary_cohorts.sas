@@ -246,3 +246,112 @@ quit; /* 1062810 obs */
 proc sort data=sample2; by patient_id svc_dt; run;
 proc print data=sample2 (obs=50); var patient_id svc_dt encnt_outcm_cd first_date final_claim_svc_dt payer_type; run;
 
+
+/*============================================================*
+ |      supplement TABLE 1 - for secondary cohort (N=984398)
+ *============================================================*/
+proc contents data=input.secondary_cohort_wide; run;
+
+/*****************************
+*  distribution by plan_type
+*****************************/
+proc freq data=input.secondary_cohort_wide; table dominant_payer_adj; run;
+
+/*****************************
+*  age at claim
+*****************************/
+data subpopulation; set input.first_attempt; if secondary_cohort=1; run; /* 622204 individuals */
+proc means data=subpopulation n nmiss median q1 q3 min max; var age_at_claim; run;
+proc means data=subpopulation n nmiss median q1 q3 min max;
+    class dominant_payer_adj;
+    var age_at_claim;
+run;
+
+/*****************************
+*  gender
+*****************************/
+proc freq data=input.secondary_cohort_wide; table patient_gender; run;
+proc freq data=input.secondary_cohort_wide; table patient_gender*dominant_payer_adj /norow nopercent; run;
+
+/*****************************
+*  region
+*****************************/
+proc freq data=input.secondary_cohort_wide; table region; run;
+proc freq data=input.secondary_cohort_wide; table region*dominant_payer_adj /norow nopercent; run;
+
+/*****************************
+*  history of diabetes
+*****************************/
+proc freq data=input.secondary_cohort_wide; table diabetes_history; run;
+proc freq data=input.secondary_cohort_wide; table diabetes_history*dominant_payer_adj /norow nopercent; run;
+
+/*****************************
+*  duration of medication
+*****************************/
+data input.secondary_cohort_wide; set input.secondary_cohort_wide; duration_in_month = (lost_follow_date - first_date)/30; run;
+
+proc means data=input.secondary_cohort_wide n nmiss median q1 q3 min max; var duration_in_month; run;
+proc means data=input.secondary_cohort_wide n nmiss median q1 q3 min max;
+    class dominant_payer_adj;
+    var duration_in_month;
+run;
+
+/*****************************
+*  total number of paid claims
+*****************************/
+proc means data=input.secondary_cohort_wide n nmiss median q1 q3 min max; var paid_count; run;
+proc means data=input.secondary_cohort_wide n nmiss median q1 q3 min max;
+    class dominant_payer_adj;
+    var paid_count;
+run;
+
+/*****************************
+*  % of paid claims
+*****************************/
+proc means data=input.secondary_cohort_wide n nmiss median q1 q3 min max; var pct_fill; run;
+proc means data=input.secondary_cohort_wide n nmiss median q1 q3 min max;
+    class dominant_payer_adj;
+    var pct_fill;
+run;
+
+/*****************************
+*  cash use ever
+*****************************/
+proc freq data=input.secondary_cohort_wide; table cash_ever; run;
+proc freq data=input.secondary_cohort_wide; table cash_ever*dominant_payer_adj /norow nopercent; run;
+
+/*****************************
+*  coupon use ever
+*****************************/
+proc freq data=input.secondary_cohort_wide; table coupon_ever; run;
+proc freq data=input.secondary_cohort_wide; table coupon_ever*dominant_payer_adj /norow nopercent; run;
+
+/*****************************
+*  discount card use ever
+*****************************/
+proc freq data=input.secondary_cohort_wide; table discount_card_ever; run;
+proc freq data=input.secondary_cohort_wide; table discount_card_ever*dominant_payer_adj /norow nopercent; run;
+
+/*****************************
+*  GLP1 types, indication of GLP1
+*****************************/
+proc freq data=input.secondary_cohort_wide; table first_glp1; run;
+proc freq data=input.secondary_cohort_wide; table first_glp1*dominant_payer_adj /norow nopercent; run;
+
+/*****************************
+*  days_supply_cnt
+*****************************/
+proc means data=input.first_attempt n nmiss median q1 q3 min max; var days_supply_cnt; run;
+proc means data=input.first_attempt n nmiss median q1 q3 min max;
+    class dominant_payer_adj;
+    var days_supply_cnt;
+run;
+
+/*****************************
+*  initiation year
+*****************************/
+data input.secondary_cohort_wide; set input.secondary_cohort_wide; year_initiation = year(first_date); run;
+
+proc freq data=input.secondary_cohort_wide; table year_initiation; run;
+proc freq data=input.secondary_cohort_wide; table year_initiation*dominant_payer_adj /norow nopercent; run;
+
