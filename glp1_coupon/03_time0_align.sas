@@ -233,3 +233,8 @@ proc sgplot data=coupon.monthly_aggregated_oop_long;
 run;
 
 
+
+/*============================================================*
+ | explore
+ *============================================================*/
+proc print data=coupon.monthly_aggregated_oop_long (obs = 10); run;
