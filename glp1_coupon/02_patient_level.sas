@@ -9,8 +9,14 @@ sec_payer_pay_amt
 std_copay_amt
 oop_30day_v0 = final_opc_amt / days_supply_cnt * 30;
 
-
 */
+
+proc contents data=coupon.cohort_long_v01; run;
+
+proc print data=coupon.cohort_long_v01 (obs=10); 
+where coupon =1 and final_opc_amt ne 0; 
+var patient_id coupon pri_payer_pay_amt sec_payer_pay_amt pri_pat_pay_amt std_copay_amt primary_coupon_offset secondary_coupon_offset final_opc_amt; 
+run;
 
 /*============================================================*
  | 1) censored after discontinuation (include only first episode)  (N=359029, with 2364194 obs )
@@ -66,10 +72,16 @@ data coupon.cohort_long_v01; set coupon.cohort_long_v01; if model_type_name in (
 proc freq data=coupon.cohort_long_v01; table state_program; run;
 
 /*============================================================*
- | 4) OOP standarized for 30days supplies
+ | 4-1) OOP standarized for 30days supplies
  *============================================================*/ 
 data coupon.cohort_long_v01; set coupon.cohort_long_v01; oop_30day = final_opc_amt / days_supply_cnt * 30; run;
 
+/*============================================================*
+ | 4-2) estimated OOP before coupon use, standarized for 30days supplies
+ *============================================================*/
+data coupon.cohort_long_v01; set coupon.cohort_long_v01; oop_bf_coupon_30day = pri_pat_pay_amt / days_supply_cnt * 30; run;
+
+ 
 /*============================================================*
  | 5) coupon offset calculate
  *============================================================*/ 
@@ -101,12 +113,14 @@ data coupon.cohort_wide_v00;
 	secondary_coupon_count =0;
 	state_program_count =0;
 	cumulative_oop = 0;
+	cumulative_oop_bf_coupon = 0;
 	cumulative_1_coupon_offset = 0;
 	cumulative_2_coupon_offset = 0;
   end;
   
   claim_count + 1;
   cumulative_oop + oop_30day;
+  cumulative_oop_bf_coupon + oop_bf_coupon_30day;
   cumulative_1_coupon_offset + primary_coupon_offset;
   cumulative_2_coupon_offset + secondary_coupon_offset;
 
@@ -146,6 +160,9 @@ data coupon.cohort_wide_v00;
 
   /* Safely handle division by zero */
   if claim_count > 0 then oop_30day_per_claim = cumulative_oop / claim_count;
+  else oop_30day_per_claim = .;
+
+  if claim_count > 0 then oop_bf_coupon_30day_per_claim = cumulative_oop_bf_coupon / claim_count;
   else oop_30day_per_claim = .;
 
   if primary_coupon_count > 0 then coupon_1_offset_per_coupon = cumulative_1_coupon_offset / primary_coupon_count;
@@ -226,6 +243,14 @@ proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max;
 run;
 
 * OOP: oop_30day_per_claim coupon_1_offset_per_coupon coupon_2_offset_per_coupon coupon_offset_per_coupon;
+* OOP before coupon offset;
+proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std; var oop_bf_coupon_30day_per_claim; run;
+proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max;
+    class coupon_user;
+    var oop_bf_coupon_30day_per_claim;
+run;
+
+* OOP after coupon offset;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std; var oop_30day_per_claim; run;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max;
     class coupon_user;
