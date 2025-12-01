@@ -1,5 +1,8 @@
 coupon.cohort_long_v01
 coupon.monthly_aggregated_oop_long
+proc print data=coupon.monthly_aggregated_oop_long (obs=10); run;
+
+oop_bf_coupon_30day_per_claim
 
 /*============================================================*
  | 1) eFigure 3. Area plot for stacked by coupon with month_id in calender month
@@ -80,6 +83,9 @@ proc sql;
     sum(drug_cost) as accumulated_drug_cost,
     sum(drug_cost_30day) as accumulated_drug_cost_30day,
     sum(oop_30day) as accumulated_oop_30day,
+    sum(final_opc_amt) as accumulated_oop_act,
+    sum(oop_bf_coupon_30day) as accumulated_oop_bf_coupon_30day,
+    sum(pri_pat_pay_amt) as accumulated_oop_bf_coupon_act,
     sum(primary_coupon_offset) as accumulated_coupon_1_offset,
     sum(secondary_coupon_offset) as accumulated_coupon_2_offset
     
@@ -87,7 +93,6 @@ proc sql;
   where svc_dt >= index_date and svc_dt <= index_date +30
   group by b.patient_id;
 quit;
-proc print data=oop_after_m2 (obs=10); run;
 
 
 %macro monthly (data= , time=, month=);
@@ -107,6 +112,9 @@ proc sql;
     sum(drug_cost) as accumulated_drug_cost,
     sum(drug_cost_30day) as accumulated_drug_cost_30day,
     sum(oop_30day) as accumulated_oop_30day,
+    sum(final_opc_amt) as accumulated_oop_act,
+    sum(oop_bf_coupon_30day) as accumulated_oop_bf_coupon_30day,
+    sum(pri_pat_pay_amt) as accumulated_oop_bf_coupon_act,
     sum(primary_coupon_offset) as accumulated_coupon_1_offset,
     sum(secondary_coupon_offset) as accumulated_coupon_2_offset
     
@@ -188,53 +196,125 @@ run;
 
 
 /*============================================================*
- | 4) Figure 1. Line graph for OOP trajectory
+ | 4) Figure 1. Line graph for mean OOP trajectory with 95%ci
  *============================================================*/
-* aggregated by month; 
-proc sort data=coupon.monthly_aggregated_oop_long out=monthly; by month; run;
-data monthly ; set monthly; by month; coupon_offset_pct_adj = mean(coupon_offset_pct); run;
-proc print data=monthly; run;
+*data monthly_aggregated_oop_long; set coupon.monthly_aggregated_oop_long; if coupon_user =1; run;
+
+proc means data=coupon.monthly_aggregated_oop_long noprint;
+    class month;
+    var accumulated_drug_cost accumulated_oop_act accumulated_coupon_offset accumulated_oop_bf_coupon_act;
+    output out=monthly_summarized2
+        mean=mean_drug_cost mean_oop_act mean_coupon_offset mean_oop_bf_coupon_act
+        std =sd_drug_cost  sd_oop_act  sd_coupon_offset  sd_oop_bf_coupon_act
+        n   =n_drug_cost   n_oop_act   n_coupon_offset   n_oop_bf_coupon_act;
+run;
+
+/* keep only summary rows */
+data monthly_summarized2;
+    set monthly_summarized2;
+    if _TYPE_=1;
+run;
 
 
-* with dollars; 
-proc sgplot data=coupon.monthly_aggregated_oop_long;
-    series x=month y=accumulated_drug_cost_30day /
-        lineattrs=(color=cx1F77B4 thickness=2)
-        markerattrs=(symbol=circlefilled color=cx1F77B4 size=6)
-        legendlabel="Accumulated Drug Cost (30-day)";
+data monthly_summarized2;
+    set monthly_summarized2;
 
-    series x=month y=accumulated_oop_30day /
-        lineattrs=(color=cxFF7F0E thickness=2 pattern=solid)
-        markerattrs=(symbol=squarefilled color=cxFF7F0E size=6)
-        legendlabel="Accumulated OOP (30-day)";
+    /* Standard Error */
+    se_drug     = sd_drug_cost / sqrt(n_drug_cost);
+    se_oop      = sd_oop_act / sqrt(n_oop_act);
+    se_coupon   = sd_coupon_offset / sqrt(n_coupon_offset);
+    se_oop_bf   = sd_oop_bf_coupon_act / sqrt(n_oop_bf_coupon_act);
 
-    series x=month y=accumulated_coupon_offset /
-        lineattrs=(color=cx2CA02C thickness=2 pattern=dash)
-        markerattrs=(symbol=trianglefilled color=cx2CA02C size=6)
-        legendlabel="Accumulated Coupon Offset";
+    /* 95% CI */
+    lower_drug  = mean_drug_cost     - 1.96*se_drug;
+    upper_drug  = mean_drug_cost     + 1.96*se_drug;
 
-    xaxis label="Month since initiation" integer;
+    lower_oop   = mean_oop_act       - 1.96*se_oop;
+    upper_oop   = mean_oop_act       + 1.96*se_oop;
+
+    lower_coupon = mean_coupon_offset - 1.96*se_coupon;
+    upper_coupon = mean_coupon_offset + 1.96*se_coupon;
+
+    lower_oop_bf = mean_oop_bf_coupon_act - 1.96*se_oop_bf;
+    upper_oop_bf = mean_oop_bf_coupon_act + 1.96*se_oop_bf;
+run;
+
+
+
+data monthly_long2;
+    set monthly_summarized2;
+    length measure $40 value lower upper 8;
+
+    /* Drug spending */
+    measure="Drug Spending (actual)";
+    value  =mean_drug_cost;
+    lower  =lower_drug;
+    upper  =upper_drug;
+    output;
+
+    /* OOP actual */
+    measure="Accumulated OOP (actual)";
+    value  =mean_oop_act;
+    lower  =lower_oop;
+    upper  =upper_oop;
+    output;
+
+    /* Coupon offset */
+    measure="Coupon Offset";
+    value  =mean_coupon_offset;
+    lower  =lower_coupon;
+    upper  =upper_coupon;
+    output;
+
+    /* OOP before coupon */
+    measure="OOP Before Coupon (actual)";
+    value  =mean_oop_bf_coupon_act;
+    lower  =lower_oop_bf;
+    upper  =upper_oop_bf;
+    output;
+run;
+
+proc sgplot data=monthly_long2;
+    styleattrs datacontrastcolors=(cx1f77b4 cxff7f0e cx2ca02c cxb565a7);
+
+    /* CI bands */
+    band x=month lower=lower upper=upper / 
+         group=measure transparency=0.75
+         name="bands" legendlabel=" ";
+
+    /* Mean lines with markers */
+    series x=month y=value /
+           group=measure 
+           lineattrs=(thickness=2)
+           markers markerattrs=(symbol=circlefilled size=6)
+           name="lines";
+
+    /* Legend WITHOUT dots */
+    keylegend "lines" / type=line position=topright across=1;
+
+    xaxis label="Month Since Initiation" integer;
     yaxis label="Dollars ($)" grid;
-    keylegend / position=topright across=1 title="Cost Components";
-    title "Monthly Trends in Drug Cost, Out-of-Pocket, and Coupon Offset";
-run;
-
-* with percentage (%); 
-proc sgplot data=coupon.monthly_aggregated_oop_long;
-    series x=month y=coupon_offset_pct /
-        lineattrs=(color=cx2CA02C thickness=2)
-        markerattrs=(symbol=circlefilled color=cx2CA02C size=7)
-        datalabel
-        legendlabel="Coupon Offset (%)";
-
-    xaxis label="Month since initiation" integer;
-    yaxis label="Coupon Offset (%)" grid;
-    title "Monthly Coupon Offset Percentage";
+    title "Monthly Mean of Out-of-Pocket, Coupon Offset, and Net Cost per Patient (Coupon Users)";
 run;
 
 
+/*==============================*
+  # of patients per month - risk set
+ *==============================*/
+ proc sql;
+    create table patient_count_per_month as
+    select month,
+           count(distinct patient_id) as n_patients
+    from coupon.monthly_aggregated_oop_long
+    group by month
+    order by month;
+quit;
 
-/*============================================================*
- | explore
- *============================================================*/
-proc print data=coupon.monthly_aggregated_oop_long (obs = 10); run;
+proc transpose data=patient_count_per_month
+               out=monthly_n_transposed
+               prefix=month_;
+    id month;          /* month becomes column names */
+    var n_patients;    /* values to transpose */
+run;
+
+proc print data=monthly_n_transposed; run;
