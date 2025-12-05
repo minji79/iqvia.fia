@@ -22,6 +22,13 @@ libname coupon "/dcs07/hpm/data/iqvia_fia/glp1_disc/glp1_coupon";
 libname fast "/fastscratch/myscratch/mkim";   /* my fastbarch with 1 TB memory */
 
 
+/*============================================================*
+ | 0. set up to add 2025 data
+ *============================================================*/
+
+* raw claims;
+proc import datafile="/dcs07/hpm/data/iqvia_fia/full_raw/RxFact2024.dta" out=input.RxFact2024 dbms=dta replace; run;
+ 
 
 /*============================================================*
  | 1. identify Hopkin Plan -> payer_id & plan_id
