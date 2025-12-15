@@ -123,7 +123,6 @@ quit;
 data biosim.RxFact2025_clean; set biosim.RxFact2025_clean; year = year(svc_dt); run;
 
 
-
 /*============================================================*
  | 1. identify Hopkin Plan -> payer_id & plan_id
  *============================================================*/
@@ -177,28 +176,70 @@ data plan.as_secondary; set plan.as_secondary; length primary_secondary $100.; p
 
 /* merge */
 data plan.hopkins_users; set plan.as_primary plan.as_secondary; run;
+proc freq data=plan.hopkins_users; table primary_secondary; run;
 
 /*============================================================*
- | 3. identify GLP1 users 
+ | 3. identify GLP1 users (80 out of 1153)
  *============================================================*/
 data plan.hopkins_users; set plan.hopkins_users; if molecule_name in ("DULAGLUTIDE", "EXENATIDE", "LIRAGLUTIDE", "LIRAGLUTIDE (WEIGHT MANAGEMENT)", "LIXISENATIDE",
 "SEMAGLUTIDE", "SEMAGLUTIDE (WEIGHT MANAGEMENT)", "TIRZEPATIDE", "TIRZEPATIDE (WEIGHT MANAGEMENT)") then glp1 =1; else glp1 =0; run;
 
+proc freq data=plan.hopkins_users; table glp1; run;
+
+/* total number of all users (N=1153) */
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from plan.hopkins_users;
+quit;
+
+/* total number of those who used glp1 (N=80) */
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from plan.hopkins_users
+    where molecule_name in ("DULAGLUTIDE", "EXENATIDE", "LIRAGLUTIDE", "LIRAGLUTIDE (WEIGHT MANAGEMENT)", "LIXISENATIDE",
+"SEMAGLUTIDE", "SEMAGLUTIDE (WEIGHT MANAGEMENT)", "TIRZEPATIDE", "TIRZEPATIDE (WEIGHT MANAGEMENT)");
+quit;
+
+proc freq data=plan.hopkins_users; table year*glp1; run;
 
 
 /*============================================================*
  | 4. identify coupon use
  *============================================================*/
 
+proc sql;
+  create table plan.hopkins_users as
+  select a.*, b.model_type_name as sec_model_type_name
+  from plan.hopkins_users as a
+  left join biosim.plan as b
+    on a.sec_plan_id=b.plan_id;
+quit;
 
+data plan.hopkins_users; set plan.hopkins_users; if sec_model_type_name = 'COUPON/VOUCHER PROGRAM' then coupon = 1; else coupon = 0; run; 
+proc freq data=plan.hopkins_users; table coupon; run;
 
 
 /*============================================================*
- | 5. identify HOPKINS npi
+ | 5. identify HOPKINS npi (hopkins zip code = (21287, 21205, 21202, 21224, 20016, 20814, 21044, 21287, 33701))
+ | ref: https://www.hopkinsmedicine.org/patient-care/locations#:~:text=They%20also%20have%20a%20children's%20hospital%20in,Center**%205755%20Cedar%20Ln%2C%20Columbia%2C%20MD%2021044
  *============================================================*/
 
+proc contents data=biosim.provider; run;
+proc print data=biosim.provider (obs=10); run;
 
+proc sql;
+  create table plan.hopkins_users as
+  select a.*, b.provider_zip_code, b.provider_state, b.specialty_description
+  from plan.hopkins_users as a
+  left join biosim.provider as b
+    on a.provider_id = b.provider_id;
+quit;
 
+data plan.hopkins_users; set plan.hopkins_users; if provider_zip_code in (21287, 21205, 21202, 21224, 20016, 20814, 21044, 21287, 33701) then hopkins_npi = 1; else hopkins_npi = 0; run;
+proc freq data=plan.hopkins_users; table hopkins_npi; run;
 
+proc freq data=plan.hopkins_users; table plan_type; run;
+proc freq data=plan.hopkins_users; table rjct_grp; run;
+proc freq data=plan.hopkins_users; table encnt_outcm_cd; run;
 
 
