@@ -77,10 +77,19 @@ proc freq data=coupon.cohort_long_v01; table state_program; run;
 data coupon.cohort_long_v01; set coupon.cohort_long_v01; oop_30day = final_opc_amt / days_supply_cnt * 30; run;
 
 /*============================================================*
- | 4-2) estimated OOP before coupon use, standarized for 30days supplies
+ | 4-2) "oop_bf_coupon" | update OOP before coupon (instead of "pri_pat_pay_amt") - estimated OOP before coupon use, standarized for 30days supplies
  *============================================================*/
 data coupon.cohort_long_v01; set coupon.cohort_long_v01; oop_bf_coupon_30day = pri_pat_pay_amt / days_supply_cnt * 30; run;
 
+data coupon.cohort_long_v01; set coupon.cohort_long_v01; 
+ if primary_coupon = 1 then oop_bf_coupon = pri_pat_pay_amt; 
+ else if secondary_coupon = 1 then oop_bf_coupon = pri_pat_pay_amt + secondary_coupon_offset;
+ else oop_bf_coupon = pri_pat_pay_amt; 
+run;
+
+data coupon.cohort_long_v01; set coupon.cohort_long_v01; oop_bf_coupon_30day = oop_bf_coupon / days_supply_cnt * 30; run;
+
+proc print data=coupon.cohort_long_v01 (obs=10); run;
  
 /*============================================================*
  | 5) coupon offset calculate
