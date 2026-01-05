@@ -79,17 +79,15 @@ data coupon.cohort_long_v01; set coupon.cohort_long_v01; oop_30day = final_opc_a
 /*============================================================*
  | 4-2) "oop_bf_coupon" | update OOP before coupon (instead of "pri_pat_pay_amt") - estimated OOP before coupon use, standarized for 30days supplies
  *============================================================*/
-data coupon.cohort_long_v01; set coupon.cohort_long_v01; oop_bf_coupon_30day = pri_pat_pay_amt / days_supply_cnt * 30; run;
-
 data coupon.cohort_long_v01; set coupon.cohort_long_v01; 
- if primary_coupon = 1 then oop_bf_coupon = pri_pat_pay_amt; 
- else if secondary_coupon = 1 then oop_bf_coupon = pri_pat_pay_amt + secondary_coupon_offset;
+ if primary_coupon = 1 then oop_bf_coupon = pri_pat_pay_amt + pri_payer_pay_amt	; 
+ else if secondary_coupon = 1 then oop_bf_coupon = pri_pat_pay_amt;
  else oop_bf_coupon = pri_pat_pay_amt; 
 run;
 
 data coupon.cohort_long_v01; set coupon.cohort_long_v01; oop_bf_coupon_30day = oop_bf_coupon / days_supply_cnt * 30; run;
 
-proc print data=coupon.cohort_long_v01 (obs=10); run;
+proc print data=coupon.cohort_long_v01 (obs=10); where secondary_coupon =1; run;
  
 /*============================================================*
  | 5) coupon offset calculate
@@ -97,8 +95,20 @@ proc print data=coupon.cohort_long_v01 (obs=10); run;
 data coupon.cohort_long_v01; set coupon.cohort_long_v01; if primary_coupon=1 then primary_coupon_offset = pri_payer_pay_amt; else primary_coupon_offset=.; run;
 data coupon.cohort_long_v01; set coupon.cohort_long_v01; if secondary_coupon=1 then secondary_coupon_offset = sec_payer_pay_amt; else secondary_coupon_offset=.; run;
 
+
 /*============================================================*
- | 6) total cost per 30 days
+ | 6) payer's spending
+ *============================================================*/ 
+data coupon.cohort_long_v01; set coupon.cohort_long_v01; 
+	if primary_coupon = 0 and secondary_coupon =0 then payer_cost = pri_payer_pay_amt + sec_payer_pay_amt; 
+	else if primary_coupon = 1 and secondary_coupon =0 then payer_cost = sec_payer_pay_amt; 
+	else if primary_coupon = 0 and secondary_coupon =1 then payer_cost = pri_payer_pay_amt; 
+	else payer_cost = 0;
+run;
+
+
+/*============================================================*
+ | 7) total cost per 30 days
  *============================================================*/ 
  data coupon.cohort_long_v01; set coupon.cohort_long_v01; drop drug_cost_30day; run;
 data coupon.cohort_long_v01; set coupon.cohort_long_v01; 
@@ -109,7 +119,7 @@ run;
 proc means data=coupon.cohort_long_v01 n nmiss median q1 q3 min max; var drug_cost_30day; run;
  
  /*============================================================*
- | 7) aggregate long data at patient level
+ | 8) aggregate long data at patient level
  *============================================================*/ 
 proc sort data=coupon.cohort_long_v01; by patient_id svc_dt; run;
 
