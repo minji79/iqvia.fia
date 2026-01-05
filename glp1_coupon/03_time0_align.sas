@@ -1,8 +1,11 @@
 coupon.cohort_long_v01
+proc print data=coupon.cohort_long_v01 (obs=10); run;
+
 coupon.monthly_aggregated_oop_long
 proc print data=coupon.monthly_aggregated_oop_long (obs=10); run;
 
 oop_bf_coupon_30day_per_claim
+ 
 
 /*============================================================*
  | 1) eFigure 3. Area plot for stacked by coupon with month_id in calender month
@@ -85,7 +88,7 @@ proc sql;
     sum(oop_30day) as accumulated_oop_30day,
     sum(final_opc_amt) as accumulated_oop_act,
     sum(oop_bf_coupon_30day) as accumulated_oop_bf_coupon_30day,
-    sum(pri_pat_pay_amt) as accumulated_oop_bf_coupon_act,
+    sum(oop_bf_coupon) as accumulated_oop_bf_coupon_act,
     sum(primary_coupon_offset) as accumulated_coupon_1_offset,
     sum(secondary_coupon_offset) as accumulated_coupon_2_offset
     
@@ -114,7 +117,7 @@ proc sql;
     sum(oop_30day) as accumulated_oop_30day,
     sum(final_opc_amt) as accumulated_oop_act,
     sum(oop_bf_coupon_30day) as accumulated_oop_bf_coupon_30day,
-    sum(pri_pat_pay_amt) as accumulated_oop_bf_coupon_act,
+    sum(oop_bf_coupon) as accumulated_oop_bf_coupon_act,
     sum(primary_coupon_offset) as accumulated_coupon_1_offset,
     sum(secondary_coupon_offset) as accumulated_coupon_2_offset
     
