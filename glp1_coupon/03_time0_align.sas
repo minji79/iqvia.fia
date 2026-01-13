@@ -10,6 +10,7 @@ oop_bf_coupon_30day_per_claim
 /*============================================================*
  | 1) eFigure 3. Area plot for stacked by coupon with month_id in calender month
  *============================================================*/
+
 /* 1) Aggregate counts by month & category */
 proc sql;
     create table counts as
@@ -183,6 +184,7 @@ proc print data=coupon.monthly_aggregated_oop_long (obs=20); run;
 /*============================================================*
  | 3) eFigure 4. Histogram monthly coupon & claim count
  *============================================================*/
+/* overall % of coupons */
 proc sgplot data=coupon.monthly_aggregated_oop_long;
     /* Grouped bars: claim_count vs coupon_count */
     vbar month / response=claim_count datalabel categoryorder=respdesc 
@@ -198,6 +200,89 @@ proc sgplot data=coupon.monthly_aggregated_oop_long;
     keylegend / position=topright across=1 title="Counts";
     title "Monthly Claim vs Coupon Count";
 run;
+
+/* % of coupons by types */
+
+proc sgplot data=coupon.monthly_aggregated_oop_long;
+    /* Grouped bars: claim_count vs coupon_count */
+    vbar month / response=claim_count datalabel categoryorder=respdesc 
+        groupdisplay=cluster barwidth=0.5 fillattrs=(color=cx4D4D4D) 
+        transparency=0.1 legendlabel="Claim Count";
+
+    vbar month / response=coupon_1_count 
+        groupdisplay=cluster barwidth=0.4 
+        fillattrs=(color=cx2CA02C) 
+        transparency=0.1 
+        legendlabel="Primary Coupon Count";
+
+    vbar month / response=coupon_2_count 
+        groupdisplay=cluster barwidth=0.4 
+        fillattrs=(color=cxFF7F0E) 
+        transparency=0.1 
+        legendlabel="Secondary Coupon Count";
+    
+    xaxis label="Month since initiation" integer;
+    yaxis label="Count";
+    keylegend / position=topright across=1 title="Counts";
+    title "Monthly Claim vs Coupon Count";
+run;
+
+
+
+/* proportion of each coupon types */
+proc sql;
+  create table month_sum as
+  select
+      month,
+      sum(claim_count)    as claim_count,
+      sum(coupon_1_count) as coupon_1_count,
+      sum(coupon_2_count) as coupon_2_count
+  from coupon.monthly_aggregated_oop_long
+  group by month
+  order by month;
+quit;
+
+data month_sum;
+  set month_sum;
+  total_coupon = sum(coupon_1_count, coupon_2_count);
+
+  pct_coupon1_of_coupons = 100 * coupon_1_count / total_coupon;
+  pct_coupon2_of_coupons = 100 * coupon_2_count / total_coupon;
+
+  format pct_coupon1_of_coupons pct_coupon2_of_coupons 6.1;
+run;
+
+proc sgplot data=month_sum;
+  vbar month / response=claim_count
+      groupdisplay=cluster barwidth=0.55 transparency=0.1
+      fillattrs=(color=cx1F77B4) legendlabel="Claim Count";
+
+  vbar month / response=coupon_1_count
+      groupdisplay=cluster barwidth=0.45 transparency=0.1
+      fillattrs=(color=cxFF7F0E) legendlabel="Primary Coupon Count";
+
+  vbar month / response=coupon_2_count
+      groupdisplay=cluster barwidth=0.45 transparency=0.1
+      fillattrs=(color=cx2CA02C) legendlabel="Secondary Coupon Count";
+
+  xaxis label="Month since initiation" integer;
+  yaxis label="Count";
+  keylegend / position=topright across=1 title="Counts";
+  title "Monthly Claim vs Coupon Count";
+run;
+
+/* Table of percentages (choose which % vars you want to display) */
+proc report data=month_sum nowd;
+  columns month total_coupon pct_coupon1_of_coupons pct_coupon2_of_coupons;
+  define month / display "Month";
+  define total_coupon / display "Total Coupons";
+  define pct_coupon1_of_coupons / display "Primary % of Coupons";
+  define pct_coupon2_of_coupons / display "Secondary % of Coupons";
+run;
+
+
+
+
 
 
 /*============================================================*
@@ -422,3 +507,42 @@ proc transpose data=patient_count_per_month
 run;
 
 proc print data=monthly_n_transposed; run;
+
+
+
+/*============================================================*
+ | 6) Figure 1-2. Line graph for mean OOP trajectory with 95%ci - payer_cost, coupon offset, oop
+ *============================================================*/
+
+proc print data=coupon.cohort_long_v01 (obs=10); run;
+
+* long dataset| see only primary coupon users;
+data id_primary; set coupon.cohort_long_v01; if primary_coupon =1; run;
+data id_primary; set id_primary; keep patient_id; run;
+proc sort data=id_primary nodupkey; by _ALL_; run; /* 17924 individuals who ever used primary coupons */
+
+
+proc sql;
+    create table primary_users as
+    select distinct a.*
+    from coupon.cohort_long_v01 as a
+    left join id_primary as b
+        on a.patient_id = b.patient_id
+    where b.patient_id is not null;
+quit;
+
+proc sort data=primary_users; by patient_id svc_dt; run;
+proc print data=primary_users (obs=30); var patient_id svc_dt primary_coupon secondary_coupon drug_cost primary_coupon_offset secondary_coupon_offset final_opc_amt; run;
+
+* wide dataset| see only primary coupon users;
+proc contents data=coupon.cohort_wide_v00; run;
+data primary_users_wide; set coupon.cohort_wide_v00; if primary_coupon_count >0; run;
+
+proc means data=primary_users_wide n median q1 q3 mean std min max; var primary_coupon_count; run;
+proc means data=primary_users_wide n median q1 q3 mean std min max; var primary_coupon_offset; run;
+proc means data=primary_users_wide n median q1 q3 mean std min max; var coupon_count; run;
+
+
+
+
+
