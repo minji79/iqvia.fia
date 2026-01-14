@@ -87,6 +87,8 @@ libname ref23 "/dcl02/alexande/data/MARKETSCAN2025/data";   /* output file direc
 libname ref22 "/dcl02/alexande/data/MARKETSCAN2024";   /* output file directory */
 libname output "/dcs04/hpm/data/marketscan/stata";   /* output file directory */
 
+proc contents data=ref22.redbook; run;
+
 
 * make 22 dataset and then save;
 data input.ccaea22; set ref22.ccae_a; if year = 2022; run;
