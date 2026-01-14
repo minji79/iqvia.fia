@@ -83,11 +83,21 @@ run;
 	3.   converting marketscans from sas to dta
 ************************************************************************************/
 
+libname ref "/dcl02/alexande/data/MARKETSCAN";   /* output file directory */
 libname ref23 "/dcl02/alexande/data/MARKETSCAN2025/data";   /* output file directory */
 libname ref22 "/dcl02/alexande/data/MARKETSCAN2024";   /* output file directory */
 libname output "/dcs04/hpm/data/marketscan/stata";   /* output file directory */
 
-proc contents data=ref22.redbook; run;
+
+* redbook ;
+data input.redbook2019; set ref.redbook_2019; run;
+data input.redbook2018; set ref.redbook2018; run;
+data input.redbook2017; set ref.redbook_2017; run;
+
+proc export data=input.redbook2019 outfile="/dcs07/hpm/data/iqvia_fia/ref/redbook/redbook2019.dta"  dbms=stata replace; run;
+proc export data=input.redbook2018 outfile="/dcs07/hpm/data/iqvia_fia/ref/redbook/redbook2018.dta"  dbms=stata replace; run;
+proc export data=input.redbook2017 outfile="/dcs07/hpm/data/iqvia_fia/ref/redbook/redbook2017.dta"  dbms=stata replace; run;
+
 
 
 * make 22 dataset and then save;
