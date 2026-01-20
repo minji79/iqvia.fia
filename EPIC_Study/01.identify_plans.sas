@@ -92,7 +92,6 @@ data plan.eric_plan;
     else if index(upcase(plan_name), "LOCKHEED MARTIN") > 0 then flag = 1;
     else if index(upcase(plan_name), "LOWES") > 0 then flag = 1;
     
-    else if index(upcase(plan_name), "MERCER") > 0 then flag = 1;
     else if index(upcase(plan_name), "METLIFE") > 0 then flag = 1;
     
     else if index(upcase(plan_name), "NESTLE") > 0 then flag = 1;
@@ -100,7 +99,7 @@ data plan.eric_plan;
     else if index(upcase(plan_name), "NOVARTIS PHARMACEUTICALS") > 0 then flag = 1;
     
     else if index(upcase(plan_name), "PEPSI") > 0 then flag = 1;
-    else if index(upcase(plan_name), "PHILIP") > 0 then flag = 1;
+    else if index(upcase(plan_name), "PNC FINANCIAL") > 0 then flag = 1;
     
     else if index(upcase(plan_name), "T ROWE PRICE GROUP INC") > 0 then flag = 1;
     else if index(upcase(plan_name), "TIAA") > 0 then flag = 1;
@@ -118,13 +117,12 @@ data plan.eric_plan;
     else if index(upcase(plan_name), "WALMART") > 0 then flag = 1;
     else if index(upcase(plan_name), "WELLS FARGO CORP") > 0 then flag = 1;
     else if index(upcase(plan_name), "WILLIS TOWERS WATSON") > 0 then flag = 1;
-    else if index(upcase(plan_name), "WINSTON") > 0 then flag = 1;
     else if index(upcase(plan_name), "WORKDAY") > 0 then flag = 1;
     
     else flag = 0;
 run;
 data plan.eric_plan; set plan.eric_plan; if flag=1; run;
-proc print data=plan.eric_plan; run; /* 277 unit plans */
+proc print data=plan.eric_plan; run; /* 274 unit plans */
 
 proc print data=biosim.plan; 
 where index(upcase(plan_name), "FEDERAL RESERVE") > 0 or index(upcase(plan_name), "GENERAL DYNAMICS") > 0;
@@ -191,3 +189,6 @@ by plan_id patient_id;
  
 run;
 
+
+
+ 
