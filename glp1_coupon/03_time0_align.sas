@@ -1,4 +1,5 @@
 coupon.cohort_long_v01
+proc contents data=coupon.cohort_long_v01; run;
 proc print data=coupon.cohort_long_v01 (obs=10); run;
 
 coupon.monthly_aggregated_oop_long
