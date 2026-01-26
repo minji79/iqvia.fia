@@ -99,13 +99,20 @@ data coupon.cohort_long_v01; set coupon.cohort_long_v01; if secondary_coupon=1 t
 /*============================================================*
  | 6) payer's spending
  *============================================================*/ 
+* null ; 
+data coupon.cohort_long_v01; set coupon.cohort_long_v01; if missing(pri_payer_pay_amt) then pri_payer_pay_amt = 0; run;
+data coupon.cohort_long_v01; set coupon.cohort_long_v01; if missing(sec_payer_pay_amt) then sec_payer_pay_amt = 0; run;
+
 data coupon.cohort_long_v01; set coupon.cohort_long_v01; 
 	if primary_coupon = 0 and secondary_coupon =0 then payer_cost = pri_payer_pay_amt + sec_payer_pay_amt; 
-	else if primary_coupon = 1 and secondary_coupon =0 then payer_cost = sec_payer_pay_amt; 
-	else if primary_coupon = 0 and secondary_coupon =1 then payer_cost = pri_payer_pay_amt; 
+	else if primary_coupon = 1 and secondary_coupon =0 then payer_cost = pri_payer_pay_amt + sec_payer_pay_amt - primary_coupon_offset; 
+	else if primary_coupon = 0 and secondary_coupon =1 then payer_cost = pri_payer_pay_amt + sec_payer_pay_amt - secondary_coupon_offset; 
 	else payer_cost = 0;
 run;
 
+proc print data=coupon.cohort_long_v01 (obs=10); 
+	var pri_payer_pay_amt sec_payer_pay_amt payer_cost primary_coupon_offset secondary_coupon_offset oop_bf_coupon final_opc_amt; 
+	where primary_coupon = 1; run;
 
 /*============================================================*
  | 7) total cost per 30 days
