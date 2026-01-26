@@ -87,8 +87,6 @@ data plan.eric_plan;
     else if index(upcase(plan_name), "JOHNSON AND JOHNSON") > 0 then flag = 1;
     else if index(upcase(plan_name), "JPMORGAN") > 0 then flag = 1;
     
-    else if index(upcase(plan_name), "KAISER") > 0 then flag = 1;
-    
     else if index(upcase(plan_name), "LOCKHEED MARTIN") > 0 then flag = 1;
     else if index(upcase(plan_name), "LOWES") > 0 then flag = 1;
     
@@ -122,6 +120,8 @@ data plan.eric_plan;
     else flag = 0;
 run;
 data plan.eric_plan; set plan.eric_plan; if flag=1; run;
+proc sort data= plan.eric_plan; by plan_name; run;
+
 proc print data=plan.eric_plan; run; /* 274 unit plans */
 
 proc print data=biosim.plan; 
