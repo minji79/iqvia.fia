@@ -487,6 +487,91 @@ proc sgplot data=monthly_long2;
 run;
 
 
+* among non-coupon users;
+data sample; set coupon.monthly_aggregated_oop_long; if coupon_user =0; run;
+
+proc means data=sample noprint;
+    class month;
+    var accumulated_payer_cost accumulated_oop_act accumulated_coupon_offset;
+    output out=monthly_summarized2
+        mean=mean_payer_cost mean_oop_act mean_coupon_offset
+        std =sd_payer_cost  sd_oop_act  sd_coupon_offset
+        n   =n_payer_cost   n_oop_act   n_coupon_offset;
+run;
+
+
+/* keep only summary rows */
+data monthly_summarized2;
+    set monthly_summarized2;
+    if _TYPE_=1;
+run;
+
+
+data monthly_summarized2;
+    set monthly_summarized2;
+
+    /* Standard Error */
+    se_payer     = sd_payer_cost / sqrt(n_payer_cost);
+    se_oop      = sd_oop_act / sqrt(n_oop_act);
+    se_coupon   = sd_coupon_offset / sqrt(n_coupon_offset);
+
+    /* 95% CI */
+    lower_payer  = mean_payer_cost     - 1.96*se_payer;
+    upper_payer  = mean_payer_cost     + 1.96*se_payer;
+
+    lower_oop   = mean_oop_act       - 1.96*se_oop;
+    upper_oop   = mean_oop_act       + 1.96*se_oop;
+
+    lower_coupon = mean_coupon_offset - 1.96*se_coupon;
+    upper_coupon = mean_coupon_offset + 1.96*se_coupon;
+
+run;
+
+
+
+data monthly_long2;
+    set monthly_summarized2;
+    length measure $40 value lower upper 8;
+
+    /* Drug spending */
+    measure="Payer's Costs";
+    value  =mean_payer_cost;
+    lower  =lower_payer;
+    upper  =upper_payer;
+    output;
+
+    /* OOP actual */
+    measure="Out-of-Pocket costs";
+    value  =mean_oop_act;
+    lower  =lower_oop;
+    upper  =upper_oop;
+    output;
+    
+run;
+
+proc sgplot data=monthly_long2;
+    styleattrs datacontrastcolors=(cx1f77b4 cxff7f0e cx2ca02c cxb565a7);
+
+    /* CI bands */
+    band x=month lower=lower upper=upper / 
+         group=measure transparency=0.75
+         name="bands" legendlabel=" ";
+
+    /* Mean lines with markers */
+    series x=month y=value /
+           group=measure 
+           lineattrs=(thickness=2)
+           markers markerattrs=(symbol=circlefilled size=6)
+           name="lines";
+
+    /* Legend WITHOUT dots */
+    keylegend "lines" / type=line position=topright across=1;
+
+    xaxis label="Month Since Initiation" integer;
+    yaxis label="Dollars ($)" grid;
+    title "Monthly Mean of Out-of-Pocket costs and Payer's costs (Among Non-Users)";
+run;
+
 
 /*==============================*
   # of patients per month - risk set
