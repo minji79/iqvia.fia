@@ -220,7 +220,7 @@ proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max;
     var age_index;
 run;
 
-* gander ; 
+* gender ; 
 proc freq data=coupon.cohort_wide_v00; table patient_gender; run;
 proc freq data=coupon.cohort_wide_v00; table patient_gender*coupon_user /norow nopercent; run;
 
@@ -238,7 +238,6 @@ proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max;
     class coupon_user;
     var duration_months;
 run;
-
 
 * claim_count ;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max; var claim_count; run;
@@ -341,6 +340,110 @@ proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max;
     var last_date;
 run;
 
+
+/*============================================================*
+ | 6) SMD for each variable
+ *============================================================*/ 
+
+/* continuous variables */
+%macro var (var=);
+proc sql;
+  create table smd_&var as
+  select
+    "&var" as var length=32,
+    mean(case when coupon_user=1 then &var else . end) as mean1,
+    mean(case when coupon_user=0 then &var else . end) as mean0,
+    std(case when coupon_user=1 then &var else . end)  as sd1,
+    std(case when coupon_user=0 then &var else . end)  as sd0,
+    abs(
+      (calculated mean1 - calculated mean0) /
+      sqrt((calculated sd1**2 + calculated sd0**2)/2)
+    ) as smd
+  from coupon.cohort_wide_v00;
+quit;
+proc print data=smd_&var; title "&var"; run;
+
+%mend var;
+%var (var=age_index);
+%var (var=duration_months);
+%var (var=claim_count);
+%var (var=coupon_count);
+%var (var=oop_bf_coupon_30day);
+%var (var=coupon_offset_per_coupon);
+%var (var=oop_30day_per_claim);
+%var (var=days_supply_cnt);
+
+
+
+/* binary variables */
+%macro var (var=);
+proc sql;
+  create table smd_&var as
+  select
+    "&var" as var length=32,
+    mean(case when coupon_user=1 then &var else . end) as p1,
+    mean(case when coupon_user=0 then &var else . end) as p0,
+    abs(
+      (calculated p1 - calculated p0) /
+      sqrt(
+        (calculated p1*(1-calculated p1) + calculated p0*(1-calculated p0)) / 2
+      )
+    ) as smd
+  from coupon.cohort_wide_v00;
+quit;
+proc print data=smd_&var; title "&var"; run;
+
+%mend var;
+%var (var=diabetes_history);
+%var (var=ever_state_program);
+
+
+
+/* multi-vcategorical variables & non-numeric binary variables */
+%macro var (var=);
+
+/* Get p(level | coupon_user) */
+proc freq data=coupon.cohort_wide_v00 noprint;
+  tables coupon_user*&var / out=freq;
+run;
+
+data proportion;
+  set freq;
+  where coupon_user in (0,1);
+  p = percent/100;
+  keep coupon_user &var p;
+run;
+
+/* Put p0 and p1 on same row for each race level */
+proc sort data=proportion; by &var; run;
+
+proc transpose data=proportion out=proportion_wide prefix=p_;
+  by &var;
+  id coupon_user;     /* creates p_0 and p_1 */
+  var p;
+run;
+
+data smd_levels;
+  set proportion_wide;
+  /* p_0 = proportion in coupon_user=0; p_1 = proportion in coupon_user=1 */
+  smd_level = abs( (p_1 - p_0) / sqrt( (p_1*(1-p_1) + p_0*(1-p_0)) / 2 ) );
+run;
+
+/* Overall SMD for race = max SMD across levels */
+proc sql;
+  create table smd_&var as
+  select
+    "&var" as var length=32,
+    max(smd_level) as smd
+  from smd_levels;
+quit;
+proc print data=smd_&var; title "&var"; run;
+
+%mend var;
+%var (var=patient_gender);
+%var (var=region);
+%var (var=molecule_name);
+%var (var=chnl_cd);
 
 
 
