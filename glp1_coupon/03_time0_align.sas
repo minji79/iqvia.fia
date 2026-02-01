@@ -178,7 +178,7 @@ data coupon.monthly_aggregated_oop_long; set coupon.monthly_aggregated_oop_long;
 
   format coupon_count_pct coupon_offset_pct 8.2;
 run;
-proc print data=coupon.monthly_aggregated_oop_long (obs=20); run;
+proc print data=coupon.monthly_aggregated_oop_long (obs=10); run;
 
 
 
@@ -291,14 +291,15 @@ run;
  *============================================================*/
 * among only coupon users;
 data monthly_aggregated_oop_long; set coupon.monthly_aggregated_oop_long; if coupon_user =1; run;
+proc print data=monthly_aggregated_oop_long (obs=50); run;
 
 proc means data=monthly_aggregated_oop_long noprint;
     class month;
     var accumulated_drug_cost accumulated_oop_act accumulated_coupon_offset accumulated_oop_bf_coupon_act;
     output out=monthly_summarized2
-        mean=mean_drug_cost mean_oop_act mean_coupon_offset mean_oop_bf_coupon_act
-        std =sd_drug_cost  sd_oop_act  sd_coupon_offset  sd_oop_bf_coupon_act
-        n   =n_drug_cost   n_oop_act   n_coupon_offset   n_oop_bf_coupon_act;
+        mean=mean_drug_cost mean_oop_act mean_coupon_offset mean_oop_bf_coupon_act mean_coupon_offset_pct
+        std =sd_drug_cost  sd_oop_act  sd_coupon_offset  sd_oop_bf_coupon_act sd_coupon_offset_pct
+        n   =n_drug_cost   n_oop_act   n_coupon_offset   n_oop_bf_coupon_act n_coupon_offset_pct;
 run;
 
 /* keep only summary rows */
@@ -316,6 +317,7 @@ data monthly_summarized2;
     se_oop      = sd_oop_act / sqrt(n_oop_act);
     se_coupon   = sd_coupon_offset / sqrt(n_coupon_offset);
     se_oop_bf   = sd_oop_bf_coupon_act / sqrt(n_oop_bf_coupon_act);
+    sd_coupon_offset_pct = sd_coupon_offset_pct / sqrt(coupon_offset_pct);
 
     /* 95% CI */
     lower_drug  = mean_drug_cost     - 1.96*se_drug;
@@ -329,9 +331,11 @@ data monthly_summarized2;
 
     lower_oop_bf = mean_oop_bf_coupon_act - 1.96*se_oop_bf;
     upper_oop_bf = mean_oop_bf_coupon_act + 1.96*se_oop_bf;
+
+    lower_coupon_offset_pct = mean_coupon_offset_pct - 1.96*se_coupon_offset_pct;
+    upper_coupon_offset_pct = mean_coupon_offset_pct + 1.96*se_coupon_offset_pct;
+    
 run;
-
-
 
 data monthly_long2;
     set monthly_summarized2;
@@ -364,8 +368,20 @@ data monthly_long2;
     lower  =lower_oop_bf;
     upper  =upper_oop_bf;
     output;
+
+    /* coupon_offset_pct */
+    measure="coupon_offset_pct";
+    value  =mean_coupon_offset_pct;
+    lower  =lower_coupon_offset_pct;
+    upper  =upper_coupon_offset_pct;
+    output;
+
 run;
 
+/* table */
+proc print data=monthly_long2; var month mean_coupon_offset lower_coupon upper_coupon mean_coupon_offset_pct lower_coupon_offset_pct upper_coupon_offset_pct; run;
+
+/* plot */
 proc sgplot data=monthly_long2;
     styleattrs datacontrastcolors=(cx1f77b4 cxff7f0e cx2ca02c cxb565a7);
 
