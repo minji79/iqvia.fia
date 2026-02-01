@@ -203,12 +203,26 @@ data coupon.cohort_wide_v00;
 run;
 
 data coupon.cohort_wide_v00; set coupon.cohort_wide_v00; if state_program_count >0 then ever_state_program =1; else ever_state_program =0; run;
+data coupon.cohort_wide_v00; set coupon.cohort_wide_v00; 
+	length indication $30;
+	if molecule_name in ("LIRAGLUTIDE (WEIGHT MANAGEMENT)", "SEMAGLUTIDE (WEIGHT MANAGEMENT)", "TIRZEPATIDE (WEIGHT MANAGEMENT)") then indication = "obesity";
+	else indication = "diabetes";
+run;
+data coupon.cohort_wide_v00; set coupon.cohort_wide_v00; index_year = year(index_date); run;
+
 
 * duration;
 data coupon.cohort_wide_v00; set coupon.cohort_wide_v00; duration_days = intck('day', index_date, last_date); run;
 data coupon.cohort_wide_v00; set coupon.cohort_wide_v00; duration_months = duration_days/30; run;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max; var duration_days; run;
 
+
+/* among coupon users, % of fills with coupon among total claims number */
+data coupon.cohort_wide_v00; set coupon.cohort_wide_v00; pct_coupon_claims = coupon_count / claim_count; run;
+data coupon; set coupon.cohort_wide_v00; if coupon_user =1; run;
+proc means data=coupon n nmiss median q1 q3 mean std min max;
+    var pct_coupon_claims;
+run;
 
 /*============================================================*
  | 5) Table 1 with the wide dataset (N=359029)
@@ -240,8 +254,8 @@ proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max;
 run;
 
 * claim_count ;
-proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max; var claim_count; run;
-proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max;
+proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max; var claim_count; run;
+proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max;
     class coupon_user;
     var claim_count;
 run;
@@ -252,6 +266,8 @@ proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max;
     class coupon_user;
     var coupon_count;
 run;
+
+proc print data=coupon.cohort_wide_v00 (obs=10); run;
 
 * primary_coupon_count ;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max; var primary_coupon_count; run;
@@ -322,6 +338,11 @@ proc freq data=adjusted; table payer_type_index_adj*coupon_user /norow nopercent
 proc freq data=coupon.cohort_wide_v00; table molecule_name; run;
 proc freq data=coupon.cohort_wide_v00; table molecule_name*coupon_user /norow nopercent; run;
 
+* indication at index; 
+proc freq data=coupon.cohort_wide_v00; table indication; run;
+proc freq data=coupon.cohort_wide_v00; table indication*coupon_user /norow nopercent; run;
+
+
 * ever_state_program ; 
 proc freq data=coupon.cohort_wide_v00; table ever_state_program; run;
 proc freq data=coupon.cohort_wide_v00; table ever_state_program*coupon_user /norow nopercent; run;
@@ -333,12 +354,10 @@ proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max;
     var index_date;
 run;
 
-* last day;
-proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max; var last_date; run;
-proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max;
-    class coupon_user;
-    var last_date;
-run;
+* index_year;
+proc freq data=coupon.cohort_wide_v00; table index_year; run;
+proc freq data=coupon.cohort_wide_v00; table index_year*coupon_user /norow nopercent; run;
+
 
 
 /*============================================================*
@@ -444,8 +463,8 @@ proc print data=smd_&var; title "&var"; run;
 %var (var=region);
 %var (var=molecule_name);
 %var (var=chnl_cd);
-
-
+%var (var=indication);
+%var (var=index_year);
 
 
 
