@@ -152,7 +152,7 @@ proc sql;
   on a.payer_id = b.payer_id and a.plan_id = b.plan_id;
 quit;
 
-data plan.eric_claim; set eric_claim_1824 eric_claim_25; run; /* 103303043 claims */
+data plan.eric_claim; set eric_claim_1824 eric_claim_25; run; /* 101952173 claims */
 proc print data=plan.eric_claim (obs=10); where year=2025; run;
 
 /* number of claims by year */
