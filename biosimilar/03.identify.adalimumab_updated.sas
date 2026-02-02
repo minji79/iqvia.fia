@@ -46,7 +46,8 @@ proc freq data=input.ADALIMUMAB_NDCs; table molecule_name; run;
 ************************************************************************************/
 
 * 0. make indicators;
-data input.ADALIMUMAB_NDCs; set input.ADALIMUMAB_NDCs; length category $50; run;
+data biosim.ADALIMUMAB_NDCs; set biosim.ADALIMUMAB_NDCs; drop category; run;
+data biosim.ADALIMUMAB_NDCs; set biosim.ADALIMUMAB_NDCs; length category $50; run;
 
 /*
 category
@@ -61,13 +62,13 @@ category
 */
 
 * 1. molecule_name=ADALIMUMAB | Original OR co-branded;
-proc sort data=input.ADALIMUMAB_NDCs; by category drug_labeler_corp_name; run;
-proc print data=input.ADALIMUMAB_NDCs; where molecule_name = "ADALIMUMAB"; title "molecule_name=ADALIMUMAB | Original and co-branded"; run;
+proc sort data=biosim.ADALIMUMAB_NDCs; by category drug_labeler_corp_name; run;
+proc print data=biosim.ADALIMUMAB_NDCs; where molecule_name = "ADALIMUMAB"; title "molecule_name=ADALIMUMAB | Original and co-branded"; run;
 
-data input.ADALIMUMAB_NDCs; set input.ADALIMUMAB_NDCs; 
+data biosim.ADALIMUMAB_NDCs; set biosim.ADALIMUMAB_NDCs; 
 	if molecule_name = "ADALIMUMAB" and drug_labeler_corp_name in ("ABBVIE", "ABBVIE US LLC", "ABBOTT") then category = "reference_biologics"; 
 	else if molecule_name = "ADALIMUMAB" and drug_labeler_corp_name in ("CORDAVIS LIMITED") then category = "co_branded_biologics"; 
-    else if molecule_name = "ADALIMUMAB" and drug_labeler_corp_name in ("PHYSICIANS TOTAL CARE", "A-S MEDICATION SOLUTIONS", "CLINICAL SOLUTIONS WHOLESALE") then category = "co_branded_biologics_not_cordavis"; 
+    else if molecule_name = "ADALIMUMAB" and drug_labeler_corp_name in ("PHYSICIANS TOTAL CARE", "A-S MEDICATION SOLUTIONS", "CLINICAL SOLUTIONS WHOLESALE") then category = "co_branded_biologics"; 
 run;
 
 
@@ -75,7 +76,7 @@ run;
 proc print data=input.ADALIMUMAB_NDCs; where molecule_name = "ADALIMUMAB-ADAZ"; title "molecule_name=ADALIMUMAB-ADAZ | private_label_biosimilar OR biosimilar"; run;
 proc sort data=input.ADALIMUMAB_NDCs; by category; run;
 
-data input.ADALIMUMAB_NDCs; set input.ADALIMUMAB_NDCs;
+data biosim.ADALIMUMAB_NDCs; set biosim.ADALIMUMAB_NDCs; 
     if molecule_name = "ADALIMUMAB-ADAZ" and drug_labeler_corp_name = "NOVARTIS" then category = "biosimilar_ADAZ";
     else if molecule_name = "ADALIMUMAB-ADAZ" and drug_labeler_corp_name = "CORDAVIS LIMITED" then category = "private_label_biosimilar";
 run;
@@ -84,7 +85,7 @@ run;
 proc print data=input.ADALIMUMAB_NDCs; where molecule_name = "ADALIMUMAB-ADBM"; title "molecule_name=ADALIMUMAB-ADBM | private_label_biosimilar OR biosimilar"; run;
 proc sort data=input.ADALIMUMAB_NDCs; by category drug_labeler_corp_name; run;
 
-data input.ADALIMUMAB_NDCs; set input.ADALIMUMAB_NDCs;
+data biosim.ADALIMUMAB_NDCs; set biosim.ADALIMUMAB_NDCs; 
     if molecule_name = "ADALIMUMAB-ADBM" and drug_labeler_corp_name = "BOEHRINGER INGELHEIM" and product_ndc in (597037082, 597037516, 597037523, 597037597, 597040089, 597040580, 597049550) then category = "biosimilar_ADBM";
     else if molecule_name = "ADALIMUMAB-ADBM" and drug_labeler_corp_name = "BOEHRINGER INGELHEIM" and product_ndc not in (597037082, 597037516, 597037523, 597037597, 597040089, 597040580, 597049550) then category = "biosimilar_ADBM";
 	else if molecule_name = "ADALIMUMAB-ADBM" and drug_labeler_corp_name = "QUALLENT" then category = "private_label_biosimilar";
@@ -94,7 +95,7 @@ run;
 proc print data=input.ADALIMUMAB_NDCs; where molecule_name = "ADALIMUMAB-RYVK"; title "molecule_name=ADALIMUMAB-RYVK | private_label_biosimilar OR biosimilar"; run;
 proc sort data=input.ADALIMUMAB_NDCs; by category drug_labeler_corp_name; run;
 
-data input.ADALIMUMAB_NDCs; set input.ADALIMUMAB_NDCs;
+data biosim.ADALIMUMAB_NDCs; set biosim.ADALIMUMAB_NDCs; 
     if molecule_name = "ADALIMUMAB-RYVK" and drug_labeler_corp_name = "QUALLENT" then category = "private_label_biosimilar";
     else if molecule_name = "ADALIMUMAB-RYVK" and drug_labeler_corp_name = "TEVA PHARMACEUTICALS USA" then category = "biosimilar_RYVK";
 run;
@@ -102,7 +103,7 @@ run;
 * 5. molecule_name=others | biosimilar ;
 proc print data=input.ADALIMUMAB_NDCs; where molecule_name = "ADALIMUMAB-FKJP"; title "molecule_name=ADALIMUMAB-FKJP | biosimilar"; run;
 
-data input.ADALIMUMAB_NDCs; set input.ADALIMUMAB_NDCs;
+data biosim.ADALIMUMAB_NDCs; set biosim.ADALIMUMAB_NDCs; 
     if molecule_name in ("ADALIMUMAB-AACF", "ADALIMUMAB-AATY", "ADALIMUMAB-AFZB", "ADALIMUMAB-AQVH", "ADALIMUMAB-ATTO", "ADALIMUMAB-BWWD", "ADALIMUMAB-FKJP") then category = "biosimilar";
 run;
 
