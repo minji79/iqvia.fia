@@ -106,9 +106,42 @@ proc freq data=plan.eric_patient; table PEGFILGRASTIM_user; run;
 
 
 /*============================================================*
- | 3. patient level aggregation - by plan
+ | 3. top 10 spending drugs 
  *============================================================*/
+proc contents data=plan.eric_claim; run;
 
+data plan.eric_claim; set plan.eric_claim; gross_cost = sum(pri_payer_pay_amt, sec_payer_pay_amt, final_opc_amt); run;
+
+/* pooling spending by molecule */
+proc summary data=plan.eric_claim nway;
+    class year molecule_name;
+    var gross_cost;
+    output out=drug_year_spending
+        sum = total_gross_cost
+        mean = mean_gross_cost
+        n = n_claims;
+run;
+
+proc sql;
+    create table plan.drug_year_spending as
+    select
+        year,
+        molecule_name,
+        sum(gross_cost) as total_gross_cost,
+        mean(gross_cost) as mean_gross_cost,
+        count(*) as n_claims
+    from plan.eric_claim
+    group by year, molecule_name
+    order by year, molecule_name;
+quit;
+
+
+
+/*============================================================*
+ | 4. patient level aggregation - by plan
+ *============================================================*/
 
 /* median number of months stay */
 proc sort data=plan.eric_claim; by plan_id patient_id; run;
+
+
