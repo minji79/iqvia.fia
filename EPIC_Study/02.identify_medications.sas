@@ -44,17 +44,16 @@ data plan.eric_claim;
     if index(upcase(molecule_name), "DULAGLUTIDE") > 0 then glp1 = "DULAGLUTIDE"; /* ndc =49 */
     else if index(upcase(molecule_name), "EXENATIDE") > 0 then glp1 = "EXENATIDE";  
     else if index(upcase(molecule_name), "LIXISENATIDE") > 0 then glp1 = "LIXISENATIDE";  
-    else if index(upcase(molecule_name), "LIRAGLUTIDE") > 0 then glp1 = "LIRAGLUTIDE";  
-    else if index(upcase(molecule_name), "LIRAGLUTIDE (WEIGHT MANAGEMENT)") > 0 then glp1 = "LIRAGLUTIDE (WEIGHT MANAGEMENT)";  
-    else if index(upcase(molecule_name), "SEMAGLUTIDE") > 0 then glp1 = "SEMAGLUTIDE";  
-    else if index(upcase(molecule_name), "SEMAGLUTIDE (WEIGHT MANAGEMENT)") > 0 then glp1 = "SEMAGLUTIDE (WEIGHT MANAGEMENT)";  
-    else if index(upcase(molecule_name), "TIRZEPATIDE") > 0 then glp1 = "TIRZEPATIDE";  
-    else if index(upcase(molecule_name), "TIRZEPATIDE (WEIGHT MANAGEMENT)") > 0 then glp1 = "TIRZEPATIDE (WEIGHT MANAGEMENT)";  
+    else if molecule_name = "LIRAGLUTIDE" then glp1 = "LIRAGLUTIDE";  
+    else if molecule_name = "LIRAGLUTIDE (WEIGHT MANAGEMENT)" then glp1 = "LIRAGLUTIDE (WEIGHT MANAGEMENT)";  
+    else if molecule_name = "SEMAGLUTIDE" then glp1 = "SEMAGLUTIDE";  
+    else if molecule_name = "SEMAGLUTIDE (WEIGHT MANAGEMENT)" then glp1 = "SEMAGLUTIDE (WEIGHT MANAGEMENT)";  
+    else if molecule_name = "TIRZEPATIDE" then glp1 = "TIRZEPATIDE";  
+    else if molecule_name = "TIRZEPATIDE (WEIGHT MANAGEMENT)" then glp1 = "TIRZEPATIDE (WEIGHT MANAGEMENT)";  
     else glp1 = "NA";  
 run;
 proc freq data=plan.eric_claim; table glp1; run;
 proc freq data=plan.eric_claim; table glp1*year; run;
-
 
 
 /*============================================================*
@@ -71,6 +70,7 @@ data plan.eric_patient;
 
   length study_drug_u $50;
   study_drug_u = upcase(strip(study_drug));
+  glp1_u = upcase(strip(glp1));
 
   if first.patient_id then do;
     claim_count = 0;
@@ -85,11 +85,11 @@ data plan.eric_patient;
     EXENATIDE_count = 0;
     LIXISENATIDE_count = 0;
     LIRAGLUTIDE_count = 0;
-    LIRAGLUTIDE_obesity_count = 0;
+    LIRA_o_count = 0;
     SEMAGLUTIDE_count = 0;
-    SEMAGLUTIDE_obesity_count = 0;
+    SEMA_o_count = 0;
     TIRZEPATIDE_count = 0;
-    TIRZEPATIDE_obesity_count = 0;
+    TIRZ_o_count = 0;
 
   end;
 
@@ -102,28 +102,29 @@ data plan.eric_patient;
   if study_drug_u = "ADALIMUMAB" then ADALIMUMAB_count + 1;
   if study_drug_u = "INSULIN" then INSULIN_count + 1;
   if study_drug_u = "PEGFILGRASTIM" then PEGFILGRASTIM_count + 1;
-  if study_drug_u = "DULAGLUTIDE" then DULAGLUTIDE_count + 1;
-  if study_drug_u = "EXENATIDE" then EXENATIDE_count + 1;
-  if study_drug_u = "LIXISENATIDE" then LIXISENATIDE_count + 1;
-  if study_drug_u = "LIRAGLUTIDE" then LIRAGLUTIDE_count + 1;
-  if study_drug_u = "LIRAGLUTIDE (WEIGHT MANAGEMENT)" then LIRAGLUTIDE_obesity_count + 1;
-  if study_drug_u = "SEMAGLUTIDE" then SEMAGLUTIDE_count + 1;
-  if study_drug_u = "SEMAGLUTIDE (WEIGHT MANAGEMENT)" then SEMAGLUTIDE_obesity_count + 1;
-  if study_drug_u = "TIRZEPATIDE" then TIRZEPATIDE_count + 1;
-  if study_drug_u = "TIRZEPATIDE (WEIGHT MANAGEMENT)" then TIRZEPATIDE_obesity_count + 1;
+  if glp1_u = "DULAGLUTIDE" then DULAGLUTIDE_count + 1;
+  if glp1_u = "EXENATIDE" then EXENATIDE_count + 1;
+  if glp1_u = "LIXISENATIDE" then LIXISENATIDE_count + 1;
+  if glp1_u = "LIRAGLUTIDE" then LIRAGLUTIDE_count + 1;
+  if glp1_u = "SEMAGLUTIDE" then SEMAGLUTIDE_count + 1;
+  if glp1_u = "TIRZEPATIDE" then TIRZEPATIDE_count + 1;
+ 
+  /* obesity indications (robust matching) */
+  if glp1_u = "LIRAGLUTIDE (WEIGHT MANAGEMENT)" then LIRA_o_count + 1;
+  if glp1_u = "SEMAGLUTIDE (WEIGHT MANAGEMENT)" then SEMA_o_count + 1;
+  if glp1_u = "TIRZEPATIDE (WEIGHT MANAGEMENT)" then TIRZ_o_count + 1;
 
   if last.patient_id then do;
     last_date = svc_dt;    /* latest because sorted */
     output;
   end;
 
-  format index_date last_date mmddyy10.;
+  format last_date mmddyy10.;
 run;
 
 /* duration of enrollment */
 /* set index date again */
-data plan.eric_patient; set plan.eric_patient; drop index_date; run;
-proc sort data=plan.eric_claim; by patient_id svc_dt; run;
+/* proc sort data=plan.eric_claim; by patient_id svc_dt; run; */
 data index_date; set plan.eric_claim; by patient_id; if first.patient_id; run;
 
 /* merge with patient's wide dataset */
@@ -140,14 +141,10 @@ proc means data=plan.eric_patient n nmiss mean std median q1 q3; var duration_mo
 
 /* drug users indicators */
 %macro drug (drug=);
-data plan.eric_patient; set plan.eric_patient; if &drug_count >0 then &drug_user =1; else &drug_user =0; run;
-proc freq data=plan.eric_patient; table &drug_user; title "&drug"; run;
+data plan.eric_patient; set plan.eric_patient; if &drug._count > 0 then &drug._user = 1; else &drug._user = 0; run;
+proc freq data=plan.eric_patient; tables &drug._user; title "User indicator for &drug"; run;
 
 %mend drug;
-%drug(drug=LIRAGLUTIDE_obesity);
-
-
-
 %drug(drug=IMATINIB);
 %drug(drug=BUDEFORMO);
 %drug(drug=GLATIRAMER);
@@ -158,15 +155,22 @@ proc freq data=plan.eric_patient; table &drug_user; title "&drug"; run;
 %drug(drug=EXENATIDE);
 %drug(drug=LIXISENATIDE);
 %drug(drug=LIRAGLUTIDE);
-%drug(drug=LIRAGLUTIDE_obesity);
+%drug(drug=LIRA_o);
 %drug(drug=SEMAGLUTIDE);
-%drug(drug=SEMAGLUTIDE_obesity);
+%drug(drug=SEMA_o);
 %drug(drug=TIRZEPATIDE);
-%drug(drug=TIRZEPATIDE_obesity);
+%drug(drug=TIRZ_o);
 
+/* make glp1_users indicator */
+data plan.eric_patient; set plan.eric_patient; if EXENATIDE_user=1 or LIXISENATIDE_user=1 or LIRAGLUTIDE_user=1 or SEMAGLUTIDE_user=1 or TIRZEPATIDE_user=1 or
+ TIRZ_o_user=1 or SEMA_o_user=1 or LIRA_o_user=1 then glp1_user=1; else glp1_user=0; run;
 
-proc print data=plan.eric_patient (obs=10); run;
+proc freq data=plan.eric_patient; tables glp1_user; run;
+proc freq data=plan.eric_patient; tables glp1_user*year; run;
 
+/* ADALIMUMAB_user */
+proc freq data=plan.eric_patient; tables ADALIMUMAB_user; run;
+proc freq data=plan.eric_patient; tables ADALIMUMAB_user*year; run;
 
 
 /*============================================================*
@@ -288,10 +292,89 @@ proc print data=drug_&year (obs=10); title "top10 spending drugs in &year"; run;
  *============================================================*/
 proc print data=plan.eric_claim (obs=10); var patient_id svc_dt; run;
 
-proc print data=plan.eric_patient (obs=10); var patient_id svc_dt index_date last_date duration; run;
+/* GLP1 users */
+proc sql;
+  create table yearly_patient_counts as
+  select
+      year,
+      count(*) as n_patients,
+      sum(glp1_user=1) as n_glp1_users
+  from plan.eric_patient
+  group by year
+  order by year;
+quit;
+
+proc print data=yearly_patient_counts (obs=10); run;
+
+proc sgplot data=yearly_patient_counts;
+  vbar year / response=n_patients
+      groupdisplay=cluster barwidth=0.55
+      fillattrs=(color=cx1F77B4) transparency=0.1
+      legendlabel="Total Patients (N)";
+
+  vbar year / response=n_glp1_users
+      groupdisplay=cluster barwidth=0.55
+      fillattrs=(color=cxFF7F0E) transparency=0.1
+      legendlabel="GLP-1 Users (N)";
+
+  xaxis label="Year" integer;
+  yaxis label="Number of Patients" grid;
+  keylegend / position=topright across=1 title="Patient Counts";
+  title "Yearly Total Patients vs GLP-1 Users";
+run;
 
 
-/* median number of months stay */
-proc sort data=plan.eric_claim; by plan_id patient_id; run;
+/* ADALIMUMAB_user */
+proc sql;
+  create table yearly_patient_counts as
+  select
+      year,
+      count(*) as n_patients,
+      sum(ADALIMUMAB_user=1) as n_ADALIMUMAB_users
+  from plan.eric_patient
+  group by year
+  order by year;
+quit;
+
+proc print data=yearly_patient_counts (obs=10); run;
+
+proc sgplot data=yearly_patient_counts;
+  vbar year / response=n_patients
+      groupdisplay=cluster barwidth=0.55
+      fillattrs=(color=cx1F77B4) transparency=0.1
+      legendlabel="Total Patients (N)";
+
+  vbar year / response=n_ADALIMUMAB_users
+      groupdisplay=cluster barwidth=0.55
+      fillattrs=(color=cxFF7F0E) transparency=0.1
+      legendlabel="Adalimumab Users (N)";
+
+  xaxis label="Year" integer;
+  yaxis label="Number of Patients" grid;
+  keylegend / position=topright across=1 title="Patient Counts";
+  title "Yearly Total Patients vs Adalimumab Users";
+run;
+
+
+/*============================================================*
+ | 5. Biosimilar use in Fresenius Kabi plan
+ *============================================================*/
+
+data plan.fresenius; set plan.eric_claim; if index(upcase(plan_name), "FRESENIUS") > 0; run; /* 444582 claims */
+proc print data=biosim.ADALIMUMAB_NDCs (obs=10); run;
+
+/* fix the category for the biosimilar */
+proc sql; 
+  create table plan.fresenius as 
+  select distinct a.*, b.category
+  from plan.fresenius as a 
+  left join biosim.ADALIMUMAB_NDCs as b
+  on a.molecule_name = b.molecule_name; 
+  
+quit;
+data plan.fresenius; set plan.fresenius; if missing(category) then category="non-Adalimumab"; else category=category; run;
+proc freq data=plan.fresenius; tables category; title "Adalimumab Utilization in Fresenius"; run;
+
+
 
 
