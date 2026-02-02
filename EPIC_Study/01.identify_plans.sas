@@ -122,7 +122,8 @@ run;
 data plan.eric_plan; set plan.eric_plan; if flag=1; run;
 proc sort data= plan.eric_plan; by plan_name; run;
 
-proc print data=plan.eric_plan; run; /* 274 unit plans */
+proc print data=plan.eric_plan; run; /* 248 unit plans */
+proc contents data=plan.eric_plan; run;
 
 proc print data=biosim.plan; 
 where index(upcase(plan_name), "FEDERAL RESERVE") > 0 or index(upcase(plan_name), "GENERAL DYNAMICS") > 0;
