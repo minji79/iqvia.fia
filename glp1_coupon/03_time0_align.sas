@@ -180,6 +180,11 @@ data coupon.monthly_aggregated_oop_long; set coupon.monthly_aggregated_oop_long;
 run;
 proc print data=coupon.monthly_aggregated_oop_long (obs=20); run;
 
+* indication;
+data coupon.monthly_aggregated_oop_long; set coupon.monthly_aggregated_oop_long; 
+length indication $100.; if molecule_name in ("LIRAGLUTIDE (WEIGHT MANAGEMENT)","SEMAGLUTIDE (WEIGHT MANAGEMENT)","TIRZEPATIDE (WEIGHT MANAGEMENT)") then indication = "obesity"; else indication = "diabetes"; run;
+proc freq data=coupon.monthly_aggregated_oop_long; table indication; run;
+
 
 /*============================================================*
  | 3) eFigure 4. Histogram monthly coupon & claim count - patient level
@@ -353,7 +358,289 @@ proc means data=coupon_offset n mean lclm uclm std;
 run;
 
 /*============================================================*
- | 5) Figure 1-2. (among non-users) Line graph for mean OOP trajectory with 95%ci - payer_cost, coupon offset, oop
+ | 4) Figure 1-1'. (among coupon users) Line graph for mean OOP trajectory with 95%ci - payer_cost, coupon offset, oop
+ *============================================================*/
+
+* among only coupon users;
+data sample; set coupon.monthly_aggregated_oop_long; if coupon_user =1; run;
+
+proc sql;
+  create table riskset_month as
+  select
+      month,
+      count(distinct patient_id) as n_patients
+  from sample
+  group by month
+  order by month;
+quit;
+
+proc means data=sample noprint;
+    class month;
+    var accumulated_payer_cost accumulated_oop_act accumulated_coupon_offset;
+    output out=monthly_summarized
+        mean=mean_payer_cost mean_oop_act mean_coupon_offset
+        std =sd_payer_cost  sd_oop_act  sd_coupon_offset
+        n   =n_payer_cost   n_oop_act   n_coupon_offset;
+run;
+
+/* keep only summary rows */
+data monthly_summarized; set monthly_summarized; if _TYPE_=1; run;
+
+/* keep only up to 18 month */
+data monthly_summarized; set monthly_summarized; if 0 <= month and month <= 18; run;
+data riskset_month; set riskset_month; if 0 <= month and month <= 18; run;
+
+
+data monthly_summarized;
+    set monthly_summarized;
+
+    /* Standard Error */
+    se_payer     = sd_payer_cost / sqrt(n_payer_cost);
+    se_oop      = sd_oop_act / sqrt(n_oop_act);
+    se_coupon   = sd_coupon_offset / sqrt(n_coupon_offset);
+
+    /* 95% CI */
+    lower_payer  = mean_payer_cost     - 1.96*se_payer;
+    upper_payer  = mean_payer_cost     + 1.96*se_payer;
+
+    lower_oop   = mean_oop_act       - 1.96*se_oop;
+    upper_oop   = mean_oop_act       + 1.96*se_oop;
+
+    lower_coupon = mean_coupon_offset - 1.96*se_coupon;
+    upper_coupon = mean_coupon_offset + 1.96*se_coupon;
+
+run;
+
+data monthly_long;
+    set monthly_summarized;
+    length measure $40 value lower upper 8;
+
+    /* Drug spending */
+    measure="Payer's Spending";
+    value  =mean_payer_cost;
+    lower  =lower_payer;
+    upper  =upper_payer;
+    output;
+
+    /* OOP actual */
+    measure="Out-of-Pocket costs";
+    value  =mean_oop_act;
+    lower  =lower_oop;
+    upper  =upper_oop;
+    output;
+
+    /* Coupon offset */
+    measure="Coupon Offset (manufacturers' cost)";
+    value  =mean_coupon_offset;
+    lower  =lower_coupon;
+    upper  =upper_coupon;
+    output;
+run;
+
+/* Ensure sorted */
+proc sort data=riskset_month; by month; run;
+proc sort data=monthly_long;  by month measure; run;
+
+data plotdata;
+  merge monthly_long(in=b) riskset_month(in=a);
+  by month;
+  if b;                  /* keep line rows (so measures plot correctly) */
+run;
+
+/* 1) Make LOW/HIGH variables for the bar, only on one measure row */
+data plotdata2;
+  set plotdata;
+  low_pat  = .;
+  high_pat = .;
+
+  /* draw the bar only once per month (pick one measure row) */
+  if measure = "Payer's Spending" then do;
+    low_pat  = 0;
+    high_pat = n_patients;
+  end;
+run;
+
+proc sgplot data=plotdata2 noautolegend;
+  styleattrs datacontrastcolors=(cx1f77b4 cxff7f0e cx2ca02c cxb565a7);
+
+  /* Bars: risk set (LEFT axis) */
+  highlow x=month low=low_pat high=high_pat /
+    type=bar
+    barwidth=0.9
+    fillattrs=(color=cxA6A6A6)
+    lineattrs=(color=cxA6A6A6)
+    transparency=0.80
+    y2axis
+    name="bars";
+
+  /* CI ribbons: costs (RIGHT axis) */
+  band x=month lower=lower upper=upper /
+    group=measure
+    transparency=0.75
+    name="bands";
+
+  /* Mean cost lines: costs (RIGHT axis) */
+  series x=month y=value /
+    group=measure
+    lineattrs=(thickness=2)
+    markers
+    markerattrs=(symbol=circlefilled size=6)
+    name="lines";
+
+  keylegend "lines" / type=line position=topright across=1;
+
+  xaxis label="Month Since Initiation" integer values=(1 to 18 by 1);
+  yaxis label="Dollars ($)" grid values=(0 to 1200 by 200);
+  y2axis label="Number of Patients (Risk set)" grid values=(0 to 24000 by 4000);
+
+  title "Monthly Mean OOP, Coupon Offset, and Payer Spending (Among All Coupon Users)";
+run;
+
+
+/*============================================================*
+ | 4) Figure 1-2'. (among obesity indication | diabetes indication) Line graph for mean OOP trajectory with 95%ci - payer_cost, coupon offset, oop
+ *============================================================*/
+
+* among only coupon users;
+data sample; set coupon.monthly_aggregated_oop_long; if coupon_user =1; run;
+data sample; set sample; if indication = "obesity"; run;
+
+proc sql;
+  create table riskset_month as
+  select
+      month,
+      count(distinct patient_id) as n_patients
+  from sample
+  group by month
+  order by month;
+quit;
+
+proc means data=sample noprint;
+    class month;
+    var accumulated_payer_cost accumulated_oop_act accumulated_coupon_offset;
+    output out=monthly_summarized
+        mean=mean_payer_cost mean_oop_act mean_coupon_offset
+        std =sd_payer_cost  sd_oop_act  sd_coupon_offset
+        n   =n_payer_cost   n_oop_act   n_coupon_offset;
+run;
+
+/* keep only summary rows */
+data monthly_summarized; set monthly_summarized; if _TYPE_=1; run;
+
+/* keep only up to 18 month */
+data monthly_summarized; set monthly_summarized; if 0 <= month and month <= 18; run;
+data riskset_month; set riskset_month; if 0 <= month and month <= 18; run;
+
+
+data monthly_summarized;
+    set monthly_summarized;
+
+    /* Standard Error */
+    se_payer     = sd_payer_cost / sqrt(n_payer_cost);
+    se_oop      = sd_oop_act / sqrt(n_oop_act);
+    se_coupon   = sd_coupon_offset / sqrt(n_coupon_offset);
+
+    /* 95% CI */
+    lower_payer  = mean_payer_cost     - 1.96*se_payer;
+    upper_payer  = mean_payer_cost     + 1.96*se_payer;
+
+    lower_oop   = mean_oop_act       - 1.96*se_oop;
+    upper_oop   = mean_oop_act       + 1.96*se_oop;
+
+    lower_coupon = mean_coupon_offset - 1.96*se_coupon;
+    upper_coupon = mean_coupon_offset + 1.96*se_coupon;
+
+run;
+
+data monthly_long;
+    set monthly_summarized;
+    length measure $40 value lower upper 8;
+
+    /* Drug spending */
+    measure="Payer's Spending";
+    value  =mean_payer_cost;
+    lower  =lower_payer;
+    upper  =upper_payer;
+    output;
+
+    /* OOP actual */
+    measure="Out-of-Pocket costs";
+    value  =mean_oop_act;
+    lower  =lower_oop;
+    upper  =upper_oop;
+    output;
+
+    /* Coupon offset */
+    measure="Coupon Offset (manufacturers' cost)";
+    value  =mean_coupon_offset;
+    lower  =lower_coupon;
+    upper  =upper_coupon;
+    output;
+run;
+
+/* Ensure sorted */
+proc sort data=riskset_month; by month; run;
+proc sort data=monthly_long;  by month measure; run;
+
+data plotdata;
+  merge monthly_long(in=b) riskset_month(in=a);
+  by month;
+  if b;                  /* keep line rows (so measures plot correctly) */
+run;
+
+/* 1) Make LOW/HIGH variables for the bar, only on one measure row */
+data plotdata2;
+  set plotdata;
+  low_pat  = .;
+  high_pat = .;
+
+  /* draw the bar only once per month (pick one measure row) */
+  if measure = "Payer's Spending" then do;
+    low_pat  = 0;
+    high_pat = n_patients;
+  end;
+run;
+
+proc sgplot data=plotdata2 noautolegend;
+  styleattrs datacontrastcolors=(cx1f77b4 cxff7f0e cx2ca02c cxb565a7);
+
+  /* Bars: risk set (LEFT axis) */
+  highlow x=month low=low_pat high=high_pat /
+    type=bar
+    barwidth=0.9
+    fillattrs=(color=cxA6A6A6)
+    lineattrs=(color=cxA6A6A6)
+    transparency=0.80
+    y2axis
+    name="bars";
+
+  /* CI ribbons: costs (RIGHT axis) */
+  band x=month lower=lower upper=upper /
+    group=measure
+    transparency=0.75
+    name="bands";
+
+  /* Mean cost lines: costs (RIGHT axis) */
+  series x=month y=value /
+    group=measure
+    lineattrs=(thickness=2)
+    markers
+    markerattrs=(symbol=circlefilled size=6)
+    name="lines";
+
+  keylegend "lines" / type=line position=topright across=1;
+
+  xaxis label="Month Since Initiation" integer values=(1 to 18 by 1);
+  yaxis label="Dollars ($)" grid values=(0 to 1200 by 200);
+  y2axis label="Number of Patients (Risk set)" grid values=(0 to 24000 by 4000);
+
+  title "Monthly Mean OOP, Coupon Offset, and Payer Spending (Among Coupon Users for obesity-indicated GLP-1 RAs)";
+run;
+
+
+ 
+/*============================================================*
+ | 5) Figure 1-4. (among non-users) Line graph for mean OOP trajectory with 95%ci - payer_cost, coupon offset, oop
  *============================================================*/
 * among non-coupon users;
 data sample; set coupon.monthly_aggregated_oop_long; if coupon_user =0; run;
@@ -437,6 +724,142 @@ proc sgplot data=monthly_long2;
     yaxis label="Dollars ($)" grid;
     title "Monthly Mean of Out-of-Pocket costs and Payer's spending (Among Non-Users)";
 run;
+
+
+
+* among only coupon users;
+data sample; set coupon.monthly_aggregated_oop_long; if coupon_user =0; run;
+
+proc sql;
+  create table riskset_month as
+  select
+      month,
+      count(distinct patient_id) as n_patients
+  from sample
+  group by month
+  order by month;
+quit;
+
+proc means data=sample noprint;
+    class month;
+    var accumulated_payer_cost accumulated_oop_act accumulated_coupon_offset;
+    output out=monthly_summarized2
+        mean=mean_payer_cost mean_oop_act mean_coupon_offset
+        std =sd_payer_cost  sd_oop_act  sd_coupon_offset
+        n   =n_payer_cost   n_oop_act   n_coupon_offset;
+run;
+
+/* keep only summary rows */
+data monthly_summarized; set monthly_summarized; if _TYPE_=1; run;
+
+/* keep only up to 18 month */
+data monthly_summarized; set monthly_summarized; if 0 <= month and month <= 18; run;
+data riskset_month; set riskset_month; if 0 <= month and month <= 18; run;
+
+
+data monthly_summarized;
+    set monthly_summarized;
+
+    /* Standard Error */
+    se_payer     = sd_payer_cost / sqrt(n_payer_cost);
+    se_oop      = sd_oop_act / sqrt(n_oop_act);
+    se_coupon   = sd_coupon_offset / sqrt(n_coupon_offset);
+
+    /* 95% CI */
+    lower_payer  = mean_payer_cost     - 1.96*se_payer;
+    upper_payer  = mean_payer_cost     + 1.96*se_payer;
+
+    lower_oop   = mean_oop_act       - 1.96*se_oop;
+    upper_oop   = mean_oop_act       + 1.96*se_oop;
+
+    lower_coupon = mean_coupon_offset - 1.96*se_coupon;
+    upper_coupon = mean_coupon_offset + 1.96*se_coupon;
+
+run;
+
+data monthly_long;
+    set monthly_summarized;
+    length measure $40 value lower upper 8;
+    
+ /* Drug spending */
+    measure="Payer's Spending";
+    value  =mean_payer_cost;
+    lower  =lower_payer;
+    upper  =upper_payer;
+    output;
+    
+    /* OOP actual */
+    measure="Out-of-Pocket costs";
+    value  =mean_oop_act;
+    lower  =lower_oop;
+    upper  =upper_oop;
+    output;
+
+run;
+
+/* Ensure sorted */
+proc sort data=riskset_month; by month; run;
+proc sort data=monthly_long;  by month measure; run;
+
+data plotdata;
+  merge monthly_long(in=b) riskset_month(in=a);
+  by month;
+  if b;                  /* keep line rows (so measures plot correctly) */
+run;
+
+/* 1) Make LOW/HIGH variables for the bar, only on one measure row */
+data plotdata2;
+  set plotdata;
+  low_pat  = .;
+  high_pat = .;
+
+  /* draw the bar only once per month (pick one measure row) */
+  if measure = "Payer's Spending" then do;
+    low_pat  = 0;
+    high_pat = n_patients;
+  end;
+run;
+
+
+proc sgplot data=plotdata2 noautolegend;
+  styleattrs datacontrastcolors=(cxff7f0e cx2ca02c);
+  
+  /* Bars: risk set (LEFT axis) */
+  highlow x=month low=low_pat high=high_pat /
+    type=bar
+    barwidth=0.9
+    fillattrs=(color=cxA6A6A6)
+    lineattrs=(color=cxA6A6A6)
+    transparency=0.80
+    y2axis
+    name="bars";
+
+  /* CI ribbons: costs (RIGHT axis) */
+  band x=month lower=lower upper=upper /
+    group=measure
+    transparency=0.75
+    name="bands";
+
+  /* Mean cost lines: costs (RIGHT axis) */
+  series x=month y=value /
+    group=measure
+    lineattrs=(thickness=2)
+    markers
+    markerattrs=(symbol=circlefilled size=6)
+    name="lines";
+
+  keylegend "lines" / type=line position=topright across=1;
+
+  xaxis label="Month Since Initiation" integer values=(1 to 18 by 1);
+  yaxis label="Dollars ($)" grid values=(0 to 1200 by 200);
+  y2axis label="Number of Patients (Risk set)" grid values=(0 to 360000 by 60000);
+
+  title "Monthly Mean OOP, Coupon Offset, and Payer Spending (Among Non-Users)";
+run;
+
+
+
+
 
 
 /*==============================*
