@@ -34,7 +34,7 @@ data plan.eric_plan;
     
     else if index(upcase(plan_name), "ALIGHT") > 0 then flag = 1;  
     else if index(upcase(plan_name), "ALLIANT HEALTH") > 0 then flag = 1;
-    else if index(upcase(plan_name), "AMAZON") > 0 then flag = 1;  /* include discount card program */
+    else if plan_name = "AMAZON" then flag = 1;
     else if index(upcase(plan_name), "AMERICAN AIR") > 0 then flag = 1;
     else if index(upcase(plan_name), "AON") > 0 then flag = 1;
     else if index(upcase(plan_name), "GALLAGHER") > 0 then flag = 1; /* 2 */
@@ -42,21 +42,11 @@ data plan.eric_plan;
     
     else if index(upcase(plan_name), "BANK OF AMERICA") > 0 then flag = 1;
     else if index(upcase(plan_name), "BLACKROCK") > 0 then flag = 1;
-    else if index(upcase(plan_name), "BLUE SHIELD MED D GNRL (CA)") > 0 then flag = 1;
-    else if index(upcase(plan_name), "BLUE SHIELD 65 PLUS 2 (CA)") > 0 then flag = 1;
-    else if index(upcase(plan_name), "BLUE SHIELD MDCR RX ENHD (CA)") > 0 then flag = 1;
-    else if index(upcase(plan_name), "BLUE SHIELD MED ADV GENERAL (CA)") > 0 then flag = 1;
-    else if index(upcase(plan_name), "BLUE SHIELD OF CA MEDI-CAL (CA)") > 0 then flag = 1;
-    else if index(upcase(plan_name), "BLUE SHIELD SPECTRUM PPO (CA)") > 0 then flag = 1;
-    else if index(upcase(plan_name), "BLUE SHIELD OF CA HIX PPO GNRL") > 0 then flag = 1;
-    else if index(upcase(plan_name), "BLUE SHIELD MED PDP GENERAL (CA)") > 0 then flag = 1;
-    else if index(upcase(plan_name), "BLUE SHIELD CA UNSPECIFIED") > 0 then flag = 1;
     else if index(upcase(plan_name), "BOEING COMPANY") > 0 then flag = 1;  /* 2 */
     else if index(upcase(plan_name), "BRISTOL-MYERS") > 0 then flag = 1;
     
     else if index(upcase(plan_name), "CATERPILLAR") > 0 then flag = 1;
     else if index(upcase(plan_name), "CHEVRON CORPORATION") > 0 then flag = 1;
-    else if index(upcase(plan_name), "CIGNA") > 0 then flag = 1;          /* 169 plans */
     else if index(upcase(plan_name), "COMCAST/NBC") > 0 then flag = 1;
     else if index(upcase(plan_name), "COSTCO WHOLESALE") > 0 then flag = 1;
     else if index(upcase(plan_name), "CROWELL") > 0 then flag = 1;
@@ -66,7 +56,6 @@ data plan.eric_plan;
     else if index(upcase(plan_name), "DELTA AIR") > 0 then flag = 1;
     
     else if index(upcase(plan_name), "EATON") > 0 then flag = 1; /* 2 */
-    else if index(upcase(plan_name), "ELEVANCE") > 0 then flag = 1;
     else if index(upcase(plan_name), "EXXON") > 0 then flag = 1;
     
     else if index(upcase(plan_name), "FEDERAL RESERVE") > 0 then flag = 1;
@@ -89,7 +78,7 @@ data plan.eric_plan;
     
     else if index(upcase(plan_name), "LOCKHEED MARTIN") > 0 then flag = 1;
     else if index(upcase(plan_name), "LOWES") > 0 then flag = 1;
-    
+    else if index(upcase(plan_name), "MARRIOTT") > 0 then flag = 1;
     else if index(upcase(plan_name), "METLIFE") > 0 then flag = 1;
     
     else if index(upcase(plan_name), "NESTLE") > 0 then flag = 1;
@@ -98,7 +87,8 @@ data plan.eric_plan;
     
     else if index(upcase(plan_name), "PEPSI") > 0 then flag = 1;
     else if index(upcase(plan_name), "PNC FINANCIAL") > 0 then flag = 1;
-    
+     else if index(upcase(plan_name), "SEGAL") > 0 then flag = 1;
+     
     else if index(upcase(plan_name), "T ROWE PRICE GROUP INC") > 0 then flag = 1;
     else if index(upcase(plan_name), "TIAA") > 0 then flag = 1;
     
@@ -120,14 +110,12 @@ data plan.eric_plan;
     else flag = 0;
 run;
 data plan.eric_plan; set plan.eric_plan; if flag=1; run;
-proc sort data= plan.eric_plan; by plan_name; run;
-
-proc print data=plan.eric_plan; run; /* 248 unit plans */
+proc sort data= plan.eric_plan; by descending plan_name; run;
+proc print data=plan.eric_plan; run; /* 69 unit plans */
 proc contents data=plan.eric_plan; run;
 
-proc print data=biosim.plan; 
-where index(upcase(plan_name), "FEDERAL RESERVE") > 0 or index(upcase(plan_name), "GENERAL DYNAMICS") > 0;
-    run;
+proc print data=biosim.plan; where index(upcase(plan_name), "MARRIOTT") > 0 or plan_name = "AMAZON" or index(upcase(plan_name), "SEGAL") > 0; run;
+
 
 
 /*============================================================*
@@ -152,7 +140,7 @@ proc sql;
   on a.payer_id = b.payer_id and a.plan_id = b.plan_id;
 quit;
 
-data plan.eric_claim; set eric_claim_1824 eric_claim_25; run; /* 101952173 claims */
+data plan.eric_claim; set eric_claim_1824 eric_claim_25; run; /* 30711200 claims */
 proc print data=plan.eric_claim (obs=10); where year=2025; run;
 
 /* number of claims by year */
