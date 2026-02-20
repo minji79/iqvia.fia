@@ -331,16 +331,22 @@ data coupon_offset; set monthly_long2; if measure = "Coupon Offset (manufacturer
 proc print data=coupon_offset; title "Coupon Offset (manufacturers' cost)"; run;
 
 proc means data=coupon_offset n mean lclm uclm;
+    where month in (11,12,13);
+    var value;
+run;
+
+proc means data=coupon_offset n mean lclm uclm;
     where month in (2,3,4,5,6,7,8);
     var value;
 run;
+
 
 /* Payer's Spending */
 data coupon_offset; set monthly_long2; if measure = "Payer's Spending"; keep month value lower upper; run;
 proc print data=coupon_offset; title "Payer's Spending"; run;
 
 proc means data=coupon_offset n mean lclm uclm;
-    where month in (1,2,3);
+    where month in (11,12,13);
     var value;
 run;
 
