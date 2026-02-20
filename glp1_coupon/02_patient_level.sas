@@ -234,17 +234,25 @@ proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max;
     var age_index;
 run;
 
+/* p-value */
+proc npar1way data=coupon.cohort_wide_v00 wilcoxon;
+    class coupon_user;
+    var age_index;
+run;
+
+
+
 * gender ; 
 proc freq data=coupon.cohort_wide_v00; table patient_gender; run;
-proc freq data=coupon.cohort_wide_v00; table patient_gender*coupon_user /norow nopercent; run;
+proc freq data=coupon.cohort_wide_v00; table patient_gender*coupon_user /norow nopercent chisq; run;
 
 * region ; 
 proc freq data=coupon.cohort_wide_v00; table region; run;
-proc freq data=coupon.cohort_wide_v00; table region*coupon_user /norow nopercent; run;
+proc freq data=coupon.cohort_wide_v00; table region*coupon_user /norow nopercent chisq; run;
 
 * diabetes_history ; 
 proc freq data=coupon.cohort_wide_v00; table diabetes_history; run;
-proc freq data=coupon.cohort_wide_v00; table diabetes_history*coupon_user /norow nopercent; run;
+proc freq data=coupon.cohort_wide_v00; table diabetes_history*coupon_user /norow nopercent chisq; run;
 
 * duration of episode; 
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max; var duration_months; run;
@@ -253,12 +261,26 @@ proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 min max;
     var duration_months;
 run;
 
+/* p-value */
+proc npar1way data=coupon.cohort_wide_v00 wilcoxon;
+    class coupon_user;
+    var duration_months;
+run;
+
+
 * claim_count ;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max; var claim_count; run;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max;
     class coupon_user;
     var claim_count;
 run;
+
+/* p-value */
+proc npar1way data=coupon.cohort_wide_v00 wilcoxon;
+    class coupon_user;
+    var claim_count;
+run;
+
 
 * coupon_count ;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max; var coupon_count; run;
@@ -291,6 +313,13 @@ proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max;
     var oop_bf_coupon_30day_per_claim;
 run;
 
+/* p-value */
+proc npar1way data=coupon.cohort_wide_v00 wilcoxon;
+    class coupon_user;
+    var oop_bf_coupon_30day_per_claim;
+run;
+
+
 * OOP after coupon offset;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std; var oop_30day_per_claim; run;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max;
@@ -298,11 +327,20 @@ proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max;
     var oop_30day_per_claim;
 run;
 
+/* p-value */
+proc npar1way data=coupon.cohort_wide_v00 wilcoxon;
+    class coupon_user;
+    var oop_30day_per_claim;
+run;
+
+
+* coupon offset;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std; var coupon_offset_per_coupon; run;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max;
     class coupon_user;
     var coupon_offset_per_coupon;
 run;
+
 
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std; var coupon_1_offset_per_coupon; run;
 proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max;
@@ -315,6 +353,13 @@ proc means data=coupon.cohort_wide_v00 n nmiss median q1 q3 mean std min max;
     class coupon_user;
     var coupon_2_offset_per_coupon;
 run;
+
+* coupon offset for diabetes vs obesity GLP1;
+data diabetes; set coupon.cohort_wide_v00; if indication = "diabetes"; run;
+data obesity; set coupon.cohort_wide_v00; if indication = "obesity"; run;
+
+proc means data=diabetes n nmiss median q1 q3 mean std; var coupon_offset_per_coupon; run;
+proc means data=obesity n nmiss median q1 q3 mean std; var coupon_offset_per_coupon; run;
 
 
 * chnl_cd ; 
@@ -336,11 +381,11 @@ proc freq data=adjusted; table payer_type_index_adj*coupon_user /norow nopercent
 
 * molecule_name at index; 
 proc freq data=coupon.cohort_wide_v00; table molecule_name; run;
-proc freq data=coupon.cohort_wide_v00; table molecule_name*coupon_user /norow nopercent; run;
+proc freq data=coupon.cohort_wide_v00; table molecule_name*coupon_user /norow nopercent chisq; run;
 
 * indication at index; 
 proc freq data=coupon.cohort_wide_v00; table indication; run;
-proc freq data=coupon.cohort_wide_v00; table indication*coupon_user /norow nopercent; run;
+proc freq data=coupon.cohort_wide_v00; table indication*coupon_user /norow nopercent chisq; run;
 
 
 * ever_state_program ; 
@@ -359,9 +404,26 @@ proc freq data=coupon.cohort_wide_v00; table index_year; run;
 proc freq data=coupon.cohort_wide_v00; table index_year*coupon_user /norow nopercent; run;
 
 
+/*============================================================*
+ | 6) p-values
+ *============================================================*/ 
+
+/* Parametric p-value */
+proc ttest data=coupon.cohort_wide_v00;
+    class coupon_user;
+    var oop_30day_per_claim;
+run;
+
+/* Nonparametric p-value */
+proc npar1way data=coupon.cohort_wide_v00 wilcoxon;
+    class coupon_user;
+    var oop_30day_per_claim;
+run;
+
+
 
 /*============================================================*
- | 6) SMD for each variable
+ | 7) SMD for each variable
  *============================================================*/ 
 
 /* continuous variables */
