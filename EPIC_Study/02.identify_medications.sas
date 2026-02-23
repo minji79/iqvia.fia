@@ -57,16 +57,13 @@ proc freq data=plan.eric_claim; table glp1*year; run;
 
 
 /*============================================================*
- | 2. patient level aggregation - by molecule
+ | 2. patient level aggregation - NEED CORRECTION
  *============================================================*/
-
-proc sort data=plan.eric_claim;
-  by patient_id svc_dt;
-run;
+proc sort data=plan.eric_claim; by patient_id year svc_dt; run;
 
 data plan.eric_patient;
   set plan.eric_claim;
-  by patient_id;
+  by patient_id year;
 
   length study_drug_u $50;
   study_drug_u = upcase(strip(study_drug));
@@ -233,8 +230,8 @@ proc print data=top10_drugs_by_year (obs=20); run;
 /* to include all yearly data for the top 10 drugs */
 proc freq data=top10_drugs_by_year; table molecule_name; run;
 
-data drug_ranked_selected; set plan.drug_year_spending; if molecule_name in ("ADALIMUMAB","DULAGLUTIDE","RIVAROXABAN", 
-  "APIXABAN","EMPAGLIFLOZIN", "INSULIN GLARGINE","INSULIN LISPRO", "SEMAGLUTIDE","SEMAGLUTIDE", "TIRZEPATIDE", "DAPAGLIFLOZIN PROPANEDIOL"); run;
+data drug_ranked_selected; set plan.drug_year_spending; if molecule_name in ("ADALIMUMAB","DULAGLUTIDE","SEMAGLUTIDE","APIXABAN","EMPAGLIFLOZIN",
+"INSULIN GLARGINE","DAPAGLIFLOZIN PROPANEDIOL","INSULIN LISPRO","USTEKINUMAB", "TIRZEPATIDE"); run;
 
 /* main figure */
 proc sgplot data=drug_ranked_selected;
@@ -292,52 +289,83 @@ proc print data=drug_&year (obs=10); title "top10 spending drugs in &year"; run;
  *============================================================*/
 proc print data=plan.eric_claim (obs=10); var patient_id svc_dt; run;
 
-/* GLP1 users */
-proc sql;
-  create table yearly_patient_counts as
-  select
-      year,
-      count(*) as n_patients,
-      sum(glp1_user=1) as n_glp1_users
-  from plan.eric_patient
-  group by year
-  order by year;
-quit;
+/* ADALIMUMAB_user */
+/* yearly users */
+%macro yearly(year=);
 
-proc print data=yearly_patient_counts (obs=10); run;
+data data_&year; set plan.eric_claim; where year = &year; run;
 
-proc sgplot data=yearly_patient_counts;
-  vbar year / response=n_patients
-      groupdisplay=cluster barwidth=0.55
-      fillattrs=(color=cx1F77B4) transparency=0.1
-      legendlabel="Total Patients (N)";
+proc sort data=data_&year; by patient_id year; run;
 
-  vbar year / response=n_glp1_users
-      groupdisplay=cluster barwidth=0.55
-      fillattrs=(color=cxFF7F0E) transparency=0.1
-      legendlabel="GLP-1 Users (N)";
+data data_&year;
+  set data_&year;
+  by patient_id year;
 
-  xaxis label="Year" integer;
-  yaxis label="Number of Patients" grid;
-  keylegend / position=topright across=1 title="Patient Counts";
-  title "Yearly Total Patients vs GLP-1 Users";
+  length study_drug_u $50;
+  study_drug_u = upcase(strip(study_drug));
+  glp1_u = upcase(strip(glp1));
+
+  if first.patient_id then do;
+    claim_count = 0;
+    ADALIMUMAB_count = 0;
+    ADALIMUMAB_RJ_count = 0;
+    ADALIMUMAB_RV_count = 0;
+
+  end;
+
+  claim_count + 1;
+  
+  if study_drug_u = "ADALIMUMAB" then ADALIMUMAB_count + 1; 
+  if study_drug_u = "ADALIMUMAB" and encnt_outcm_cd = "PD" then ADALIMUMAB_PD_count + 1;
+  if study_drug_u = "ADALIMUMAB" and encnt_outcm_cd = "RJ" then ADALIMUMAB_RJ_count + 1;
+  if study_drug_u = "ADALIMUMAB" and encnt_outcm_cd = "RV" then ADALIMUMAB_RV_count + 1;
+  
+  if last.patient_id then do;
+    last_date = svc_dt;    /* latest because sorted */
+    output;
+  end;
+
+  format last_date mmddyy10.;
+  keep year patient_id claim_count ADALIMUMAB_count ADALIMUMAB_PD_count ADALIMUMAB_RJ_count ADALIMUMAB_RV_count last_date;
+  
 run;
 
+data data_&year; set data_&year; if ADALIMUMAB_count >0 then ADALIMUMAB_user=1; else ADALIMUMAB_user=0; run;
 
-/* ADALIMUMAB_user */
+%mend yearly;
+%yearly(year=2023);
+%yearly(year=2022);
+%yearly(year=2021);
+%yearly(year=2020);
+%yearly(year=2019);
+%yearly(year=2018);
+%yearly(year=2017);
+%yearly(year=2025); /* 83004 indiv */
+%yearly(year=2024); /* 106263 indiv */
+
+data data_17_25; set data_2025 data_2024 data_2023 data_2022 data_2021 data_2020 data_2019 data_2018 data_2017; run;
+
 proc sql;
   create table yearly_patient_counts as
   select
       year,
-      count(*) as n_patients,
-      sum(ADALIMUMAB_user=1) as n_ADALIMUMAB_users
-  from plan.eric_patient
+      count(distinct patient_id) as n_patients,
+      sum(ADALIMUMAB_user=1) as n_adalimumab_users
+  from data_17_25
   group by year
   order by year;
 quit;
+proc print data= yearly_patient_counts (obs=10); run;
 
-proc print data=yearly_patient_counts (obs=10); run;
+/* transpose the table */
+proc transpose data=yearly_patient_counts
+    out=year_summary (drop=_NAME_);
+  id year;              /* years become columns */
+  var n_patients n_adalimumab_users;
+run;
+proc print data=year_summary; run;
 
+/* plot */
 proc sgplot data=yearly_patient_counts;
   vbar year / response=n_patients
       groupdisplay=cluster barwidth=0.55
@@ -352,7 +380,177 @@ proc sgplot data=yearly_patient_counts;
   xaxis label="Year" integer;
   yaxis label="Number of Patients" grid;
   keylegend / position=topright across=1 title="Patient Counts";
-  title "Yearly Total Patients vs Adalimumab Users";
+  title "Total Number of Enrollees & Adalimumab Users in ERIC plans by year";
+run;
+
+
+/* GLP1_user */
+/* yearly users */
+%macro yearly(year=);
+
+data data_&year; set plan.eric_claim; where year = &year; run;
+proc sort data=data_&year; by patient_id year; run;
+
+data data_&year;
+  set data_&year;
+  by patient_id year;
+
+  length study_drug_u $50;
+  study_drug_u = upcase(strip(study_drug));
+  glp1_u = upcase(strip(glp1));
+
+  if first.patient_id then do;
+    claim_count = 0;
+
+    DULAGLUTIDE_count = 0;
+    EXENATIDE_count = 0;
+    LIXISENATIDE_count = 0;
+    LIRAGLUTIDE_count = 0;
+    LIRA_o_count = 0;
+    SEMAGLUTIDE_count = 0;
+    SEMA_o_count = 0;
+    TIRZEPATIDE_count = 0;
+    TIRZ_o_count = 0;
+
+    DULAGLUTIDE_PD_count = 0;
+    EXENATIDE_PD_count = 0;
+    LIXISENATIDE_PD_count = 0;
+    LIRAGLUTIDE_PD_count = 0;
+    LIRA_o_PD_count = 0;
+    SEMAGLUTIDE_PD_count = 0;
+    SEMA_o_PD_count = 0;
+    TIRZEPATIDE_PD_count = 0;
+    TIRZ_o_PD_count = 0;
+
+    DULAGLUTIDE_RJ_count = 0;
+    EXENATIDE_RJ_count = 0;
+    LIXISENATIDE_RJ_count = 0;
+    LIRAGLUTIDE_RJ_count = 0;
+    LIRA_o_RJ_count = 0;
+    SEMAGLUTIDE_RJ_count = 0;
+    SEMA_o_RJ_count = 0;
+    TIRZEPATIDE_RJ_count = 0;
+    TIRZ_o_RJ_count = 0;
+
+    DULAGLUTIDE_RV_count = 0;
+    EXENATIDE_RV_count = 0;
+    LIXISENATIDE_RV_count = 0;
+    LIRAGLUTIDE_RV_count = 0;
+    LIRA_o_RV_count = 0;
+    SEMAGLUTIDE_RV_count = 0;
+    SEMA_o_RV_count = 0;
+    TIRZEPATIDE_RV_count = 0;
+    TIRZ_o_RV_count = 0;
+
+  end;
+
+  claim_count + 1;
+
+  if glp1_u = "DULAGLUTIDE" then DULAGLUTIDE_count + 1;
+  if glp1_u = "EXENATIDE" then EXENATIDE_count + 1;
+  if glp1_u = "LIXISENATIDE" then LIXISENATIDE_count + 1;
+  if glp1_u = "LIRAGLUTIDE" then LIRAGLUTIDE_count + 1;
+  if glp1_u = "SEMAGLUTIDE" then SEMAGLUTIDE_count + 1;
+  if glp1_u = "TIRZEPATIDE" then TIRZEPATIDE_count + 1;
+  if glp1_u = "LIRAGLUTIDE (WEIGHT MANAGEMENT)" then LIRA_o_count + 1;
+  if glp1_u = "SEMAGLUTIDE (WEIGHT MANAGEMENT)" then SEMA_o_count + 1;
+  if glp1_u = "TIRZEPATIDE (WEIGHT MANAGEMENT)" then TIRZ_o_count + 1;
+
+  if glp1_u = "DULAGLUTIDE" and encnt_outcm_cd = "PD" then DULAGLUTIDE_PD_count + 1;
+  if glp1_u = "EXENATIDE" and encnt_outcm_cd = "PD" then EXENATIDE_PD_count + 1;
+  if glp1_u = "LIXISENATIDE" and encnt_outcm_cd = "PD" then LIXISENATIDE_PD_count + 1;
+  if glp1_u = "LIRAGLUTIDE" and encnt_outcm_cd = "PD" then LIRAGLUTIDE_PD_count + 1;
+  if glp1_u = "SEMAGLUTIDE" and encnt_outcm_cd = "PD" then SEMAGLUTIDE_PD_count + 1;
+  if glp1_u = "TIRZEPATIDE" and encnt_outcm_cd = "PD" then TIRZEPATIDE_PD_count + 1;
+  if glp1_u = "LIRAGLUTIDE (WEIGHT MANAGEMENT)" and encnt_outcm_cd = "PD" then LIRA_o_PD_count + 1;
+  if glp1_u = "SEMAGLUTIDE (WEIGHT MANAGEMENT)" and encnt_outcm_cd = "PD" then SEMA_o_PD_count + 1;
+  if glp1_u = "TIRZEPATIDE (WEIGHT MANAGEMENT)" and encnt_outcm_cd = "PD" then TIRZ_o_PD_count + 1;
+  
+  if glp1_u = "DULAGLUTIDE" and encnt_outcm_cd = "RJ" then DULAGLUTIDE_RJ_count + 1;
+  if glp1_u = "EXENATIDE" and encnt_outcm_cd = "RJ" then EXENATIDE_RJ_count + 1;
+  if glp1_u = "LIXISENATIDE" and encnt_outcm_cd = "RJ" then LIXISENATIDE_RJ_count + 1;
+  if glp1_u = "LIRAGLUTIDE" and encnt_outcm_cd = "RJ" then LIRAGLUTIDE_RJ_count + 1;
+  if glp1_u = "SEMAGLUTIDE" and encnt_outcm_cd = "RJ" then SEMAGLUTIDE_RJ_count + 1;
+  if glp1_u = "TIRZEPATIDE" and encnt_outcm_cd = "RJ" then TIRZEPATIDE_RJ_count + 1;
+  if glp1_u = "LIRAGLUTIDE (WEIGHT MANAGEMENT)" and encnt_outcm_cd = "RJ" then LIRA_o_RJ_count + 1;
+  if glp1_u = "SEMAGLUTIDE (WEIGHT MANAGEMENT)" and encnt_outcm_cd = "RJ" then SEMA_o_RJ_count + 1;
+  if glp1_u = "TIRZEPATIDE (WEIGHT MANAGEMENT)" and encnt_outcm_cd = "RJ" then TIRZ_o_RJ_count + 1;
+
+  if glp1_u = "DULAGLUTIDE" and encnt_outcm_cd = "RV" then DULAGLUTIDE_RV_count + 1;
+  if glp1_u = "EXENATIDE" and encnt_outcm_cd = "RV" then EXENATIDE_RV_count + 1;
+  if glp1_u = "LIXISENATIDE" and encnt_outcm_cd = "RV" then LIXISENATIDE_RV_count + 1;
+  if glp1_u = "LIRAGLUTIDE" and encnt_outcm_cd = "RV" then LIRAGLUTIDE_RV_count + 1;
+  if glp1_u = "SEMAGLUTIDE" and encnt_outcm_cd = "RV" then SEMAGLUTIDE_RV_count + 1;
+  if glp1_u = "TIRZEPATIDE" and encnt_outcm_cd = "RV" then TIRZEPATIDE_RV_count + 1;
+  if glp1_u = "LIRAGLUTIDE (WEIGHT MANAGEMENT)" and encnt_outcm_cd = "RV" then LIRA_o_RV_count + 1;
+  if glp1_u = "SEMAGLUTIDE (WEIGHT MANAGEMENT)" and encnt_outcm_cd = "RV" then SEMA_o_RV_count + 1;
+  if glp1_u = "TIRZEPATIDE (WEIGHT MANAGEMENT)" and encnt_outcm_cd = "RV" then TIRZ_o_RV_count + 1;
+  
+  if last.patient_id then do;
+    last_date = svc_dt;    /* latest because sorted */
+    output;
+  end;
+
+  format last_date mmddyy10.;
+  keep year patient_id claim_count last_date 
+  DULAGLUTIDE_count EXENATIDE_count LIXISENATIDE_count LIRAGLUTIDE_count LIRA_o_count SEMAGLUTIDE_count SEMA_o_count TIRZEPATIDE_count TIRZ_o_count
+  DULAGLUTIDE_PD_count EXENATIDE_PD_count LIXISENATIDE_PD_count LIRAGLUTIDE_PD_count LIRA_o_PD_count SEMAGLUTIDE_PD_count SEMA_o_PD_count TIRZEPATIDE_PD_count TIRZ_o_PD_count
+  DULAGLUTIDE_RJ_count EXENATIDE_RJ_count LIXISENATIDE_RJ_count LIRAGLUTIDE_RJ_count LIRA_o_RJ_count SEMAGLUTIDE_RJ_count SEMA_o_RJ_count TIRZEPATIDE_RJ_count TIRZ_o_RJ_count
+  DULAGLUTIDE_RV_count EXENATIDE_RV_count LIXISENATIDE_RV_count LIRAGLUTIDE_RV_count LIRA_o_RV_count SEMAGLUTIDE_RV_count SEMA_o_RV_count TIRZEPATIDE_RV_count TIRZ_o_RV_count;
+run;
+
+data data_&year; set data_&year; if DULAGLUTIDE_count >0 or EXENATIDE_count >0 or LIXISENATIDE_count >0 or LIRAGLUTIDE_count >0 or
+ LIRA_o_count >0 or SEMAGLUTIDE_count >0 or SEMA_o_count >0 or TIRZEPATIDE_count >0 or TIRZ_o_count >0 
+then glp1_user=1; else glp1_user=0; run;
+
+%mend yearly;
+%yearly(year=2025); /* 83004 indiv */
+%yearly(year=2024); /* 106263 indiv */
+%yearly(year=2023);
+%yearly(year=2022);
+%yearly(year=2021);
+%yearly(year=2020);
+%yearly(year=2019);
+%yearly(year=2018);
+%yearly(year=2017);
+
+data data_17_25; set data_2025 data_2024 data_2023 data_2022 data_2021 data_2020 data_2019 data_2018 data_2017; run;
+
+proc sql;
+  create table yearly_patient_counts as
+  select
+      year,
+      count(*) as n_patients,
+      sum(glp1_user=1) as n_glp1_users
+  from data_17_25
+  group by year
+  order by year;
+quit;
+
+proc print data=yearly_patient_counts (obs=10); run;
+/* transpose the table */
+proc transpose data=yearly_patient_counts
+    out=year_summary (drop=_NAME_);
+  id year;           
+  var n_patients n_glp1_users;
+run;
+proc print data=year_summary; title "Total Number of Enrollees & GLP1 Users in ERIC plans by year"; run;
+
+proc sgplot data=yearly_patient_counts;
+  vbar year / response=n_patients
+      groupdisplay=cluster barwidth=0.55
+      fillattrs=(color=cx1F77B4) transparency=0.1
+      legendlabel="Total Patients (N)";
+
+  vbar year / response=n_glp1_users
+      groupdisplay=cluster barwidth=0.55
+      fillattrs=(color=cxFF7F0E) transparency=0.1
+      legendlabel="GLP1 Users (N)";
+
+  xaxis label="Year" integer;
+  yaxis label="Number of Patients" grid;
+  keylegend / position=topright across=1 title="Patient Counts";
+  title "Total Number of Enrollees & GLP1 Users in ERIC plans by year";
 run;
 
 
