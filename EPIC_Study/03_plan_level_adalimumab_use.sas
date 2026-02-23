@@ -111,14 +111,19 @@ data plan.eric_plan_summary; set plan.eric_plan_summary; if ADALIMUMAB_count > 0
 proc freq data=plan.eric_plan_summary; table ADALIMUMAB_plan; run;
 
 
+proc sort data=plan.eric_plan_summary; by descending ADALIMUMAB_count; run;
+proc print data=plan.eric_plan_summary (obs=10); 
+var plan_id plan_name patient_count claim_count ADALIMUMAB_count adalimumab_PD pct_ADALIMUMAB pct_adalimumab_PD pct_adalimumab_RJ pct_adalimumab_RV; 
+run;
+
 proc sort data=plan.eric_plan_summary; by descending pct_ADALIMUMAB; run;
 proc print data=plan.eric_plan_summary (obs=10); 
-var plan_id plan_name patient_count claim_count ADALIMUMAB_count adalimumab_PD pct_ADALIMUMAB pct_adalimumab_PD pct_adalimumab_RJ pct_adalimumab_RV pct_adalimumab_NULL; 
+var plan_id plan_name patient_count claim_count ADALIMUMAB_count adalimumab_PD pct_ADALIMUMAB pct_adalimumab_PD pct_adalimumab_RJ pct_adalimumab_RV; 
 run;
 
 proc sort data=plan.eric_plan_summary; by descending pct_adalimumab_PD; run;
 proc print data=plan.eric_plan_summary (obs=10); 
-var plan_id plan_name patient_count claim_count ADALIMUMAB_count adalimumab_PD pct_ADALIMUMAB pct_adalimumab_PD pct_adalimumab_RJ pct_adalimumab_RV pct_adalimumab_NULL; 
+var plan_id plan_name patient_count claim_count ADALIMUMAB_count adalimumab_PD pct_ADALIMUMAB pct_adalimumab_PD pct_adalimumab_RJ pct_adalimumab_RV; 
 run;
 
 
@@ -169,6 +174,11 @@ proc means data=plan.eric_plan_summary n nmiss median q1 q3 min max;
     var pct_adalimumab_PD;
 run;
 
-
+* patient number;
+proc means data=plan.eric_plan_summary n nmiss median q1 q3 min max; var year; run;
+proc means data=plan.eric_plan_summary n nmiss median q1 q3 min max;
+    class ADALIMUMAB_plan;
+    var year;
+run;
 
 
