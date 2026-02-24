@@ -191,25 +191,48 @@ data plan.eric_plan_summary; set plan.eric_plan_summary; if ADALIMUMAB_count > 0
 proc freq data=plan.eric_plan_summary; table ADALIMUMAB_plan; run;
 
 /* user number */
+/* 1) plan_id x patient_id level: count adalimumab claims */
 proc sql;
-  create table yearly_plan_patien_adalimumab as
+  create table patient_level_adalimumab as
   select
       plan_id,
-      count(distinct patient_id) as n_patients,
-      sum(case when ADALIMUMAB_user = 1 then 1 else 0 end) as n_adalimumab_users
-  from plan.plan_patient_adalimumab
+      patient_id,
+      sum(case 
+            when index(upcase(strip(study_drug)),"ADALIMUMAB") > 0 then 1 
+            else 0 
+          end) as n_adalimumab_claims
+  from plan.eric_claim
+  group by plan_id, patient_id
+  order by plan_id, patient_id;
+quit;
+
+/* quick check: patients with >1 adalimumab claim */
+proc print data=patient_level_adalimumab(obs=10);
+  where n_adalimumab_claims > 1;
+run;
+
+/* 2) plan level summary */
+proc sql;
+  create table plan_level_adalimumab as
+  select
+      plan_id,
+      count(*) as n_patients,  /* one row per patient_id already */
+      sum(case when n_adalimumab_claims > 0 then 1 else 0 end) as n_adalimumab_users,
+      (calculated n_adalimumab_users > 0) as ADALIMUMAB_plan
+  from patient_level_adalimumab
   group by plan_id
   order by plan_id;
 quit;
-data yearly_plan_patien_adalimumab; set yearly_plan_patien_adalimumab; if n_adalimumab_users > 0 then ADALIMUMAB_plan=1; else ADALIMUMAB_plan=0; run;
-proc print data= yearly_plan_patien_adalimumab (obs=10); run;
+proc print data=plan_level_adalimumab (obs=10); run;
+
 
 /* merge with */
+data plan.eric_plan_summary; set plan.eric_plan_summary; drop n_adalimumab_users; run;
 proc sql;
   create table plan.eric_plan_summary as
   select a.*, b.n_adalimumab_users 
   from plan.eric_plan_summary as a
-  left join yearly_plan_patien_adalimumab as b
+  left join plan_level_adalimumab as b
   on a.plan_id = b.plan_id;
 
 quit;
@@ -255,6 +278,21 @@ run;
 
 * users per plan - year distribution;
 proc sql;
+  create table patient_level_adalimumab as
+  select
+      plan_id,
+      patient_id,
+      count(distinct patient_id) as n_patients,
+      sum(study_drug = "ADALIMUMAB") as n_adalimumab_users
+  from plan.eric_claim
+  group by plan_id, patient_id
+  order by plan_id, patient_id;
+quit;
+proc print data=patient_level_adalimumab (obs=10); run;
+
+
+
+proc sql;
   create table yearly_plan_patien_adalimumab as
   select
       year,
@@ -266,10 +304,9 @@ proc sql;
   order by year, plan_id;
 quit;
 data yearly_plan_patien_adalimumab; set yearly_plan_patien_adalimumab; if n_adalimumab_users > 0 then ADALIMUMAB_plan=1; else ADALIMUMAB_plan=0; run;
-data sample; set yearly_plan_patien_adalimumab; if ADALIMUMAB_plan=1; run;
+data sample; set plan_level_adalimumab; if ADALIMUMAB_plan=1; run;
 
 proc means data=sample n nmiss median q1 q3 min max;
-    class year;
     var n_adalimumab_users;
 run;
 
