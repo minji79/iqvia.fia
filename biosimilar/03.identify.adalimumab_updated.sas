@@ -112,74 +112,61 @@ run;
 	3. merge with the NDCs with claims
 ************************************************************************************/
 
+/* 2017 - 2024 */
 proc sql; 
-	create table input.adalimumab_claim_v0 as
+	create table biosim.adalimumab_claim_v0 as
  	select distinct a.*, b.category
-    from input.A_analytic_file as a
-	left join input.ADALIMUMAB_NDCs as b
+    from input.A_analytcd dataic_file as a
+	left join biosim.ADALIMUMAB_NDCs as b
  	on a.product_ndc = b.product_ndc; 
 quit;
-proc contents data=input.adalimumab_claim_v0; run;
-proc print data=input.adalimumab_claim_v0 (obs=20); var month_id week_id; run;
+proc contents data=biosim.adalimumab_claim_v0; run;
+proc print data=biosim.adalimumab_claim_v0 (obs=10); run;
+proc print data=biosim.adalimumab_claim_v0 (obs=20); var month_id week_id; run;
 
-data adalimumab_claim_v0; set input.adalimumab_claim_v0; year = year(svc_dt); run;
+proc contents data=biosim.RxFact2025_clean; run;
+data adalimumab_25; set biosim.RxFact2025_clean; if index(upcase(molecule_name), "ADALIMUMAB") > 0; run;
+proc sql; 
+  create table adalimumab_25 as
+  select distinct a.*, b.*
+  from adalimumab_25 as a 
+  inner join biosim.ADALIMUMAB_NDCs as b
+  on a.product_ndc = b.product_ndc; 
+quit;
+
+data adalimumab_1724; set biosim.adalimumab_claim_v0; drop ama_do_not_contact_ind ama_pdrp_ind ama_pdrp_ind cob_ind daw_cd 	daw_cd_s days_to_adjudct_cnt dspnsd_qty
+ merge1 merge2 patient_group pay_type_description rx_orig_cd rx_typ_cd rx_written_dt sob_desc sob_value switch_date; run;
+data adalimumab_25; set adalimumab_25; drop branded_generic; run;
+data adalimumab_25; set adalimumab_25;
+  month_id = year(svc_dt)*100 + month(svc_dt);
+  week_start = intnx('week', svc_dt, 0, 'b');
+
+  week_id = year(week_start)*10000 +
+            month(week_start)*100 +
+            day(week_start);
+
+  format week_start mmddyy10.;
+run;
+
+data biosim.adalimumab_claim_v1; set adalimumab_1724 adalimumab_25; run; 
+data biosim.adalimumab_claim_v1; set biosim.adalimumab_claim_v1; year = year(svc_dt); run;
+
+data biosim.adalimumab_claim_v1; set biosim.adalimumab_claim_v1; if category in ("biosimilar_RYVK","biosimilar_ADBM","biosimilar_ADAZ") then category = "biosimilar_RYVK_ADBM_ADAZ"; else category = category; run;
+
+
 proc sql;
     create table counts as
     select year,
            category,
            count(*) as count
-    from adalimumab_claim_v0
+    from biosim.adalimumab_claim_v1
     group by year, category;
 quit;
 proc print data=counts; run;
 
-/************************************************************************************
-	4. Area plot for stacked by category with week_id
-************************************************************************************/
-# Area plot for actual count;
-proc sql;
-    create table counts as
-    select week_id,
-           category,
-           count(*) as count
-    from input.adalimumab_claim_v0
-    group by week_id, category
-	order by week_id, calculated count desc;
-quit;
-
-
-/* Convert YYYYMMDD week_id (Monday of week) to a SAS date */
-data counts_d;
-  set counts;
-  if vtype(week_id)='N' then week_dt = input(put(week_id,8.), yymmdd8.);
-  else                       week_dt = input(week_id, yymmdd8.);
-  format week_dt date9.;
-run;
-
-/* Ensure consistent order within each week */
-proc sort data=counts_d; by week_dt category; run;
-
-/* Build cumulative lower/upper bounds for each category per week */
-data cum;
-  set counts_d;
-  by week_dt;
-  retain lower 0;
-  if first.week_dt then lower=0;
-  upper = lower + count;
-  output;
-  lower = upper;
-run;
-
-/* Filled bands stack to look like a stacked area chart */
-proc sgplot data=cum;
-  band x=week_dt lower=lower upper=upper / group=category transparency=0.1;
-  xaxis type=time interval=week valuesformat=monyy7.;
-  yaxis label="Count";
-run;
-
 
 /************************************************************************************
-	5. Area plot for stacked by category with month_id
+	4. Area plot for stacked by category with month_id
 ************************************************************************************/
 
 /* 1) Aggregate counts by month & category */
@@ -188,7 +175,7 @@ proc sql;
     select month_id,
            category,
            count(*) as count
-    from input.adalimumab_claim_v0
+    from biosim.adalimumab_claim_v1
     group by month_id, category
     order by month_id, calculated count desc;
 quit;
@@ -236,13 +223,13 @@ proc sql;
     select month_id,
            category,
            count(*) as count
-    from input.adalimumab_claim_v0
+    from biosim.adalimumab_claim_v1
     where category ne 'reference_biologics' /* filter here */
     group by month_id, category
     order by month_id, calculated count desc;
 quit;
 
-proc print data=counts; where month_id = 202404; run;
+proc print data=counts; where 202401 < month_id  and month_id  < 202412; run;
 
 /* clean them */
 proc sql;
@@ -250,7 +237,7 @@ proc sql;
     select month_id,
            category,
            count(*) as count
-    from input.adalimumab_claim_v0
+    from biosim.adalimumab_claim_v1
     where category ne 'reference_biologics' and month_id > 202212
     group by month_id, category
     order by month_id, calculated count desc;
