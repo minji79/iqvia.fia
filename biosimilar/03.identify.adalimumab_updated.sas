@@ -44,6 +44,7 @@ proc freq data=input.ADALIMUMAB_NDCs; table molecule_name; run;
 /************************************************************************************
 	2. Categorize at NDC level
 ************************************************************************************/
+proc print data=biosim.ADALIMUMAB_NDCs; run;
 
 * 0. make indicators;
 data biosim.ADALIMUMAB_NDCs; set biosim.ADALIMUMAB_NDCs; drop category; run;
