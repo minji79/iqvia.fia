@@ -194,8 +194,67 @@ data data_&year; set data_&year; if IG_count >0 then IG_user=1; else IG_user=0; 
 data plan.plan_patient_ig; set data_2025 data_2024 data_2023 data_2022 data_2021 data_2020 data_2019 data_2018 data_2017; run;
 
 
-/* user number */
-/* 1) plan_id x patient_id level: count adalimumab claims */
+/* plan_id level summary */
+
+proc sort data=plan.eric_claim; by plan_id; run;
+ 
+data plan.plan_summary_ig;
+  set plan.eric_claim;
+  by plan_id;
+
+  length ig_indicator_u $50;
+  ig_indicator_u = upcase(strip(ig_indicator));
+
+  if first.plan_id then do;
+    claim_count = 0;
+    IG_count = 0;
+    IG_PD_count = 0;
+    IG_RJ_count = 0;
+    IG_RV_count = 0;
+
+    IG_reference_count = 0;
+    IG_reference_PD_count = 0;
+    IG_reference_RJ_count = 0;
+    IG_reference_RV_count = 0;
+
+    IG_biosimilar_count = 0;
+    IG_biosimilar_PD_count = 0;
+    IG_biosimilar_RJ_count = 0;
+    IG_biosimilar_RV_count = 0;
+
+  end;
+
+  claim_count + 1;
+  
+  if not missing(ig_indicator) then IG_count + 1; 
+  if not missing(ig_indicator) and encnt_outcm_cd = "PD" then IG_PD_count + 1;
+  if not missing(ig_indicator) and encnt_outcm_cd = "RJ" then IG_RJ_count + 1;
+  if not missing(ig_indicator) and encnt_outcm_cd = "RV" then IG_RV_count + 1;
+
+  if ig_indicator = "reference_biologics" then IG_reference_count + 1; 
+  if ig_indicator = "reference_biologics" and encnt_outcm_cd = "PD" then IG_reference_PD_count + 1;
+  if ig_indicator = "reference_biologics" and encnt_outcm_cd = "RJ" then IG_reference_RJ_count + 1;
+  if ig_indicator = "reference_biologics" and encnt_outcm_cd = "RV" then IG_reference_RV_count + 1;
+
+  if ig_indicator in ("biosimilar_YFGN", "biosimilar_AGLR") then IG_biosimilar_count + 1; 
+  if ig_indicator in ("biosimilar_YFGN", "biosimilar_AGLR") and encnt_outcm_cd = "PD" then IG_biosimilar_PD_count + 1;
+  if ig_indicator in ("biosimilar_YFGN", "biosimilar_AGLR") and encnt_outcm_cd = "RJ" then IG_biosimilar_RJ_count + 1;
+  if ig_indicator in ("biosimilar_YFGN", "biosimilar_AGLR") and encnt_outcm_cd = "RV" then IG_biosimilar_RV_count + 1;
+  
+  if last.plan_id then do;
+    output;
+  end;
+
+  keep plan_id claim_count IG_count IG_PD_count IG_RJ_count IG_RV_count
+  IG_reference_count IG_reference_PD_count IG_reference_RJ_count IG_reference_RV_count 
+  IG_biosimilar_count IG_biosimilar_PD_count IG_biosimilar_RJ_count IG_biosimilar_RV_count;
+  
+run;
+
+proc print data=plan.plan_summary_ig (obs=10); run; 
+
+
+/* count user number */
 proc sql;
   create table n_patient_ig as
   select
@@ -210,9 +269,6 @@ proc sql;
 quit;
 proc print data=n_patient_ig (obs=10); run;
 
-
-
-/* 2) plan level summary */
 proc sql;
   create table n_patient_ig as
   select
@@ -227,23 +283,76 @@ proc sql;
 quit;
 proc print data=n_patient_ig (obs=10); run;
 
-proc print data=plan.plan_patient_ig (obs=10); run;
 
-
+/* merge with the plan summary table */
 proc sql;
-  create table plan.eric_plan_summary as
-  select a.*, b.n_adalimumab_users 
-  from plan.eric_plan_summary as a
-  left join plan_level_adalimumab as b
+  create table plan.plan_summary_ig as
+  select a.*, b.n_ig_users, b.n_ig_reference_users, b.n_ig_biosim_users
+  from plan.plan_summary_ig as a
+  left join n_patient_ig as b
   on a.plan_id = b.plan_id;
-
 quit;
 
-/* Table 2 */
-proc sort data=plan.eric_plan_summary; by descending n_adalimumab_users; run;
-proc print data=plan.eric_plan_summary; 
-var plan_id plan_name patient_count n_adalimumab_users claim_count ADALIMUMAB_count adalimumab_PD pct_adalimumab_PD pct_adalimumab_RJ pct_adalimumab_RV; 
+proc sql;
+  create table plan.plan_summary_ig as
+  select a.*, b.plan_name
+  from plan.plan_summary_ig as a
+  left join biosim.plan as b
+  on a.plan_id = b.plan_id;
+quit;
+
+data plan.plan_summary_ig; set plan.plan_summary_ig; 
+ pct_biosimilar_use = IG_biosimilar_PD_count / IG_PD_count * 100;
+ pct_PD_IG = IG_PD_count / IG_count * 100;
+ pct_PD_reference = IG_reference_PD_count / IG_reference_count * 100;
+ pct_PD_biosimilar = IG_biosimilar_PD_count / IG_biosimilar_count * 100;
+ pct_RJ_biosimilar = IG_biosimilar_RJ_count / IG_biosimilar_count * 100;
 run;
+
+proc sort data=plan.plan_summary_ig; by descending n_ig_users; run;
+proc print data=plan.plan_summary_ig; 
+var plan_id plan_name n_ig_users n_ig_reference_users n_ig_biosim_users 
+    claim_count IG_count pct_PD_IG IG_reference_count pct_PD_reference IG_biosimilar_count pct_PD_biosimilar pct_biosimilar_use; run;
+
+proc means data=plan.plan_summary_ig mean std median q1 q3; var pct_biosimilar_use; run;
+proc means data=plan.plan_summary_ig mean std median q1 q3; var pct_PD_biosimilar; run;
+proc means data=plan.plan_summary_ig mean std median q1 q3; var pct_RJ_biosimilar; run;
+
+proc sql;
+  select sum(n_ig_users) as n_ig_users
+  from plan.plan_summary_ig;
+quit; /* 13292 */
+
+proc sql;
+  select sum(n_ig_reference_users) as n_ig_users
+  from plan.plan_summary_ig;
+quit; /* 13093 */
+
+proc sql;
+  select sum(n_ig_biosim_users) as n_ig_users
+  from plan.plan_summary_ig;
+quit; /* 2119 */
+
+proc sql;
+  select sum(IG_count) as n_ig_users
+  from plan.plan_summary_ig;
+quit; /* 333503 */
+
+proc sql;
+  select sum(IG_reference_count) as n_ig_users
+  from plan.plan_summary_ig;
+quit; /* 324057 */
+
+proc sql;
+  select sum(IG_biosimilar_count) as n_ig_users
+  from plan.plan_summary_ig;
+quit; /* 9446 */
+
+proc sql;
+  select sum(IG_biosimilar_PD_count) as n_ig_users
+  from plan.plan_summary_ig;
+quit; /* 1903 */
+
 
 
 
