@@ -104,6 +104,65 @@ proc freq data=late_fill; table cash_users_after_RJ*RJ_reason_index; run;
 proc freq data=sample; table disc_at_1y*final_claim_disposition; run;
 
 
+/*============================================================*
+ |     individuals who got rejected at their initial attempt
+ *============================================================*/
+proc print data=input.figure1 (obs=10); run;
+proc freq data=input.figure1; table RJ_reason_index; run;
+
+data input.fail_first_attempt_id; set input.figure1; if RJ_reason_index in ("RJ_NotFormulary","RJ_NtCv","RJ_UM","Approved - reversed"); run; 
+/* RJ: 211507 individuals; RV: 149053 = total of 360560 individuals */
+
+/* make longitudinal dataset for this cohort */
+proc print data=input.rx18_24_glp1_long_v01 (obs=10); run;
+
+proc sql;
+  create table input.fail_first_attempt_long as
+  select distinct a.*, b.RJ_reason_index, b.secondary_cohort
+  from input.rx18_24_glp1_long_v00 as a
+  inner join input.fail_first_attempt_id as b
+  on a.patient_id = b.patient_id;
+quit; /* 2069565 individuals */
+
+proc sort data=input.fail_first_attempt_long; by patient_id svc_dt; run;
+proc print data=input.fail_first_attempt_long (obs=30); var patient_id svc_dt plan_name plan_type molecule_name encnt_outcm_cd RJ_reason RJ_reason_index secondary_cohort; run;
+
+/* id = 2837133 */
+data id_2837133_24; set input.rx_24_glp1; if patient_id = 2837133; run;
+data id_2837133_23; set input.rx_23_glp1; if patient_id = 2837133; run;
+data id_2837133_22; set input.rx_22_glp1; if patient_id = 2837133; run;
+data id_2837133_21; set input.rx_21_glp1; if patient_id = 2837133; run;
+data id_2837133_20; set input.rx_20_glp1; if patient_id = 2837133; run;
+data id_2837133_19; set input.rx_19_glp1; if patient_id = 2837133; run;
+data id_2837133_18; set input.rx_18_glp1; if patient_id = 2837133; run;
+data id_2837133_17; set input.rx_17_glp1; if patient_id = 2837133; run;
+
+data id_2837133; set id_2837133_17 id_2837133_18 id_2837133_19 id_2837133_20 id_2837133_21 id_2837133_22 id_2837133_23 id_2837133_24; run; /* 68 obs */
+
+* clean the patient_birth_year;
+proc sql;
+    create table id_age as
+    select distinct patient_id, max(patient_birth_year) as patient_birth_year
+    from biosim.patient
+    group by patient_id;
+quit; /* 12170856 obs */
+
+* merge with the dataset without duplication;
+proc sql; 
+	create table input.id_2837133 as
+ 	select a.*, b.patient_birth_year
+ from id_2837133 as a
+	left join id_age as b
+ 	on a.patient_id = b.patient_id;
+ quit;
+proc print data=input.id_2837133 (obs=10); var patient_birth_year; run; /* 1976 */
+
+
+
+
+proc print data=input.fail_first_attempt_long (obs=30); where patient_id = 2837133; var patient_id svc_dt plan_name plan_type molecule_name encnt_outcm_cd RJ_reason RJ_reason_index secondary_cohort; run;
+
+
 
 
 
