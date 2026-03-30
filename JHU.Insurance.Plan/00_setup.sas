@@ -242,4 +242,17 @@ proc freq data=plan.hopkins_users; table plan_type; run;
 proc freq data=plan.hopkins_users; table rjct_grp; run;
 proc freq data=plan.hopkins_users; table encnt_outcm_cd; run;
 
+proc contents data=plan.hopkins_users; run;
+proc print data=plan.hopkins_users (obs=10); run;
+
+/* total number of all users (N=379) */
+data sample; set plan.hopkins_users; if hopkins_npi = 1; run;
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from sample;
+quit;
+
+
+
+
 
