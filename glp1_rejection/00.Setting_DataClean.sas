@@ -162,7 +162,7 @@ data input.rx17_25_glp1_long; set input.rx17_25_glp1_long;
   else rj_grp="rj_non_formulary_reason";
 run;
 
-
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; drop RJ_reason; run;
 data input.rx17_25_glp1_long; set input.rx17_25_glp1_long;
  length RJ_reason $100.;
  RJ_reason = "";
@@ -172,8 +172,8 @@ data input.rx17_25_glp1_long; set input.rx17_25_glp1_long;
  else if encnt_outcm_cd = 'RJ' and rj_grp="rj_pa" then RJ_reason = 'RJ_PrAu';
  else if encnt_outcm_cd = 'RJ' and rj_grp in ("rj_not_covered", "rj_ndc_block") then RJ_reason = 'RJ_NtCv';
  else if encnt_outcm_cd = 'RJ' and rj_grp="rj_qty_limit" then RJ_reason = 'RJ_QtyLimit';
- else if encnt_outcm_cd = 'RJ' and rj_grp="rj_others_non_formulary" then RJ_reason = 'RJ_Others_NotForm';
+ else if encnt_outcm_cd = 'RJ' and rj_grp="rj_non_formulary_reason" then RJ_reason = 'RJ_Others_NotForm';
  else RJ_reason = 'NA';
 run;
-
+proc freq data=input.rx17_25_glp1_long; table RJ_reason; run;
 
