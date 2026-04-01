@@ -178,4 +178,87 @@ proc freq data=sample_table3; table switching_glp1_detail; run;
 proc freq data=sample_table3; table switching_payer; run;
 
 
+/*============================================================*
+ | 5. Figure 1 - Waterfall plot
+ *============================================================*/
+
+* 1. overall;
+proc freq data=input.id_index; table cohort4; run;
+proc freq data=input.id_index; table RJ_reason_adj; run;
+
+data sample; set input.id_index; if cohort4 ="filled after RV/RJ in 90days"; run;
+proc freq data=sample; table first_filled_cash; run;
+proc freq data=sample; table first_filled_coupon; run;
+proc freq data=sample; table first_filled_discount_card; run;
+
+
+* 2. semaglutide at index;
+data sample; set input.id_index; if molecule_name in ("SEMAGLUTIDE", "SEMAGLUTIDE (WEIGHT MANAGEMENT)"); run;
+proc freq data=sample; table cohort4; run;
+proc freq data=sample; table RJ_reason_adj; run;
+
+data sample; set sample; if cohort4 ="filled after RV/RJ in 90days"; run;
+proc freq data=sample; table first_filled_cash; run;
+proc freq data=sample; table first_filled_coupon; run;
+proc freq data=sample; table first_filled_discount_card; run;
+
+
+* 3. tirzepatide at index;
+data sample; set input.id_index; if molecule_name in ("TIRZEPATIDE", "TIRZEPATIDE (WEIGHT MANAGEMENT)"); run;
+proc freq data=sample; table cohort4; run;
+proc freq data=sample; table RJ_reason_adj; run;
+
+data sample; set sample; if cohort4 ="filled after RV/RJ in 90days"; run;
+proc freq data=sample; table first_filled_cash; run;
+proc freq data=sample; table first_filled_coupon; run;
+proc freq data=sample; table first_filled_discount_card; run;
+
+
+* 4. commercial at index;
+data sample; set input.id_index; if dominant_payer_adj ="Commercial"; run;
+proc freq data=sample; table cohort4; run;
+proc freq data=sample; table RJ_reason_adj; run;
+
+data sample; set sample; if cohort4 ="filled after RV/RJ in 90days"; run;
+proc freq data=sample; table first_filled_cash; run;
+proc freq data=sample; table first_filled_coupon; run;
+proc freq data=sample; table first_filled_discount_card; run;
+
+
+* 5. Exchange at index;
+data sample; set input.id_index; if dominant_payer_adj ="Exchange"; run;
+proc freq data=sample; table cohort4; run;
+proc freq data=sample; table RJ_reason_adj; run;
+
+data sample; set sample; if cohort4 ="filled after RV/RJ in 90days"; run;
+proc freq data=sample; table first_filled_cash; run;
+proc freq data=sample; table first_filled_coupon; run;
+proc freq data=sample; table first_filled_discount_card; run;
+
+
+* 6. Medicaid at index;
+data sample; set input.id_index; if dominant_payer_adj ="Medicaid"; run;
+proc freq data=sample; table cohort4; run;
+proc freq data=sample; table RJ_reason_adj; run;
+
+data sample; set sample; if cohort4 ="filled after RV/RJ in 90days"; run;
+proc freq data=sample; table first_filled_cash; run;
+proc freq data=sample; table first_filled_coupon; run;
+proc freq data=sample; table first_filled_discount_card; run;
+
+
+* 7. Medicare D at index;
+data sample; set input.id_index; if dominant_payer_adj ="Medicare D"; run;
+proc freq data=sample; table cohort4; run;
+proc freq data=sample; table RJ_reason_adj; run;
+
+data sample; set sample; if cohort4 ="filled after RV/RJ in 90days"; run;
+proc freq data=sample; table first_filled_cash; run;
+proc freq data=sample; table first_filled_coupon; run;
+proc freq data=sample; table first_filled_discount_card; run;
+
+
+
+
+
 
