@@ -83,18 +83,20 @@ proc sql;
 quit;
 
 * remain cohort who failed to fill at the index date; 
-data long; set input.rx17_25_glp1_long; if cohort in ("rejected at index date","reversed at index date"); run;   
-data long; set long; if encnt_outcm_cd = "PD"; run;
-proc sort data=long; by patient_id svc_dt; run;
+data input.first_filled_after_RJRV; set input.rx17_25_glp1_long; if cohort in ("rejected at index date","reversed at index date"); run;   
+data input.first_filled_after_RJRV; set input.first_filled_after_RJRV; if encnt_outcm_cd = "PD"; run;
+data input.first_filled_after_RJRV; set input.first_filled_after_RJRV; oop_30days = final_opc_amt / days_supply_cnt *30; run;
+proc sort data=input.first_filled_after_RJRV; by patient_id svc_dt; run;
 
-data long; set long; by patient_id; if first.patient_id; run;
-proc print data= long (obs=10); var patient_id svc_dt cohort; run;
+data input.first_filled_after_RJRV; set input.first_filled_after_RJRV; by patient_id; if first.patient_id; run;
+proc print data= input.first_filled_after_RJRV (obs=10); var patient_id svc_dt cohort; run;
 
 proc sql;
     create table input.id_index as
-    select a.*, b.svc_dt as first_filled_date
+    select a.*, b.svc_dt as first_filled_date, b.molecule_name as first_filled_molecule, b.dominant_payer as first_filled_payer, 
+    b.cash as first_filled_cash, b.coupon as first_filled_coupon, b.discount_card as first_filled_discount_card, b.oop_30days as first_filled_oop_30days
     from input.id_index as a
-    left join long as b
+    left join input.first_filled_after_RJRV as b
     on a.patient_id = b.patient_id;
 quit;
 
