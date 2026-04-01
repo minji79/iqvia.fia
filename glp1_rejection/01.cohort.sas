@@ -180,7 +180,6 @@ quit;
 proc sort data=gender nodupkey; by patient_id; run;
 data gender; set gender (drop=patient_gender); rename patient_gender_clean = patient_gender; run; /* 12170856 obs */
 
-
 /* 2) merge with our dataset */
 proc sql; 
 	create table input.rx17_25_glp1_long as
@@ -188,5 +187,41 @@ proc sql;
     from input.rx17_25_glp1_long as a
 	left join gender as b
  	on a.patient_id = b.patient_id;
-quit; /* 10,999,619 obs*/
+quit; /* 9460837 obs*/
+
+
+/*****************************
+*  7. Non-insurance payment types : coupon / discount card / cash
+*****************************/
+* primary_plan_id; 
+proc sql; 
+   create table rx17_25_glp1_long as
+   select distinct a.*, b.model_type_name as model_type_name_primary
+   from input.rx17_25_glp1_long as a
+   left join biosim.plan as b
+   on a.plan_id = b.plan_id;
+quit; /* 9460837 obs*/
+
+* sec_plan_id; 
+proc sql; 
+   create table input.rx17_25_glp1_long as
+   select distinct a.*, b.model_type_name as model_type_name_second
+   from rx17_25_glp1_long as a
+   left join biosim.plan as b
+   on a.sec_plan_id = b.plan_id;
+quit; /* 9460837 obs*/
+
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if model_type_name_primary = 'CASH' then cash =1; else cash=0; run;
+
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if model_type_name_primary = 'COUPON/VOUCHER PROGRAM' then primary_coupon =1; else primary_coupon=0; run;
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if model_type_name_second = 'COUPON/VOUCHER PROGRAM' then secondary_coupon =1; else secondary_coupon=0; run;
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if primary_coupon =1 or secondary_coupon =1 then coupon =1; else coupon =0; run;
+
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if model_type_name_primary = 'DISCOUNT CARD PROGRAM' then primary_discount_card =1; else primary_discount_card=0; run;
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if model_type_name_second = 'DISCOUNT CARD PROGRAM' then secondary_discount_card =1; else secondary_discount_card=0; run;
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if primary_discount_card=1 or secondary_discount_card =1 then discount_card =1; else discount_card =0; run;
+
+proc freq data=input.rx17_25_glp1_long; table cash; run;
+proc freq data=input.rx17_25_glp1_long; table coupon; run;
+proc freq data=input.rx17_25_glp1_long; table discount_card; run;
 
