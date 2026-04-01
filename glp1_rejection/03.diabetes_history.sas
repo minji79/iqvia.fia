@@ -14,3 +14,38 @@ data input.diabetes_med; set input.diabetes_med; if usc_5 in ('39110','39121','3
 
 proc print data=input.diabetes_med; run;
 
+/*============================================================*
+ | 2. merge with all medication history
+ *============================================================*/
+* id with start_date;
+data id; set input.id_index; keep patient_id index_date; run;
+
+* merge with the original dataset;
+%macro yearly(year=, refer=);
+proc sql; 
+  create table rx_&year._diabetes_med as
+  select distinct a.*, b.svc_dt, b.ndc, b.rjct_cd
+  from id as a 
+  left join &refer as b
+  on a.patient_id = b.patient_id;
+quit;
+
+%mend yearly;
+%yearly(year=24, refer=biosim.rxfact2024);
+%yearly(year=23, refer=biosim.rxfact2024);
+%yearly(year=22, refer=biosim.rxfact2022);
+%yearly(year=21, refer=biosim.rxfact2022);
+%yearly(year=20, refer=biosim.rxfact2020);
+%yearly(year=19, refer=biosim.rxfact2020);
+%yearly(year=18, refer=biosim.rxfact2018);
+%yearly(year=17, refer=biosim.rxfact2018);
+
+data input.rx_all_med; set rx_24_diabetes_med rx_23_diabetes_med rx_22_diabetes_med rx_21_diabetes_med rx_20_diabetes_med rx_19_diabetes_med rx_18_diabetes_med; run;
+proc sort data=input.rx_all_med nodupkey; by patient_id svc_dt; run;
+
+
+
+
+
+
+
