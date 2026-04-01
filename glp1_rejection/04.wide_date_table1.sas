@@ -109,6 +109,9 @@ proc freq data=input.id_index; table discount_card*cohort4 /nocol nopercent; run
 proc freq data=input.id_index; table molecule_name; run;
 proc freq data=input.id_index; table molecule_name*cohort4 /nocol nopercent; run;
 
+* diabetes_history;
+proc freq data=input.id_index; table diabetes_history; run;
+proc freq data=input.id_index; table diabetes_history*cohort4 /nocol nopercent; run;
 
 /*============================================================*
  | 3. Table 2. Post-Rejection Outcomes within 90 days (N=239290)
