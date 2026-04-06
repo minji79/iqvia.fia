@@ -54,6 +54,32 @@ else switching_glp1_detail ="";
 run;
 
 
+* switching indication;
+data input.id_index; set input.id_index; length indication_index $100.;
+	if molecule_name in ("SEMAGLUTIDE", "TIRZEPATIDE") then indication_index = "diabetes"; 
+	else if molecule_name in ("SEMAGLUTIDE (WEIGHT MANAGEMENT)", "TIRZEPATIDE (WEIGHT MANAGEMENT)") then indication_index = "obesity"; 
+	else indication_index = .;
+run;
+proc freq data=input.id_index; table indication_index; run;
+
+data input.id_index; set input.id_index; length indication_firstfill $100.;
+	if not missing(first_filled_molecule) and first_filled_molecule in ("SEMAGLUTIDE", "TIRZEPATIDE") then indication_firstfill = "diabetes"; 
+	else if not missing(first_filled_molecule) and first_filled_molecule in ("SEMAGLUTIDE (WEIGHT MANAGEMENT)", "TIRZEPATIDE (WEIGHT MANAGEMENT)") then indication_firstfill = "obesity"; 
+	else indication_firstfill = .;
+run;
+proc freq data=input.id_index; table indication_firstfill; run;
+proc print data=input.id_index (obs=10); where missing(first_filled_molecule) and cohort4 = "filled after RV/RJ in 90days"; run;
+
+
+data input.id_index; set input.id_index; 
+  if not missing(first_filled_payer) and first_filled_payer ne dominant_payer then switching_indication=1; 
+  else if not missing(first_filled_payer) and first_filled_payer = dominant_payer then switching_indication=0; 
+  else switching_payer=.; 
+run;
+proc freq data=input.id_index; table switching_indication; run;
+
+
+
 /*============================================================*
  | 2. Table 1 | Patient and plan characteristics at the index claim by primary adherence outcome
  *============================================================*/
@@ -67,7 +93,7 @@ run;
 
 * patient_gender;
 proc freq data=input.id_index; table patient_gender; run;
-proc freq data=input.id_index; table patient_gender*cohort4 /nocol nopercent; run;
+proc freq data=input.id_index; table patient_gender*cohort4 /norow nopercent; run;
 
 * region;
 proc freq data=input.id_index; table region; run;
@@ -97,6 +123,11 @@ proc freq data=input.id_index; table cash*cohort4 /nocol nopercent; run;
 
 proc freq data=input.id_index; table coupon; run;
 proc freq data=input.id_index; table coupon*cohort4 /nocol nopercent; run;
+
+/* coupon users were never rejected? */
+data df2; set input.id_index; if coupon=1; run;
+proc freq data=df2; table encnt_outcm_cd; run;
+
 proc freq data=input.id_index; table primary_coupon; run;
 proc freq data=input.id_index; table primary_coupon*cohort4 /nocol nopercent; run;
 proc freq data=input.id_index; table secondary_coupon; run;
@@ -112,6 +143,7 @@ proc freq data=input.id_index; table molecule_name*cohort4 /nocol nopercent; run
 * diabetes_history;
 proc freq data=input.id_index; table diabetes_history; run;
 proc freq data=input.id_index; table diabetes_history*cohort4 /nocol nopercent; run;
+
 
 /*============================================================*
  | 3. Table 2. Post-Rejection Outcomes within 90 days (N=239290)
@@ -150,6 +182,8 @@ proc freq data=sample_table2; table first_filled_molecule; run;
 proc freq data=sample_table2; table switching_glp1; run;
 proc freq data=sample_table2; table switching_payer; run;
 proc freq data=sample_table2; table switching_glp1_detail; run;
+
+proc print data=sample_table2 (obs=10); where switching_glp1=1 and missing(switching_glp1_detail); var patient_id molecule_name first_filled_molecule switching_glp1 switching_glp1_detail; run;
 
 /*============================================================*
  | 4. Table 3. Post-Reverse Outcomes within 90 days (N=161478)
