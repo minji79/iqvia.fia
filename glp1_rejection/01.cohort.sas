@@ -12,13 +12,22 @@ data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if molecule_name in (
 /*============================================================*
  | 2. clean - remove invalid values
  *============================================================*/
- * exclude invalid data in molecule_name;
+
+* exclude 2017 data (should not be there);
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if year ne 2017; run; /* 20342956 obs (none of claim cames from 2017) */
+
+* exclude invalid data in molecule_name;
 data input.rx17_25_glp1_long; set input.rx17_25_glp1_long;  if not missing(molecule_name); run; /* none */
 * exclude invalid data in encnt_outcm_cd;
 data input.rx17_25_glp1_long; set input.rx17_25_glp1_long;  if not missing(encnt_outcm_cd); run; /* -2270 claims */
 
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from input.rx17_25_glp1_long;
+quit;
+
 /*============================================================*
- | 3. study period: 180 days wash out period | "30JUN2017"d < index_date < "30JUN2025"d 
+ | 3. study period: 180 days wash out period | "30JUN2018"d < index_date < "30JUN2025"d 
  *============================================================*/
 
 data input.id_index;
@@ -46,7 +55,7 @@ proc sql;
 	where a.patient_id in (
 		select patient_id
 		from input.id_index
-		where index_date > "30JUN2017"d
+		where index_date > "30JUN2018"d
 	);
 quit;
 
@@ -60,9 +69,9 @@ proc sql;
 		from input.id_index
 		where index_date < "30JUN2025"d
 	);
-quit; /* total claims number = 9553229 */
+quit; /* total claims number = 20018672 */
 
-* distinct number of patients (N= 947450);
+* distinct number of patients (N= 960,938);
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx17_25_glp1_long;
@@ -109,9 +118,9 @@ proc sql;
 		from input.id_index
 		where age_at_index >= 18
 	);
-quit; /* 9460837 claims */
+quit; /* 19865806 claims */
 
-* distinct number of patients (N=925,056);
+* distinct number of patients (N=938,072);
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx17_25_glp1_long;
