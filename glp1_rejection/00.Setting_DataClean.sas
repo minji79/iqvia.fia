@@ -129,6 +129,27 @@ run;
 %yearly(year=17);
 
 
+/* merge with rx_written_dt */
+%macro yearly(year=, ref=);
+proc sql;
+	create table input.rx_&year._glp1 as
+	select distinct a.*, b.rx_written_dt
+	from input.rx_&year._glp1 as a
+	left join &ref as b
+	on a.claim_id = b.claim_id and a.patient_id = b.patient_id;
+quit;
+
+%mend yearly;
+%yearly(year=25, ref=biosim.rxfact2025);
+%yearly(year=24, ref=biosim.rxfact2024); 
+%yearly(year=23, ref=biosim.rxfact2023);
+%yearly(year=22, ref=biosim.rxfact2022);
+%yearly(year=21, ref=biosim.rxfact2021); 
+%yearly(year=20, ref=biosim.rxfact2020); 
+%yearly(year=19, ref=biosim.rxfact2019); 
+%yearly(year=18, ref=biosim.rxfact2018); 
+%yearly(year=17, ref=biosim.rxfact2017);
+
 
 /*============================================================*
  | 4. merge long dataset from 2017 - 2025 (Sep)
