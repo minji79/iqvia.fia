@@ -157,10 +157,10 @@ quit;
 data input.rx17_25_glp1_long; set input.rx_25_glp1 input.rx_24_glp1 input.rx_23_glp1 input.rx_22_glp1 input.rx_21_glp1 input.rx_20_glp1 input.rx_19_glp1 input.rx_18_glp1 input.rx_17_glp1; run;
 
 /*============================================================*
- | 5. remain only "final_claim_ind" only
+ | 5. remain only "final_claim_ind" only: NO
  *============================================================*/
-proc freq data=input.rx_25_glp1; table final_claim_ind*encnt_outcm_cd; run;
-data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if final_claim_ind ="Y"; run;
+*proc freq data=input.rx_25_glp1; table final_claim_ind*encnt_outcm_cd; run;
+*data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if final_claim_ind ="Y"; run;
 
 /*============================================================*
  | 6. re-categorize rejection reasons with new category
