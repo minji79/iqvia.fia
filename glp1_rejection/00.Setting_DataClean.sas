@@ -140,15 +140,16 @@ proc sql;
 quit;
 
 %mend yearly;
+%yearly(year=23, ref=biosim.rxfact2024);
+%yearly(year=21, ref=biosim.rxfact2022); 
+%yearly(year=19, ref=biosim.rxfact2020); 
+%yearly(year=17, ref=biosim.rxfact2018);
+
 %yearly(year=25, ref=biosim.rxfact2025);
 %yearly(year=24, ref=biosim.rxfact2024); 
-%yearly(year=23, ref=biosim.rxfact2023);
 %yearly(year=22, ref=biosim.rxfact2022);
-%yearly(year=21, ref=biosim.rxfact2021); 
 %yearly(year=20, ref=biosim.rxfact2020); 
-%yearly(year=19, ref=biosim.rxfact2019); 
 %yearly(year=18, ref=biosim.rxfact2018); 
-%yearly(year=17, ref=biosim.rxfact2017);
 
 
 /*============================================================*
