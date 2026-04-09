@@ -30,22 +30,29 @@ quit;
  | 3. study period: 180 days wash out period | "30JUN2018"d < index_date < "30JUN2025"d 
  *============================================================*/
 
+* how can we pick the very first claim for a certain rx_written_dt?;
+proc print data=input.rx17_25_glp1_long (obs=20); var patient_id rx_written_dt svc_dt fill_nbr encnt_outcm_cd final_claim_ind; run;
+
+* identify index date ;
 data input.id_index;
     set input.rx17_25_glp1_long;        
-    if encnt_outcm_cd = "PD" then paid_priority = 2;  
+    if encnt_outcm_cd = "PD" then paid_priority = 0;  
     else if encnt_outcm_cd = "RV" then paid_priority = 1;  
-    else paid_priority = 0;
+    else paid_priority = 2;
 run;
-proc sort data=input.id_index; by patient_id svc_dt descending paid_priority;  run;
+proc sort data=input.id_index; by patient_id rx_written_dt svc_dt final_claim_ind descending paid_priority; run;
+proc print data=input.id_index (obs=20); var patient_id rx_written_dt svc_dt fill_nbr encnt_outcm_cd final_claim_ind; run;
 
 data input.id_index;
     set input.id_index;
-    by patient_id svc_dt;
+    by patient_id rx_written_dt svc_dt;
     if first.patient_id then output;
     drop paid_priority;
 run; 
+proc print data=input.id_index (obs=20); var patient_id rx_written_dt svc_dt fill_nbr encnt_outcm_cd final_claim_ind; run;
+data input.id_index; set input.id_index (rename=(rx_written_dt=index_date)); run;
 
-data input.id_index; set input.id_index (rename=(svc_dt=index_date)); run;
+
 
 /* no GLP1 used for 180 days prior to the index date */
 proc sql;
@@ -57,6 +64,11 @@ proc sql;
 		from input.id_index
 		where index_date > "30JUN2018"d
 	);
+quit;
+
+proc sql; 
+    select count(distinct patient_id) as count_patient_all
+    from input.rx17_25_glp1_long;
 quit;
 
 /* to ensure everyone have 90 days follow-up days */
