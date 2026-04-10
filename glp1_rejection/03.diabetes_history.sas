@@ -58,7 +58,7 @@ quit;
 * using usc 3 level to form anti-diabetes medications;
 data rx_diabetes_med; set input.rx_all_med; if usc_3 in ('39100', '39200', '39300'); run; /* 39,091,900 */
 
-* exclude GLP1s;
+* exclude GLP1s + should include other GLP1s;
 data input.rx_diabetes_med; set rx_diabetes_med; if usc_5 in ('39110','39121','39122','39123','39124','39131','39133','39134','39135','39210','39221','39222','39231','39233','39241',
 '39252','39261','39262','39269','39271','39272','39281','39290','39311','39312','39313','39319'); run; /* 25,020,725 */ 
 
@@ -67,11 +67,12 @@ data input.rx_diabetes_med; set rx_diabetes_med; if usc_5 in ('39110','39121','3
  | 4. within (-180, 0) days - identify patients who had at least one paid claims for anti-diabetes medications
  *============================================================*/
 
+/* non-GLP1 diabetes_history | diabetes_history_nonglp1 */
 * remain only paid claims;
 data input.rx_diabetes_med_v1; set input.rx_diabetes_med; if rjct_cd in ('','00','000'); run; 
 
 * remain (-180 days, index date + 180 days); 
-data input.rx_diabetes_med_v1; set input.rx_diabetes_med_v1; if svc_dt > (index_date - 180) and svc_dt <= (index_date + 180); run;
+data input.rx_diabetes_med_v1; set input.rx_diabetes_med_v1; if svc_dt > (index_rx_dt - 180) and svc_dt <= (index_rx_dt + 180); run;
 
 * identify individuals who had anti-diabetics medication history;
 data input.rx_diabetes_med_v1; 
@@ -82,30 +83,95 @@ data input.rx_diabetes_med_v1;
    count +1; 
    if last.patient_id then output;
 run;
-data input.rx_diabetes_med_v1;  set input.rx_diabetes_med_v1;  diabetes_history = 1; run; /* 517,964 obs */ 
+data input.rx_diabetes_med_v1;  set input.rx_diabetes_med_v1;  diabetes_history_nonglp1 = 1; run; /* 423541 obs */ 
 proc means data=input.rx_diabetes_med_v1 n nmiss mean std min max median q1 q3; var count; run;
 
 
+/* other GLP1s diabetes_history | diabetes_history_glp1 */
+* remain only paid claims;
+data rx17_25_other_glp1_long; set input.rx17_25_other_glp1_long; if rjct_cd in ('','00','000'); run;
+proc sort data=rx17_25_other_glp1_long; by patient_id svc_dt; run;
+
+proc print data=rx17_25_other_glp1_long (obs=10); run;
+
+proc sql; 
+  create table rx_diabetes_glp1 as
+  select distinct a.patient_id, a.svc_dt as svc_dt_glp1, b.index_rx_dt
+  from rx17_25_other_glp1_long as a 
+  left join input.id_index as b
+  on a.patient_id = b.patient_id;
+quit; 
+data rx_diabetes_glp1; set rx_diabetes_glp1; if svc_dt_glp1 > (index_rx_dt - 180) and svc_dt_glp1 <= (index_rx_dt + 180); run;
+
+* identify individuals who had anti-diabetics medication history;
+proc sort data=rx_diabetes_glp1; by patient_id svc_dt; run;
+data rx_diabetes_glp1_wide;
+   set rx_diabetes_glp1;
+   by patient_id;
+   retain count;
+   if first.patient_id then count = 0;
+   count +1; 
+   if last.patient_id then output;
+run;
+data rx_diabetes_glp1_wide;  set rx_diabetes_glp1_wide;  diabetes_history_glp1 = 1; run; /* 137682 obs */ 
+
 
 /*============================================================*
- | 5. merge with the cohort dataset;
+ | 5. merge with the cohort dataset (input.id_index)
  *============================================================*/
+
+/* diabetes_history_nonglp1 */
 proc sql; 
   create table input.id_index as
-  select distinct a.*, b.diabetes_history
+  select distinct a.*, b.diabetes_history_nonglp1
   from input.id_index as a 
   left join input.rx_diabetes_med_v1 as b
   on a.patient_id = b.patient_id;
 quit;
-data input.id_index; set input.id_index; if missing(diabetes_history) then diabetes_history =0; run;
+data input.id_index; set input.id_index; if missing(diabetes_history_nonglp1) then diabetes_history_nonglp1 =0; run;
 
+/* diabetes_history_glp1 */
+proc sql; 
+  create table input.id_index as
+  select distinct a.*, b.diabetes_history_glp1
+  from input.id_index as a 
+  left join rx_diabetes_glp1_wide as b
+  on a.patient_id = b.patient_id;
+quit;
+data input.id_index; set input.id_index; if missing(diabetes_history_glp1) then diabetes_history_glp1 =0; run;
+
+/* diabetes_history | including both */
+data input.id_index; set input.id_index; if diabetes_history_glp1 =0 and diabetes_history_nonglp1 =0 then diabetes_history =0; else diabetes_history=1; run;
+proc freq data=input.id_index; table diabetes_history; run;
+
+
+
+/*============================================================*
+ | 5. merge with the long dataset (input.rx17_25_glp1_long)
+ *============================================================*/
+
+/* diabetes_history_nonglp1 */
 proc sql; 
   create table input.rx17_25_glp1_long as
-  select distinct a.*, b.diabetes_history
+  select distinct a.*, b.diabetes_history_nonglp1
   from input.rx17_25_glp1_long as a 
   left join input.rx_diabetes_med_v1 as b
   on a.patient_id = b.patient_id;
 quit;
-data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if missing(diabetes_history) then diabetes_history =0; run;
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if missing(diabetes_history_nonglp1) then diabetes_history_nonglp1 =0; run;
+
+/* diabetes_history_glp1 */
+proc sql; 
+  create table input.rx17_25_glp1_long as
+  select distinct a.*, b.diabetes_history_glp1
+  from input.rx17_25_glp1_long as a 
+  left join rx_diabetes_glp1_wide as b
+  on a.patient_id = b.patient_id;
+quit;
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if missing(diabetes_history_glp1) then diabetes_history_glp1 =0; run;
+
+/* diabetes_history | including both */
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if diabetes_history_glp1 =0 and diabetes_history_nonglp1 =0 then diabetes_history =0; else diabetes_history=1; run;
+
 
 
