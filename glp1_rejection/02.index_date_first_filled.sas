@@ -1,48 +1,19 @@
 
-data input.id_index;
-    set input.rx17_25_glp1_long;        
-    if encnt_outcm_cd = "PD" then paid_priority = 2;  
-    else if encnt_outcm_cd = "RV" then paid_priority = 1;  
-    else paid_priority = 0;
-run;
-proc sort data=input.id_index; by patient_id svc_dt descending paid_priority;  run;
 
-data input.id_index;
-    set input.id_index;
-    by patient_id svc_dt;
-    if first.patient_id then output;
-    drop paid_priority;
-run; 
 
-data input.id_index; set input.id_index (rename=(svc_dt=index_date)); run;
 
 /*============================================================*
  | 1. index date claim
  *============================================================*/
 
-data input.id_index;
-    set input.rx17_25_glp1_long;        
-    if encnt_outcm_cd = "PD" then paid_priority = 2;  
-    else if encnt_outcm_cd = "RV" then paid_priority = 1;  
-    else paid_priority = 0;
-run;
-proc sort data=id_index; by patient_id svc_dt descending paid_priority;  run;
+data input.id_index; set input.id_index (rename=(svc_dt=index_svc_dt)); run;
+data input.id_index; set input.id_index (rename=(index_date=index_rx_dt)); run;
+proc contents data=input.id_index; run;
 
-data input.id_index;
-    /* First 'set' statement gets the earliest date for the patient */
-    set input.id_index;
-    by patient_id svc_dt;
-    
-    /* Retain the very first date found for each patient */
-    retain first_date;
-    if first.patient_id then index_date = svc_dt;
-    
-    /* Only output if the current row's date matches the first_date */
-    if svc_dt = index_date;
-    
-    drop paid_priority;
-run; /* 925056 individuals */
-proc print data=input.id_index (obs=10); run;
+
+
+
+
 
 * indicator ; 
 proc freq data=input.id_index; table encnt_outcm_cd; run;
