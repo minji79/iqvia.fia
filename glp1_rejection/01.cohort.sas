@@ -83,7 +83,7 @@ proc sql;
 	);
 quit; /* total claims number = 20018672 */
 
-* distinct number of patients (N= 960,938);
+* distinct number of patients (N= 962,440);
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx17_25_glp1_long;
@@ -132,7 +132,7 @@ proc sql;
 	);
 quit; /* 19865806 claims */
 
-* distinct number of patients (N=938,072);
+* distinct number of patients (N=938,371);
 proc sql; 
     select count(distinct patient_id) as count_patient_all
     from input.rx17_25_glp1_long;
