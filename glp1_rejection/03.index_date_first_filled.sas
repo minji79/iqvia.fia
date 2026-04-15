@@ -128,16 +128,17 @@ proc means data=input.id_index n nmiss; var first_filled_date; run;
 
 
 /* cohort definition */
+data input.id_index; set input.id_index; drop gap time_to_fill; run;
 data input.id_index; set input.id_index; length cohort $100.; 
   
   if not missing(first_filled_date) then time_to_fill = first_filled_date - index_rx_dt; 
     else time_to_fill = .;
     
   if index_decision = "PD" then cohort = "filled at the index attempt"; 
-  else if index_decision in ("RJ", "RV") and not missing(first_filled_date) and gap < 90 then cohort = "filled after RJ/RV in 90days";
+  else if index_decision in ("RJ", "RV") and not missing(first_filled_date) and time_to_fill < 90 then cohort = "filled after RJ/RV in 90days";
   
   else if index_decision in ("RJ", "RV") and missing(first_filled_date) then cohort = "never filled";
-  else if not missing(gap) and gap >= 90 then cohort = "filled after 90 days"; 
+  else if not missing(time_to_fill) and time_to_fill >= 90 then cohort = "filled after 90 days"; 
   else cohort = "other/unclassified";
 run;
 
