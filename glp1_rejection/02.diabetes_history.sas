@@ -171,7 +171,12 @@ quit;
 data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if missing(diabetes_history_glp1) then diabetes_history_glp1 =0; run;
 
 /* diabetes_history | including both */
+data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; drop diabetes_history; run;
 data input.rx17_25_glp1_long; set input.rx17_25_glp1_long; if diabetes_history_glp1 =0 and diabetes_history_nonglp1 =0 then diabetes_history =0; else diabetes_history=1; run;
+
+data input.id_index; set input.id_index; drop diabetes_history; run;
+data input.id_index; set input.id_index; if diabetes_history_glp1 =0 and diabetes_history_nonglp1 =0 then diabetes_history =0; else diabetes_history=1; run;
+
 
 
 
