@@ -499,7 +499,8 @@ proc freq data=sample; table first_filled_discount_card; run;
 /*============================================================*
  | 6. Figure 2 - % of filler / attempter by quarterly
  *============================================================*/
-/* total */
+/* total & by payers & by initially ordered products */
+proc contents data=input.id_index; run;
 *quarter indicator;
 data figure2; set input.id_index; 
     qtr_indicator = intnx('quarter', index_rx_dt, 0, 'beginning');
@@ -517,7 +518,12 @@ proc sql;
 		   sum(case when dominant_payer_adj = 'Medicaid' then 1 else 0 end) as n_attempter_medicaid,
            sum(case when dominant_payer_adj = 'Exchange' then 1 else 0 end) as n_attempter_exchange,
            sum(case when dominant_payer_adj = 'Unclear Insurance' then 1 else 0 end) as n_attempter_unclear,
-           
+
+		   sum(case when molecule_name = "SEMAGLUTIDE" then 1 else 0 end) as n_attempter_sema_dm,
+		   sum(case when molecule_name = "SEMAGLUTIDE (WEIGHT MANAGEMENT)" then 1 else 0 end) as n_attempter_sema_obesity,
+		   sum(case when molecule_name = "TIRZEPATIDE" then 1 else 0 end) as n_attempter_tirz_dm,
+		   sum(case when molecule_name = "TIRZEPATIDE (WEIGHT MANAGEMENT)" then 1 else 0 end) as n_attempter_tirz_obesity,
+		       
            /* Total for the quarter */
            count(patient_id) as n_attempter_total
     from figure2
@@ -543,7 +549,12 @@ proc sql;
            sum(case when dominant_payer_adj = 'Medicaid'          then 1 else 0 end) as n_filler_medicaid,
            sum(case when dominant_payer_adj = 'Exchange'          then 1 else 0 end) as n_filler_exchange,
            sum(case when dominant_payer_adj = 'Unclear Insurance' then 1 else 0 end) as n_filler_unclear,
-           
+
+		   sum(case when first_filled_molecule = "SEMAGLUTIDE" then 1 else 0 end) as n_filler_sema_dm,
+		   sum(case when first_filled_molecule = "SEMAGLUTIDE (WEIGHT MANAGEMENT)" then 1 else 0 end) as n_filler_sema_obesity,
+		   sum(case when first_filled_molecule = "TIRZEPATIDE" then 1 else 0 end) as n_filler_tirz_dm,
+		   sum(case when first_filled_molecule = "TIRZEPATIDE (WEIGHT MANAGEMENT)" then 1 else 0 end) as n_filler_tirz_obesity,
+		   
            /* Total successful fillers in that quarter */
            count(*) as n_filler_total
     from filler 
@@ -556,20 +567,39 @@ proc print data=filler_wide; run;
 *merge; 
 proc sql;
  	create table figure2_total as
-	select distinct a.*, b.n_filler_commercial, b.n_filler_medicare, b.n_filler_medicaid, b.n_filler_exchange, b.n_filler_unclear, b.n_filler_total
+	select distinct a.*, b.n_filler_commercial, b.n_filler_medicare, b.n_filler_medicaid, b.n_filler_exchange, b.n_filler_unclear, b.n_filler_total,
+					b.n_filler_sema_dm, b.n_filler_sema_obesity, b.n_filler_tirz_dm, b.n_filler_tirz_obesity
 	from figure2_wide as a
 	left join filler_wide as b
 	on a.qtr_indicator =b.qtr_indicator; 
 quit;
+
 data figure2_total; set figure2_total; 
 	pct_filler_total = n_filler_total / n_attempter_total *100; 
+	
 	pct_filler_commercial = n_filler_commercial / n_attempter_commercial *100; 
 	pct_filler_medicare = n_filler_medicare / n_attempter_medicare *100; 
 	pct_filler_medicaid = n_filler_medicaid / n_attempter_medicaid *100; 
 	pct_filler_exchange = n_filler_exchange / n_attempter_exchange *100; 
 	pct_filler_unclear = n_filler_unclear / n_attempter_unclear *100; 
+
+	if n_attempter_sema_dm > 0      then pct_filler_sema_dm      = (n_filler_sema_dm / n_attempter_sema_dm) * 100;
+    else pct_filler_sema_dm = 0; /* Or leave as . if you prefer */
+    
+    if n_attempter_sema_obesity > 0 then pct_filler_sema_obesity = (n_filler_sema_obesity / n_attempter_sema_obesity) * 100;
+    else pct_filler_sema_obesity = 0;
+    
+    if n_attempter_tirz_dm > 0      then pct_filler_tirz_dm      = (n_filler_tirz_dm / n_attempter_tirz_dm) * 100;
+    else pct_filler_tirz_dm = 0;
+    
+    if n_attempter_tirz_obesity > 0 then pct_filler_tirz_obesity = (n_filler_tirz_obesity / n_attempter_tirz_obesity) * 100;
+    else pct_filler_tirz_obesity = 0;
+	
 run;
-proc print data= figure2_total; run;
+proc print data= figure2_total; var n_filler_sema_dm n_attempter_sema_dm pct_filler_sema_dm
+								    n_filler_sema_obesity n_attempter_sema_obesity pct_filler_sema_obesity
+									n_filler_tirz_dm n_attempter_tirz_dm pct_filler_tirz_dm
+									n_filler_tirz_obesity n_attempter_tirz_obesity pct_filler_tirz_obesity; run;
 
 * remove 2025 Q3;
 data figure2_total;
@@ -619,3 +649,17 @@ proc sgplot data=figure2_total;
 run;
 
 
+
+/* Figure for by initially ordered products */
+proc sgplot data=figure2_total;
+    title "Filled Rate(%) among GLP-1 RA Attempters by Initially Ordered Products";
+	
+    series x=qtr_indicator y=pct_filler_sema_dm / legendlabel="Semaglutide for T2DM" lineattrs=(color=blue);
+    series x=qtr_indicator y=pct_filler_sema_obesity / legendlabel="Semaglutide for Obesity"  lineattrs=(color=green);
+    series x=qtr_indicator y=pct_filler_tirz_dm / legendlabel="Tirzepatide for T2DM" lineattrs=(color=red);
+	series x=qtr_indicator y=pct_filler_tirz_obesity / legendlabel="Tirzepatide for Obesity" lineattrs=(color=orange);
+                                                  
+
+    xaxis label="Quarter" grid;
+    yaxis label="Filled Rate (%)" grid;
+run;
