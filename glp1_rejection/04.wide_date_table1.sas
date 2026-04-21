@@ -73,6 +73,17 @@ run;
 proc freq data=input.id_index; table switching_plan; run;
 
 
+* switching product (molecule-indication level) ;
+data input.id_index; set input.id_index; drop switching_product; run;
+data input.id_index; 
+    set input.id_index;
+    if missing(molecule_name) or missing(first_filled_molecule) then switching_product = .;
+    else if molecule_name = first_filled_molecule then switching_product = 0;
+    else switching_product = 1;
+run;
+proc freq data=input.id_index; table switching_product; run;
+proc print data=input.id_index(obs=20); where switching_product=1; var molecule_name first_filled_molecule; run;
+
 
 /*============================================================*
  | 2. Table 1 | Patient and plan characteristics at the index claim by primary adherence outcome
@@ -409,6 +420,11 @@ proc sql;
 quit;
 
 data sample; set input.id_index; if cohort2 ="filled after RJ/RV in 90days"; run;
+proc sql; 
+    select count(distinct patient_id) as count_switching_product
+    from sample
+	where switching_product=1 and cash=0 and coupon=0 and discount_card=0;
+quit;
 proc freq data=sample; table first_filled_cash; run;
 proc freq data=sample; table first_filled_coupon; run;
 proc freq data=sample; table first_filled_discount_card; run;
