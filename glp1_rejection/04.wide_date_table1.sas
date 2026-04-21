@@ -102,7 +102,53 @@ proc freq data=input.id_index; table RJ_reason_adj; run;
 proc freq data=input.id_index; table RJ_reason_adj*cohort2 /nocol nopercent; run;
 
 * Paid type at index claim;
+proc freq data=input.id_index; table index_decision; run;
 data sample; set input.id_index; if index_decision = "PD"; run;
+
+* PD without ;
+proc sql; 
+    select count(distinct patient_id) as count
+    from sample
+	where cash=0 and coupon=0 and discount_card=0;
+quit;
+
+proc sql; 
+    select count(distinct patient_id) as count
+    from sample
+	where primary_coupon=1 and not missing(sec_payer_id);
+quit; /* 268 */
+proc sql; 
+    select count(distinct patient_id) as count
+    from sample
+	where secondary_coupon=1 and not missing(payer_id);
+quit; /* 1233 */
+
+
+proc sql; 
+    select count(distinct patient_id) as count
+    from sample
+	where discount_card=1 and not missing(payer_id);
+quit; /* 1573 */
+proc sql; 
+    select count(distinct patient_id) as count
+    from sample
+	where discount_card=1 and not missing(sec_payer_id);
+quit; /* 419 */
+
+proc sql; 
+    select count(distinct patient_id) as count
+    from sample
+	where cash=1 and not missing(payer_id);
+quit;
+proc sql; 
+    select count(distinct patient_id) as count
+    from sample
+	where cash=1 and not missing(sec_payer_id);
+quit;
+
+
+proc print data=sample (obs=10); where cash=1 and not missing(sec_payer_id); run;
+
 proc freq data=sample; table cash; run;
 proc freq data=sample; table coupon; run;
 proc freq data=sample; table primary_coupon; run;
@@ -178,6 +224,9 @@ proc freq data=table2; table first_filled_cash*cohort2 /norow nopercent; run;
 proc freq data=table2; table first_filled_coupon*cohort2 /norow nopercent; run;
 proc freq data=table2; table first_filled_discount_card*cohort2 /norow nopercent; run;
 
+*;
+proc freq data=table2; table indication_index; run;
+
 
 * time_to_fill & first_filled_molecule;
 data sample_table2; set table2; if cohort2 ="filled after RJ/RV in 90days"; run;
@@ -211,7 +260,11 @@ run;
 proc freq data=sample_table2; table first_filled_molecule; run;
 proc freq data=sample_table2; table switching_glp1; run;
 proc freq data=sample_table2; table switching_indication; run;
+proc freq data=sample_table2; table indication_index; run;
+
 proc freq data=sample_table2; table switching_plan; run;
+proc freq data=sample_table2; table switching_plan*RJ_reason_adj /norow nopercent; run;
+
 
 proc means data=sample_table2 n nmiss median q1 q3 min max;
     class first_filled_molecule;
@@ -228,12 +281,30 @@ proc means data=sample_table2 n nmiss median q1 q3 min max;
     var time_to_fill;
 run;
 
+
 proc means data=sample_table2 n nmiss median q1 q3 min max;
     class switching_plan;
     var time_to_fill;
 run;
 
+* # at the same date of rejection ;
+proc sql; 
+    select count(distinct patient_id) as count_filled_at_samedate
+    from sample_table2
+	where first_filled_cash =1 and time_to_fill=0;
+quit;
 
+proc sql; 
+    select count(distinct patient_id) as count_filled_at_samedate
+    from sample_table2
+	where first_filled_coupon =1 and time_to_fill=0;
+quit;
+
+proc sql; 
+    select count(distinct patient_id) as count_filled_at_samedate
+    from sample_table2
+	where first_filled_discount_card =1 and time_to_fill=0;
+quit;
 
 /*============================================================*
  | 4. Table 3. Post-Reverse Outcomes within 90 days (N=161478)
@@ -245,6 +316,7 @@ proc freq data=table3; table cohort2; run;
 proc freq data=table3; table dominant_payer_adj; run;
 proc freq data=table3; table dominant_payer_adj*cohort2 /nocol nopercent; run;
 
+proc freq data=table3; table indication_index; run;
 
 * time_to_fill & first_filled_oop_30days; 
 data sample_table3; set table3; if cohort2 ="filled after RJ/RV in 90days"; run;
@@ -257,6 +329,8 @@ proc freq data=sample_table3; table first_filled_discount_card; run;
 proc freq data=sample_table3; table first_filled_molecule; run;
 proc freq data=sample_table3; table switching_glp1; run;
 proc freq data=sample_table3; table switching_indication; run;
+proc freq data=sample_table3; table indication_index; run;
+
 proc freq data=sample_table3; table switching_plan; run;
 
 proc means data=table3 n nmiss median q1 q3 min max; var time_to_fill; run;
@@ -299,6 +373,27 @@ proc means data=sample_table3 n nmiss median q1 q3 min max;
     class switching_plan;
     var time_to_fill;
 run;
+
+
+* # at the same date of rejection ;
+proc sql; 
+    select count(distinct patient_id) as count_filled_at_samedate
+    from sample_table3
+	where first_filled_cash =1 and time_to_fill=0;
+quit;
+
+proc sql; 
+    select count(distinct patient_id) as count_filled_at_samedate
+    from sample_table3
+	where first_filled_coupon =1 and time_to_fill=0;
+quit;
+
+proc sql; 
+    select count(distinct patient_id) as count_filled_at_samedate
+    from sample_table3
+	where first_filled_discount_card =1 and time_to_fill=0;
+quit;
+
 
 /*============================================================*
  | 5. Figure 1 - Waterfall plot
