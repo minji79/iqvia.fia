@@ -99,7 +99,7 @@ proc print data=biosim.rxfact2025 (obs=20); var patient_id claim_id rx_written_d
 
 
 /*============================================================*
- | 2. Main analysis
+ | 2. Main analysis - outcome = Filled at index attempts
  *============================================================*/
 
 proc contents data=input.id_index; run;
@@ -125,3 +125,37 @@ proc logistic data=df;
           molecule_name (ref='SEMAGLUTIDE') / param=glm order=internal;
     model non_ad_event(event='1') = age_cat patient_gender dominant_payer_adj diabetes_history molecule_name year;
 run;
+
+
+
+
+/*============================================================*
+ | 3. Main analysis - outcome = B.	Filled within 90days
+ *============================================================*/
+
+proc contents data=input.id_index; run;
+proc freq data=input.id_index; table cohort2; run;
+
+* outcome = primary non-adherance (non_ad_event=1);
+data df; set input.id_index; if cohort2 ="never filled or filled after 90 days" then non_ad_event=1; else non_ad_event=0; run;
+
+* age ; 
+data df; set df; 
+if 18 <= age_at_claim and age_at_claim < 35 then age_cat = 1; 
+else if 35 <= age_at_claim and age_at_claim < 50 then age_cat = 2; 
+else if 50 <= age_at_claim and age_at_claim < 65 then age_cat = 3; 
+else if 65 <= age_at_claim then age_cat = 4; 
+else age_cat =.;
+run;
+proc freq data=df; table age_cat; run;
+
+
+/* model 1 - perfectly fit with the rejection reason */
+proc logistic data=df;
+    class patient_gender(ref='M') age_cat (ref='4') region (ref='Midwest') dominant_payer_adj (ref='Commercial') diabetes_history (ref='1') year(ref='2018')
+          molecule_name (ref='SEMAGLUTIDE') / param=glm order=internal;
+    model non_ad_event(event='1') = age_cat patient_gender dominant_payer_adj diabetes_history molecule_name year;
+run;
+
+
+
