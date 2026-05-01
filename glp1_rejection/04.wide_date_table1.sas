@@ -235,7 +235,9 @@ proc freq data=table2; table first_filled_cash*cohort2 /norow nopercent; run;
 proc freq data=table2; table first_filled_coupon*cohort2 /norow nopercent; run;
 proc freq data=table2; table first_filled_discount_card*cohort2 /norow nopercent; run;
 
-*;
+* number before switching;
+proc freq data=table2; table RJ_reason_adj; run;
+proc freq data=table2; table molecule_name; run;
 proc freq data=table2; table indication_index; run;
 
 
@@ -327,6 +329,8 @@ proc freq data=table3; table cohort2; run;
 proc freq data=table3; table dominant_payer_adj; run;
 proc freq data=table3; table dominant_payer_adj*cohort2 /nocol nopercent; run;
 
+* number before switching;
+proc freq data=table3; table molecule_name; run;
 proc freq data=table3; table indication_index; run;
 
 * time_to_fill & first_filled_oop_30days; 
