@@ -12,6 +12,16 @@ data input.id_index; set input.id_index; length dominant_payer_adj $100.;
   else dominant_payer_adj = dominant_payer; 
 run;
 
+* age category; 
+data input.id_index; set input.id_index;
+if 18 <= age_at_claim and age_at_claim < 35 then age_cat = 1; 
+else if 35 <= age_at_claim and age_at_claim < 50 then age_cat = 2; 
+else if 50 <= age_at_claim and age_at_claim < 65 then age_cat = 3; 
+else if 65 <= age_at_claim then age_cat = 4; 
+else age_cat =.;
+run;
+proc freq data=input.id_index; table age_cat; run;
+
 
 * RJ_reason_adj;
 data input.id_index; set input.id_index; length RJ_reason_adj $100.; 
