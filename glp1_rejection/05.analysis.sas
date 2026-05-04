@@ -109,7 +109,7 @@ proc freq data=input.id_index; table RJ_reason_adj; run;
 data df; set input.id_index; if cohort2 ne "never filled or filled after 90 days" then ad_event=1; else ad_event=0; run;
 
 proc logistic data=df;
-    class patient_gender(ref='M') age_cat (ref='4') region (ref='Midwest') dominant_payer_adj (ref='Commercial') diabetes_history (ref='1') year(ref='2018')
+    class patient_gender(ref='M') age_cat (ref='4') region (ref='Midwest') dominant_payer_adj (ref='Commercial') diabetes_history (ref='0') year(ref='2018')
           molecule_name (ref='SEMAGLUTIDE') / param=glm order=internal;
     model ad_event(event='1') = age_cat patient_gender dominant_payer_adj diabetes_history molecule_name year;
 run;
@@ -119,7 +119,7 @@ run;
 data df; set input.id_index; if cohort2 ="filled at the index attempt" then ad_event=1; else ad_event=0; run;
 
 proc logistic data=df;
-    class patient_gender(ref='M') age_cat (ref='4') region (ref='Midwest') dominant_payer_adj (ref='Commercial') diabetes_history (ref='1') year(ref='2018')
+    class patient_gender(ref='M') age_cat (ref='4') region (ref='Midwest') dominant_payer_adj (ref='Commercial') diabetes_history (ref='0') year(ref='2018')
           molecule_name (ref='SEMAGLUTIDE') / param=glm order=internal;
     model ad_event(event='1') = age_cat patient_gender dominant_payer_adj diabetes_history molecule_name year;
 run;
@@ -130,7 +130,7 @@ proc freq data=input.id_index; table cohort2; run;
 data df; set input.id_index; if cohort2 ="filled after RJ/RV in 90days" then ad_event=1; else ad_event=0; run;
 
 proc logistic data=df;
-    class patient_gender(ref='M') age_cat (ref='4') region (ref='Midwest') dominant_payer_adj (ref='Commercial') diabetes_history (ref='1') year(ref='2018')
+    class patient_gender(ref='M') age_cat (ref='4') region (ref='Midwest') dominant_payer_adj (ref='Commercial') diabetes_history (ref='0') year(ref='2018')
           molecule_name (ref='SEMAGLUTIDE') / param=glm order=internal;
     model ad_event(event='1') = age_cat patient_gender dominant_payer_adj diabetes_history molecule_name year;
 run;
