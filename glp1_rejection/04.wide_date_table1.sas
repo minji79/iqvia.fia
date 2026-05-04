@@ -570,6 +570,50 @@ proc freq data=sample; table first_filled_coupon; run;
 proc freq data=sample; table first_filled_discount_card; run;
 
 
+* 8. indication - obesity;
+data sample; set input.id_index; if molecule_name in ("SEMAGLUTIDE (WEIGHT MANAGEMENT)", "TIRZEPATIDE (WEIGHT MANAGEMENT)"); run;
+proc freq data=sample; table cohort2; run;
+proc freq data=sample; table RJ_reason_adj; run;
+proc sql; 
+    select count(distinct patient_id) as count_filled_with_coupons
+    from sample
+	where cohort2 ="filled at the index attempt" and cash=0 and coupon=0 and discount_card=0;
+quit;
+
+data sample; set sample; if cohort2 ="filled after RJ/RV in 90days"; run;
+proc sql; 
+    select count(distinct patient_id) as count_switching_product
+    from sample
+	where switching_product=1 and cash=0 and coupon=0 and discount_card=0;
+quit;
+proc freq data=sample; table first_filled_cash; run;
+proc freq data=sample; table first_filled_coupon; run;
+proc freq data=sample; table first_filled_discount_card; run;
+
+
+* 9. indication - diabetes;
+data sample; set input.id_index; if molecule_name in ("SEMAGLUTIDE", "TIRZEPATIDE"); run;
+proc freq data=sample; table cohort2; run;
+proc freq data=sample; table RJ_reason_adj; run;
+proc sql; 
+    select count(distinct patient_id) as count_filled_with_coupons
+    from sample
+	where cohort2 ="filled at the index attempt" and cash=0 and coupon=0 and discount_card=0;
+quit;
+
+data sample; set sample; if cohort2 ="filled after RJ/RV in 90days"; run;
+proc sql; 
+    select count(distinct patient_id) as count_switching_product
+    from sample
+	where switching_product=1 and cash=0 and coupon=0 and discount_card=0;
+quit;
+proc freq data=sample; table first_filled_cash; run;
+proc freq data=sample; table first_filled_coupon; run;
+proc freq data=sample; table first_filled_discount_card; run;
+
+
+
+
 /*============================================================*
  | 6. Figure 2 - % of filler / attempter by quarterly
  *============================================================*/
