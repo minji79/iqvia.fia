@@ -573,6 +573,7 @@ proc freq data=sample; table first_filled_discount_card; run;
 /*============================================================*
  | 6. Figure 2 - % of filler / attempter by quarterly
  *============================================================*/
+
 /* total & by payers & by initially ordered products */
 proc contents data=input.id_index; run;
 *quarter indicator;
@@ -607,7 +608,10 @@ proc print data= figure2_wide; run;
 
 
 * filler; 
-data filler; set input.id_index; if not missing(first_filled_date); run;
+data filler; set input.id_index; if cohort2 ne "never filled or filled after 90 days"; run;
+data filler; set input.id_index; if cohort2 ="filled at the index attempt"; run;
+data filler; set input.id_index; if cohort2 ="filled after RJ/RV in 90days"; run;
+
 data filler; set filler; 
 	qtr_indicator = intnx('quarter', first_filled_date, 0, 'beginning');
 	filler =1; 
@@ -635,8 +639,6 @@ proc sql;
     group by qtr_indicator;
 quit;
 
-proc print data=filler_wide; run;
-
 
 *merge; 
 proc sql;
@@ -650,7 +652,6 @@ quit;
 
 data figure2_total; set figure2_total; 
 	pct_filler_total = n_filler_total / n_attempter_total *100; 
-	
 	pct_filler_commercial = n_filler_commercial / n_attempter_commercial *100; 
 	pct_filler_medicare = n_filler_medicare / n_attempter_medicare *100; 
 	pct_filler_medicaid = n_filler_medicaid / n_attempter_medicaid *100; 
@@ -680,6 +681,8 @@ data figure2_total;
     set figure2_total;
     if qtr_indicator = yyq(2025, 3) then delete;
 run;
+
+proc print data=figure2_total; var qtr_indicator pct_filler_total pct_filler_commercial pct_filler_medicare	pct_filler_medicaid pct_filler_exchange pct_filler_sema_dm pct_filler_sema_obesity pct_filler_tirz_dm pct_filler_tirz_obesity; run;
 
 /* figure for total */
 proc sgplot data=figure2_total;
@@ -737,3 +740,149 @@ proc sgplot data=figure2_total;
     xaxis label="Quarter" grid;
     yaxis label="Filled Rate (%)" grid;
 run;
+
+
+/*============================================================*
+ | 6. Figure 2 - % of filler / attempter by quarterly
+ *============================================================*/
+
+/* total & by payers & by initially ordered products */
+proc contents data=input.id_index; run;
+*quarter indicator;
+data figure2; set input.id_index; 
+    qtr_indicator = intnx('quarter', index_rx_dt, 0, 'beginning');
+	attempter =1;
+    format qtr_indicator yyq6.;
+run;
+
+proc sort data=figure2; by year; run;
+proc sql;
+    create table figure2_wide as
+    select year,
+           
+           sum(case when dominant_payer_adj = 'Commercial' then 1 else 0 end) as n_attempter_commercial,
+		   sum(case when dominant_payer_adj = 'Medicare D' then 1 else 0 end) as n_attempter_medicare,
+		   sum(case when dominant_payer_adj = 'Medicaid' then 1 else 0 end) as n_attempter_medicaid,
+           sum(case when dominant_payer_adj = 'Exchange' then 1 else 0 end) as n_attempter_exchange,
+           sum(case when dominant_payer_adj = 'Unclear Insurance' then 1 else 0 end) as n_attempter_unclear,
+
+		   sum(case when molecule_name = "SEMAGLUTIDE" then 1 else 0 end) as n_attempter_sema_dm,
+		   sum(case when molecule_name = "SEMAGLUTIDE (WEIGHT MANAGEMENT)" then 1 else 0 end) as n_attempter_sema_obesity,
+		   sum(case when molecule_name = "TIRZEPATIDE" then 1 else 0 end) as n_attempter_tirz_dm,
+		   sum(case when molecule_name = "TIRZEPATIDE (WEIGHT MANAGEMENT)" then 1 else 0 end) as n_attempter_tirz_obesity,
+		       
+           /* Total for the quarter */
+           count(patient_id) as n_attempter_total
+    from figure2
+    group by year;
+quit;
+proc print data= figure2_wide; run;
+
+
+* filler; 
+data filler; set input.id_index; if cohort2 ne "never filled or filled after 90 days"; run;
+data filler; set input.id_index; if cohort2 ="filled at the index attempt"; run;
+data filler; set input.id_index; if cohort2 ="filled after RJ/RV in 90days"; run;
+
+data filler; set filler; 
+	qtr_indicator = intnx('quarter', first_filled_date, 0, 'beginning');
+	filler =1; 
+	format qtr_indicator yyq6.;
+run;
+
+proc sort data=filler; by year; run;
+proc sql;
+    create table filler_wide as
+    select year,
+           sum(case when dominant_payer_adj = 'Commercial'        then 1 else 0 end) as n_filler_commercial,
+           sum(case when dominant_payer_adj = 'Medicare D'        then 1 else 0 end) as n_filler_medicare,
+           sum(case when dominant_payer_adj = 'Medicaid'          then 1 else 0 end) as n_filler_medicaid,
+           sum(case when dominant_payer_adj = 'Exchange'          then 1 else 0 end) as n_filler_exchange,
+           sum(case when dominant_payer_adj = 'Unclear Insurance' then 1 else 0 end) as n_filler_unclear,
+
+		   sum(case when first_filled_molecule = "SEMAGLUTIDE" then 1 else 0 end) as n_filler_sema_dm,
+		   sum(case when first_filled_molecule = "SEMAGLUTIDE (WEIGHT MANAGEMENT)" then 1 else 0 end) as n_filler_sema_obesity,
+		   sum(case when first_filled_molecule = "TIRZEPATIDE" then 1 else 0 end) as n_filler_tirz_dm,
+		   sum(case when first_filled_molecule = "TIRZEPATIDE (WEIGHT MANAGEMENT)" then 1 else 0 end) as n_filler_tirz_obesity,
+		   
+           /* Total successful fillers in that quarter */
+           count(*) as n_filler_total
+    from filler 
+    group by year;
+quit;
+
+
+*merge; 
+proc sql;
+ 	create table figure2_total as
+	select distinct a.*, b.n_filler_commercial, b.n_filler_medicare, b.n_filler_medicaid, b.n_filler_exchange, b.n_filler_unclear, b.n_filler_total,
+					b.n_filler_sema_dm, b.n_filler_sema_obesity, b.n_filler_tirz_dm, b.n_filler_tirz_obesity
+	from figure2_wide as a
+	left join filler_wide as b
+	on a.year =b.year; 
+quit;
+
+data figure2_total; set figure2_total; 
+	if n_attempter_total > 0 then do;
+		p_total = n_filler_total / n_attempter_total;
+		pct_filler_total = p_total *100; 
+		se_total = sqrt((p_total * (1 - p_total)) / n_attempter_total);
+		total_lcl = max(0, (p_total - 1.96 * se_total) * 100);
+        total_ucl = min(100, (p_total + 1.96 * se_total) * 100);
+	end;
+	pct_filler_commercial = n_filler_commercial / n_attempter_commercial *100; 
+
+	if n_attempter_total > 0 then do;
+		p_medicare = n_filler_medicare / n_attempter_medicare;
+		pct_filler_medicare = p_medicare *100; 
+		se_medicare = sqrt((p_medicare * (1 - p_medicare)) / n_attempter_medicare);
+		medicare_lcl = max(0, (p_medicare - 1.96 * se_medicare) * 100);
+        medicare_ucl = min(100, (p_medicare + 1.96 * se_medicare) * 100);
+	end;
+	
+	pct_filler_medicaid = n_filler_medicaid / n_attempter_medicaid *100; 
+	pct_filler_exchange = n_filler_exchange / n_attempter_exchange *100; 
+	pct_filler_unclear = n_filler_unclear / n_attempter_unclear *100; 
+
+	if n_attempter_sema_dm > 0      then pct_filler_sema_dm      = (n_filler_sema_dm / n_attempter_sema_dm) * 100;
+    else pct_filler_sema_dm = 0; /* Or leave as . if you prefer */
+    
+    if n_attempter_sema_obesity > 0 then pct_filler_sema_obesity = (n_filler_sema_obesity / n_attempter_sema_obesity) * 100;
+    else pct_filler_sema_obesity = 0;
+    
+    if n_attempter_tirz_dm > 0      then pct_filler_tirz_dm      = (n_filler_tirz_dm / n_attempter_tirz_dm) * 100;
+    else pct_filler_tirz_dm = 0;
+    
+    if n_attempter_tirz_obesity > 0 then pct_filler_tirz_obesity = (n_filler_tirz_obesity / n_attempter_tirz_obesity) * 100;
+    else pct_filler_tirz_obesity = 0;
+	
+run;
+
+proc print data=figure2_total; var year pct_filler_total total_lcl total_ucl pct_filler_commercial medicare_lcl medicare_ucl pct_filler_medicare	pct_filler_medicaid pct_filler_exchange pct_filler_sema_dm pct_filler_sema_obesity pct_filler_tirz_dm pct_filler_tirz_obesity; run;
+
+
+proc sgplot data=figure2_total;
+    title "Filled Rate(%) among GLP-1 RA Attempters";
+    
+    /*
+	vbarbasic qtr_indicator / response=n_attempter_total 
+        fillattrs=(color=grey) 
+        legendlabel="Total Attempters"
+        name="bar";
+	*/
+    /* Series line now works because VBARBASIC uses a compatible axis */
+    series x=year y=pct_filler_total / 
+        y2axis 
+        lineattrs=(color=red thickness=3) 
+        markerattrs=(symbol=trianglefilled size=10 color=red)
+        legendlabel="Filled Rate (%)"
+        name="line";
+
+    xaxis label="year" grid valuesrotate=diagonal;
+    yaxis label="Number of Patients (Counts)" grid;
+    y2axis label="Filled Rate (%)" min=0 max=100 grid;
+    
+    keylegend "bar" "line" / location=outside position=bottom;
+run;
+
+
