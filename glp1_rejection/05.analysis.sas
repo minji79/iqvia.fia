@@ -137,7 +137,7 @@ run;
 
 
 /*============================================================*
- | 3. Main analysis -  margins plot with prob of primary adherence (event = primary adherence) at patient level
+ | 3. Main analysis (eTable 4) -  margins plot with prob of primary adherence (event = primary adherence) at patient level
  *============================================================*/
 
 /* outcome = 1. Overall | primary adherence (ad_event=1) */
@@ -147,6 +147,14 @@ data df; set input.id_index; if cohort2 ne "never filled or filled after 90 days
 data df; set input.id_index; if cohort2 ne "never filled or filled after 90 days" then ad_event=1; else ad_event=0; run;
 data df; set df; if dominant_payer_adj ="Commercial"; run;
 
+
+/* 1. Test for a Linear Trend over time */
+proc logistic data=df;
+    model ad_event(event='1') = year;
+    title "Statistical Significance of the Linear Trend in Fill Rates";
+run;
+
+/* 2. change in probability */
 proc logistic data=df;
     class patient_gender(ref='M') age_cat (ref='4') year (ref='2018')
           dominant_payer_adj (ref='Commercial') diabetes_history (ref='1') 
