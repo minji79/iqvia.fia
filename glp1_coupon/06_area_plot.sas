@@ -63,32 +63,132 @@ run;
 
 
 /*============================================================*
- | 2) coupon availability over calender time
+ | 2) coupon availability over calender time - quarterly
  *============================================================*/
 proc print data=coupon.cohort_patient_year_v01 (obs=10); var patient_id year claim_count coupon_count coupon_user; run;
+proc print data=coupon.cohort_patient_year_v01 (obs=10); run;
+
+/* Create quarter indicator */
+data quarterly_patient_base;
+    set coupon.cohort_long_v00;
+
+    if not missing(svc_dt) then 
+        qtr_indicator = intnx('quarter', svc_dt, 0, 'beginning');
+
+    format qtr_indicator yyq6.;
+run;
+
+/* Count total patients and coupon users by quarter */
+proc sql;
+    create table quarterly_patient_counts as
+    select
+        qtr_indicator,
+        count(distinct patient_id) as n_patients,
+        count(distinct case 
+            when coupon = 1 then patient_id 
+        end) as n_coupon_users
+    from quarterly_patient_base
+    where not missing(qtr_indicator)
+    group by qtr_indicator
+    order by qtr_indicator;
+quit;
+
+/* Calculate percentages */
+data quarterly_patient_counts;
+    set quarterly_patient_counts;
+
+    if n_patients > 0 then do;
+        pct_coupon = n_coupon_users / n_patients * 100;
+        pct_non_users = 100 - pct_coupon;
+    end;
+
+    format pct_coupon pct_non_users 6.1;
+run;
+
+proc print data=quarterly_patient_counts; run;
+
+
+
+/*============================================================*
+ | 2) coupon availability over calender time - yearly
+ *============================================================*/
+
+proc sort data=coupon.cohort_long_v01;
+  by patient_id year svc_dt;
+run;
+
+data yearly_patient_counts;
+  set coupon.cohort_long_v01;    
+  by patient_id year;
+
+  if first.year then do;
+    claim_count = 0;
+    primary_coupon_count = 0;
+    secondary_coupon_count = 0;
+    primary_coupon_count_dm = 0;
+    secondary_coupon_count_dm = 0;
+    primary_coupon_count_ob = 0;
+    secondary_coupon_count_ob = 0;
+  end;
+  
+  claim_count + 1;
+  
+  if primary_coupon = 1 then primary_coupon_count + 1;
+  if secondary_coupon = 1 then secondary_coupon_count + 1;
+  
+  if primary_coupon = 1 and molecule_name in ("DULAGLUTIDE", "EXENATIDE", "LIRAGLUTIDE", "LIXISENATIDE", "SEMAGLUTIDE", "TIRZEPATIDE") then primary_coupon_count_dm + 1;
+  if secondary_coupon = 1 and molecule_name in ("DULAGLUTIDE", "EXENATIDE", "LIRAGLUTIDE", "LIXISENATIDE", "SEMAGLUTIDE", "TIRZEPATIDE") then secondary_coupon_count_dm + 1;
+
+  if primary_coupon = 1 and molecule_name in ("LIRAGLUTIDE (WEIGHT MANAGEMENT)", "SEMAGLUTIDE (WEIGHT MANAGEMENT)", "TIRZEPATIDE (WEIGHT MANAGEMENT)") then primary_coupon_count_ob + 1;
+  if secondary_coupon = 1 and molecule_name in ("LIRAGLUTIDE (WEIGHT MANAGEMENT)", "SEMAGLUTIDE (WEIGHT MANAGEMENT)", "TIRZEPATIDE (WEIGHT MANAGEMENT)") then secondary_coupon_count_ob + 1;
+  
+  if last.year then do;
+    output;
+  end;
+run;
+proc print data=yearly_patient_counts (obs=20); var patient_id year claim_count primary_coupon_count secondary_coupon_count primary_coupon_count_dm secondary_coupon_count_dm primary_coupon_count_ob secondary_coupon_count_ob; run;
+
+data yearly_patient_counts; set yearly_patient_counts; 
+ coupon_count = primary_coupon_count + secondary_coupon_count; 
+ coupon_count_dm = primary_coupon_count_dm + secondary_coupon_count_dm; 
+ coupon_count_ob = primary_coupon_count_ob + secondary_coupon_count_ob; 
+run;
+
 
 proc sql;
-  create table yearly_patient_counts as
+  create table yearly_patient_summary as
   select
       year,
       count(distinct patient_id) as n_patients,
-      count(distinct case when coupon_user=1 then patient_id end) as n_coupon_users
-  from coupon.cohort_patient_year_v01
+      count(distinct case when coupon_count ne 0 then patient_id end) as n_coupon_users,
+      count(distinct case when coupon_count_dm ne 0 then patient_id end) as n_coupon_dm_users,
+      count(distinct case when coupon_count_ob ne 0 then patient_id end) as n_coupon_ob_users,
+      count(distinct case when primary_coupon_count ne 0 then patient_id end) as n_primary_coupon_users,
+      count(distinct case when secondary_coupon_count ne 0 then patient_id end) as n_secondary_coupon_users
+  from yearly_patient_counts
   group by year
   order by year;
 quit;
-proc print data=yearly_patient_counts (obs=20); run;
 
-data yearly_patient_counts; set yearly_patient_counts; 
+data yearly_patient_summary; set yearly_patient_summary;
   pct_coupon = n_coupon_users / n_patients * 100;  
+  pct_primary_coupon = n_primary_coupon_users / n_patients * 100;  
+  pct_secondary_coupon = n_secondary_coupon_users / n_patients * 100; 
+  pct_coupon_dm = n_coupon_dm_users / n_patients * 100; 
+  pct_coupon_ob = n_coupon_ob_users / n_patients * 100; 
 run;
 
-data yearly_patient_counts; set yearly_patient_counts; 
+data yearly_patient_summary; set yearly_patient_summary;
   pct_non_users = 100 - pct_coupon;  
 run;
+proc print data=yearly_patient_summary (obs=20); run;
 
+
+
+/* overall */
 data coupon_plot_data;
-    set yearly_patient_counts;
+    set yearly_patient_summary;
+    pct_coupon = pct_coupon;
     p = pct_coupon / 100;
     n = n_patients;
     
@@ -113,14 +213,129 @@ proc sgplot data=coupon_plot_data;
     series x=year y=pct_coupon / 
            lineattrs=(color=blue thickness=2) 
            markers markerattrs=(symbol=circlefilled) 
-           legendlabel="Coupon Users (%)" name="line";
+           legendlabel="Coupon Users among GLP-1 users (%)" name="line";
            
     /* Formatting axes */
-    xaxis label="Year" grid values=(2018 to 2024 by 1);
-    yaxis label="Coupon Users (%)" grid min=0 max=15;
+    xaxis label="Year" values=(2018 to 2024 by 1);
+    yaxis label="Coupon Users (%)" min=0 max=15;
     
     keylegend "line" "band" / location=outside position=bottom;
 run;
 
-/* Optional: Reset graphics to default settings afterward */
-ods graphics / reset;
+
+
+/* by primary & secondary */
+data coupon_plot_data;
+    set yearly_patient_summary;
+    pct_primary_coupon = pct_primary_coupon;
+    p1 = pct_primary_coupon / 100;
+    pct_secondary_coupon = pct_secondary_coupon;
+    p2 = pct_secondary_coupon / 100;
+    n = n_patients;
+    
+    /* Calculate Standard Error */
+    stderr_1 = sqrt((p1 * (1 - p1)) / n);
+    stderr_2 = sqrt((p2 * (1 - p2)) / n);
+    
+    /* Calculate 95% CI Lower and Upper bounds */
+    lower_ci_1 = max(0, (p1 - 1.96 * stderr_1) * 100);
+    upper_ci_1 = min(100, (p1 + 1.96 * stderr_1) * 100);
+    lower_ci_2 = max(0, (p2 - 1.96 * stderr_2) * 100);
+    upper_ci_2 = min(100, (p2 + 1.96 * stderr_2) * 100);
+run;
+proc print data=coupon_plot_data (obs=20); run;
+
+data coupon_plot_long;
+    length coupon_type $30;
+    set coupon_plot_data;
+
+    coupon_type = "Free Trial Coupon";
+    pct = pct_primary_coupon;
+    output;
+
+    coupon_type = "Copay Coupon";
+    pct = pct_secondary_coupon;
+    output;
+run;
+
+proc sgplot data=coupon_plot_long;
+    title "Coupon Users Among GLP-1 Users";
+    styleattrs datacontrastcolors=(blue red);
+
+    series x=year y=pct /
+        group=coupon_type
+        markers
+        lineattrs=(thickness=2)
+        markerattrs=(size=8);
+
+    xaxis
+        label="Year"
+        values=(2018 to 2024 by 1);
+
+    yaxis
+        label="Coupon Users (%)"
+        min=0
+        max=15;
+
+    keylegend / title=""  location=outside position=bottom;
+run;
+
+
+/* by indications */
+data coupon_plot_data;
+    set yearly_patient_summary;
+    pct_coupon_dm = pct_coupon_dm;
+    p1 = pct_coupon_dm / 100;
+    pct_coupon_ob = pct_coupon_ob;
+    p2 = pct_coupon_ob / 100;
+    n = n_patients;
+    
+    /* Calculate Standard Error */
+    stderr_1 = sqrt((p1 * (1 - p1)) / n);
+    stderr_2 = sqrt((p2 * (1 - p2)) / n);
+    
+    /* Calculate 95% CI Lower and Upper bounds */
+    lower_ci_1 = max(0, (p1 - 1.96 * stderr_1) * 100);
+    upper_ci_1 = min(100, (p1 + 1.96 * stderr_1) * 100);
+    lower_ci_2 = max(0, (p2 - 1.96 * stderr_2) * 100);
+    upper_ci_2 = min(100, (p2 + 1.96 * stderr_2) * 100);
+run;
+proc print data=coupon_plot_data (obs=20); run;
+
+data coupon_plot_long;
+    length coupon_type $30;
+    set coupon_plot_data;
+
+    coupon_type = "Coupon use for diabete-labeled GLP-1s";
+    pct = pct_coupon_dm;
+    output;
+
+    coupon_type = "Coupon use for obesity-labeled GLP-1s";
+    pct = pct_coupon_ob;
+    output;
+run;
+
+proc sgplot data=coupon_plot_long;
+    title "Coupon Users Among GLP-1 Users";
+     styleattrs datacontrastcolors=(orange green);
+
+    series x=year y=pct /
+        group=coupon_type
+        markers
+        lineattrs=(thickness=2)
+        markerattrs=(size=8);
+
+    xaxis
+        label="Year"
+        values=(2018 to 2024 by 1);
+
+    yaxis
+        label="Coupon Users (%)"
+        min=0
+        max=15;
+
+    keylegend / title=""  location=outside position=bottom;
+run;
+
+
+
