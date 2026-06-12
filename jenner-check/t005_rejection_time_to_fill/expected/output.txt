@@ -1,0 +1,79 @@
+
+  Obs  PATIENT_ID  RX_WRITTEN_DT  INDEX_DATE  RX_TO_INDEX_DAYS
+-----  ----------  -------------  ----------  ----------------
+    1        4007     2022-07-10  07/11/2022                 1
+
+                                                   The FREQ Procedure
+
+                                                          Cumulative    Cumulative
+cohort4                         Frequency    Percent     Frequency      Percent
+-------------------------------------------------------------------------------------
+filled after RV/RJ in 90days            9     90.00            9        90.00
+filled at index date                    1     10.00           10       100.00
+                                                  The MEANS Procedure
+
+ Variable                N   N Miss         Median   Lower Quartile   Upper Quartile        Minimum        Maximum
+ -----------------------------------------------------------------------------------------------------------------
+ rx_to_index_days        9        0     15.0000000        3.5000000       45.5000000      2.0000000     50.0000000
+ -----------------------------------------------------------------------------------------------------------------
+
+filled_in_6days  filled_in_7_to_30days  filled_after_30days
+---------------  ---------------------  -------------------
+              3                      3                    3
+                                                The UNIVARIATE Procedure
+                                              Variable:  rx_to_index_days
+
+                                                        Moments
+
+N                                  9    Sum Weights                        9
+Mean                       21.888889    Sum Observations          197.000000
+Std Deviation              20.071400    Variance                  402.861111
+Skewness                    0.501807    Kurtosis                   -1.809652
+Uncorrected SS           7535.000000    Corrected SS             3222.888889
+Coeff Variation            91.696753    Std Error Mean              6.690467
+
+          Basic Statistical Measures          
+
+Location             Variability              
+--------  ---------  -------------  ----------
+Mean      21.888889  Std Deviation   20.071400
+Median    15.000000  Variance       402.861111
+Mode       2.000000  Range           48.000000
+
+Quantiles (Definition 5)
+
+Quantile     Estimate
+----------  ---------
+0% Min       2.000000
+1%           2.000000
+5%           2.000000
+10%          2.000000
+25% Q1       4.000000
+50% Median  15.000000
+75% Q3      45.000000
+90%         50.000000
+95%         50.000000
+99%         50.000000
+100% Max    50.000000
+
+          Extreme Observations          
+
+Lowest               Highest            
+--------  ---------  --------  ---------
+Value      2.000000  Value     15.000000
+Value      3.000000  Value     24.000000
+Value      4.000000  Value     45.000000
+Value      8.000000  Value     46.000000
+Value     15.000000  Value     50.000000
+
+
+
+
+         Tests for Location          
+
+Test                Statistic   p Value
+------------------  ---------  --------
+Student's t         3.271653477  0.011328186
+Sign                      4.5  0.00390625
+Signed Rank                45  0.007685883
+

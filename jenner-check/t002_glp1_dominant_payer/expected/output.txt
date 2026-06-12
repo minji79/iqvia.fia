@@ -1,0 +1,33 @@
+
+  Obs  PATIENT_ID  YEAR      DOMINANT_PAYER
+-----  ----------  ----  ------------------
+    1        1001  2019  Commercial
+    2        1001  2020  Commercial
+    3        1002  2019  Medicare Advantage
+    4        1003  2020  Medicaid
+    5        1006  2020  Commercial
+
+                                                   The FREQ Procedure
+
+                                                Cumulative    Cumulative
+dominant_payer        Frequency    Percent     Frequency      Percent
+---------------------------------------------------------------------------
+Cash                          1     12.50            1        12.50
+Commercial                    3     37.50            4        50.00
+Medicaid                      1     12.50            5        62.50
+Medicare Advantage            1     12.50            6        75.00
+Unclear Insurance             2     25.00            8       100.00
+
+  Obs      PAYER_TYPE      DOMINANT_PAYER
+-----  --------------  ------------------
+    1  Commercial      Commercial
+    2  Commercial      Commercial
+    3  Medicare D: TM  Medicare Advantage
+    4  Medicaid: MCO   Medicaid
+    5  Commercial      Commercial
+    6  Medicare D: TM  Unclear Insurance
+    7  Commercial      Unclear Insurance
+    8  Cash            Cash
+
+No observations in dataset.
+

@@ -1,0 +1,8 @@
+{
+  "bundle": "t001_glp1_area_plot",
+  "source_file": "glp1/11_area_plot.sas",
+  "source_blob_sha": "adc0b41d4db19e59b29ac76ab25537ad977f4df7",
+  "source_commit": "5ba17b32cab6d1eaa27291b1584d6c99d70da5d4",
+  "tier": "mock_data",
+  "notes": "Stacked area plot of adalimumab claim counts by month/category. Kept the SQL aggregation, YYYYMM->SAS-date conversion (input/put/yymmn6.), retain-based cumulative stacking, and PROC SGPLOT BAND exactly as authored; supplied a 26-row mock claim sample via autoexec (input.adalimumab_claim_v0) since the live data is the JHU-hosted IQVIA FIA RxFact extract."
+}

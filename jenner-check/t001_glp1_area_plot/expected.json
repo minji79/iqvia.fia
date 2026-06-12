@@ -1,0 +1,20 @@
+{
+  "_captured_at": "2026-06-12T19:25:35Z",
+  "_captured_run_id": "r_019ebd4b2d5a718094db8c23088d1c92",
+  "status": "ok",
+  "exit_code": 0,
+  "log_contains": [
+    "NOTE: Read 17 rows from counts.",
+    "NOTE: Wrote counts_d (17 rows, 4 columns).",
+    "NOTE: Wrote cum (17 rows, 6 columns).",
+    "NOTE: PROC SGPLOT output written to: ./ods_output/sgplot.svg"
+  ],
+  "log_does_not_contain": [
+    "ERROR:",
+    "[JENNER-ERROR"
+  ],
+  "diagnostics": {
+    "parse_warnings": [],
+    "runtime_warnings": []
+  }
+}

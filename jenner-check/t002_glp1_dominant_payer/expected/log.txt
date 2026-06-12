@@ -1,0 +1,46 @@
+Jenner 0.1.0 (Unlicensed - limited to 100 observations)
+Get a license at https://jenneranalytics.com/license
+
+NOTE: Option OBS changed to 100.
+NOTE: Library INPUT assigned path=input.
+NOTE: DATA input.rx18_24_glp1_long_v00
+
+NOTE: Processing inline DATALINES (8 lines)
+
+NOTE: Read 8 rows from DATALINES.
+NOTE: Wrote input.rx18_24_glp1_long_v00 (8 rows, 5 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: DATA input.joe_plan_mapping
+
+NOTE: Processing inline DATALINES (5 lines)
+
+NOTE: Read 5 rows from DATALINES.
+NOTE: Wrote input.joe_plan_mapping (5 rows, 3 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC PRINT data=input.joe_plan_mapping
+
+NOTE: PROC PRINT completed: 5 observations printed, 3 variables
+NOTE: PROC SQL 
+
+NOTE: Table rx18_24_glp1_long_v00 created.
+NOTE: PROC SQL statement used.
+NOTE: DATA rx18_24_glp1_long_v00
+
+
+NOTE: Read 8 rows from rx18_24_glp1_long_v00.
+NOTE: Wrote rx18_24_glp1_long_v00 (8 rows, 6 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC FREQ
+NOTE: ODS plot written: freq_dominant_payer.spec.json
+NOTE: PROC FREQ statement used.
+NOTE: PROC PRINT data=rx18_24_glp1_long_v00
+
+NOTE: PROC PRINT completed: 8 observations printed, 2 variables
+NOTE: PROC PRINT data=rx18_24_glp1_long_v00
+

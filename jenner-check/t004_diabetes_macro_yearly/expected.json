@@ -1,0 +1,18 @@
+{
+  "_captured_at": "2026-06-12T19:29:27Z",
+  "_captured_run_id": "r_019ebd4f241171308ef37336ed892c5b",
+  "status": "ok",
+  "exit_code": 0,
+  "log_contains": [
+    "NOTE: Wrote input.rx_diabetes_med (8 rows, 10 columns).",
+    "NOTE: PROC FREQ statement used."
+  ],
+  "log_does_not_contain": [
+    "ERROR:",
+    "[JENNER-ERROR"
+  ],
+  "diagnostics": {
+    "parse_warnings": [],
+    "runtime_warnings": []
+  }
+}

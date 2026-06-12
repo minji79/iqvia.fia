@@ -1,0 +1,43 @@
+Jenner 0.1.0 (Unlicensed - limited to 100 observations)
+Get a license at https://jenneranalytics.com/license
+
+NOTE: Option OBS changed to 100.
+NOTE: Library INPUT assigned path=input.
+NOTE: DATA input.adalimumab_claim_v0
+
+NOTE: Processing inline DATALINES (26 lines)
+
+NOTE: Read 26 rows from DATALINES.
+NOTE: Wrote input.adalimumab_claim_v0 (26 rows, 2 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC SQL 
+
+NOTE: Table counts created.
+NOTE: PROC SQL statement used.
+NOTE: DATA counts_d
+
+
+NOTE: Read 17 rows from counts.
+NOTE: Wrote counts_d (17 rows, 4 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC SORT data=counts_d
+
+NOTE: Unlicensed mode - input limited to 100 observations.
+NOTE: Read 17 rows from counts_d.
+NOTE: Wrote counts_d (17 rows, 4 columns).
+NOTE: PROC SORT statement used.
+NOTE: DATA cum
+
+
+NOTE: Read 17 rows from counts_d.
+NOTE: Wrote cum (17 rows, 6 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC SGPLOT data=cum
+
+NOTE: PROC SGPLOT output written to: ./ods_output/sgplot.svg

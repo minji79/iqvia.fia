@@ -1,0 +1,8 @@
+{
+  "bundle": "t003_glp1_final_claim",
+  "source_file": "glp1/07_final_claim.sas",
+  "source_blob_sha": "7b1b755db7e3f063268fa7fc58fd7e871ddfc159",
+  "source_commit": "5ba17b32cab6d1eaa27291b1584d6c99d70da5d4",
+  "tier": "mock_data",
+  "notes": "Per-patient final claim selection: PROC SQL IN(subquery) cohort split on a patient-level discontinuation flag, descending sort by svc_dt, svc_dt<=disc_date restriction, and first.patient_id last-claim pick, then pooled. Logic kept verbatim; small key-aligned mock claims + patient tables supplied via autoexec in place of the JHU IQVIA FIA long-claims and derived patient files."
+}
