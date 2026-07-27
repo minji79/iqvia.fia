@@ -1,6 +1,10 @@
 00
 00
 
+
+
+
+/* main analysis */
 proc print data=input.id_index (obs=5); var patient_id index_svc_dt RJ_reason_adj dominant_payer payer_name payer_id plan_name plan_id; run;
 proc contents data=input.id_index; run;
 
