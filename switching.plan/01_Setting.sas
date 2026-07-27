@@ -90,12 +90,24 @@ proc sort data=switch.jama_published_cohort_2000347; by patient_id i_molecule_id
 proc print data=switch.jama_published_cohort_2000347 (obs=20); run;
 proc contents data=switch.jama_published_cohort_2000347; run;
 
-proc print data=input.dominant_payer_cleaned (obs=10); run;
-
+proc print data=input.joe_plan_mapping (obs=10); run;
+proc means data=switch.jama_published_cohort_2000347 n nmiss min max; var patient_id; run; /* 2018-2024 */
 
 /* Merge with the dominant payer file */
 proc freq data=switch.jama_published_cohort_2000347; table year; run; /* 2018-2024 */
-proc means data=switch.jama_published_cohort_2000347 n nmiss min max; var patient_id; run; /* 2018-2024 */
+proc means data=input.dominant_payer_cleaned n nmiss min max; var plan_id; run; /* 2018-2024 */
+
+data switch.jama_published_cohort_2000347;
+    /* 1. Rename the incoming character variable */
+    set switch.jama_published_cohort_2000347(rename=(share_paid_claims_this_plan = share_paid_char));
+    
+    /* 2. Convert to numeric using best18. (use ?? to suppress warnings if non-numeric values exist) */
+    share_paid_claims_this_plan = input(share_paid_char, ?? best18.);
+    
+    /* 3. Drop the temporary character column */
+    drop share_paid_char;
+run;
+proc means data=switch.jama_published_cohort_2000347 n nmiss min max; var share_paid_claims_this_plan; run; /* 2018-2024 */
 
 proc sql;
   create table switch.jama_published_cohort_cleaned as
@@ -122,7 +134,7 @@ data switch.jama_published_cohort_cleaned;
     else if next_dominant_plan_id = plan_id then switching = 0; 
     else switching = 1; 
 run;
-
+proc print data=switch.jama_published_cohort_cleaned (obs=10); run;
 proc print data=switch.jama_published_cohort_cleaned (obs=10); var patient_id i_molecule_id plan_id dominant_plan_id next_dominant_plan_id switching; where patient_id ne 0; run;
 
 /* probability of switching */
