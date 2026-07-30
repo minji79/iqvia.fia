@@ -279,3 +279,20 @@ run;
 
 * 1. from the scratch dataset - sort by plan_id year - count all claims with adjudication status; 
 * 2. : 
+
+
+/* select patient_id */
+proc print data=switch.jama_published_cohort_2000347 (obs=10); run;
+proc print data=switch.jama_published_cohort_cleaned (obs=10); run;
+proc freq data=switch.jama_published_cohort_2000347; table dominant_payer; run;
+
+proc means data=input.joe_plan_mapping n nmiss min max; var plan_id; run;
+proc means data=biosim.insurance_patient_year25 n nmiss min max; var plan_id; run;
+
+data sample; set biosim.insurance_patient_year25; if missing(plan_id); run;
+proc freq data=sample; table dominant_payer; run;
+proc print data=biosim.insurance_patient_year25 (obs=10); where missing(dominant_payer); run;
+
+data sample; set switch.jama_published_cohort_cleaned; if missing(dominant_plan_id); run;
+proc freq data=sample; table dominant_payer; run;
+proc print data=switch.jama_published_cohort_cleaned (obs=10); where dominant_payer
