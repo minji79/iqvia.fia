@@ -110,6 +110,15 @@ run;
 proc means data=switch.jama_published_cohort_2000347 n nmiss min max; var share_paid_claims_this_plan; run; /* 2018-2024 */
 
 proc sql;
+  create table sample as
+  select distinct a.*, b.plan_id as dominant_plan_id
+  from switch.jama_published_cohort_2000347 as a
+  left join input.joe_plan_mapping as b
+	on a.patient_id = b.patient_id and a.year=b.year;
+quit; 
+proc means data=sample n nmiss min max; var dominant_plan_id; run;
+
+proc sql;
   create table switch.jama_published_cohort_cleaned as
   select distinct a.*, b.plan_id as dominant_plan_id
   from switch.jama_published_cohort_2000347 as a
