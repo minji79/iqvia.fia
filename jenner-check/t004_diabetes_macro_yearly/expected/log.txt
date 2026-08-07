@@ -1,0 +1,97 @@
+Jenner 0.1.0 (Unlicensed - limited to 100 observations)
+Get a license at https://jenneranalytics.com/license
+
+NOTE: Option OBS changed to 100.
+NOTE: Library INPUT assigned path=input.
+NOTE: Library BIOSIM assigned path=input.
+NOTE: DATA input.id
+
+NOTE: Processing inline DATALINES (3 lines)
+
+NOTE: Read 3 rows from DATALINES.
+NOTE: Wrote input.id (3 rows, 2 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: DATA biosim.rxfact2020
+
+NOTE: Processing inline DATALINES (5 lines)
+
+NOTE: Read 5 rows from DATALINES.
+NOTE: Wrote biosim.rxfact2020 (5 rows, 4 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: DATA biosim.rxfact2018
+
+NOTE: Processing inline DATALINES (3 lines)
+
+NOTE: Read 3 rows from DATALINES.
+NOTE: Wrote biosim.rxfact2018 (3 rows, 4 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: DATA biosim.product
+
+NOTE: Processing inline DATALINES (4 lines)
+
+NOTE: Read 4 rows from DATALINES.
+NOTE: Wrote biosim.product (4 rows, 6 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC SQL 
+
+NOTE: Table rx_20_diabetes_med created.
+NOTE: PROC SQL statement used.
+NOTE: PROC SQL 
+
+NOTE: Table rx_18_diabetes_med created.
+NOTE: PROC SQL statement used.
+NOTE: DATA input.rx_all_med
+
+
+NOTE: Read 5 rows from rx_20_diabetes_med.
+NOTE: Read 9 rows from rx_18_diabetes_med.
+NOTE: Wrote input.rx_all_med (9 rows, 5 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC SORT data=input.rx_all_med
+
+NOTE: Unlicensed mode - input limited to 100 observations.
+NOTE: Read 9 rows from input.rx_all_med.
+NOTE: Wrote input.rx_all_med (9 rows, 5 columns).
+NOTE: PROC SORT statement used.
+NOTE: PROC SQL 
+
+NOTE: Table input.rx_all_med created.
+NOTE: PROC SQL statement used.
+NOTE: DATA rx_diabetes_med
+
+
+NOTE: Read 9 rows from input.rx_all_med.
+NOTE: Wrote rx_diabetes_med (8 rows, 10 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: DATA input.rx_diabetes_med
+
+
+NOTE: Read 8 rows from rx_diabetes_med.
+NOTE: Wrote input.rx_diabetes_med (8 rows, 10 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC SORT data=input.rx_diabetes_med
+
+NOTE: Unlicensed mode - input limited to 100 observations.
+NOTE: Read 8 rows from input.rx_diabetes_med.
+NOTE: Wrote input.rx_diabetes_med (8 rows, 10 columns).
+NOTE: PROC SORT statement used.
+NOTE: PROC PRINT data=input.rx_diabetes_med
+
+NOTE: PROC PRINT completed: 8 observations printed, 7 variables
+NOTE: PROC FREQ
+NOTE: ODS plot written: freq_molecule_name.spec.json
+NOTE: PROC FREQ statement used.

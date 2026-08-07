@@ -1,0 +1,8 @@
+{
+  "bundle": "t004_diabetes_macro_yearly",
+  "source_file": "glp1/04_identify_diabetes.sas",
+  "source_blob_sha": "0e7f1a4da11366330d990628e20f823bcd9251f6",
+  "source_commit": "5ba17b32cab6d1eaa27291b1584d6c99d70da5d4",
+  "tier": "mock_data",
+  "notes": "Exercises the repo %yearly macro (per-year PROC SQL LEFT JOIN of an index table to a RxFact extract) plus the USC-code logic that merges molecule classes and keeps anti-diabetic claims by usc_3/usc_5. Macro body and USC filter kept verbatim; an index table, two yearly RxFact samples, and a product reference supplied via autoexec in place of the JHU IQVIA FIA RxFact + product files."
+}

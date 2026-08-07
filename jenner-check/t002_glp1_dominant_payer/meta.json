@@ -1,0 +1,8 @@
+{
+  "bundle": "t002_glp1_dominant_payer",
+  "source_file": "glp1/03_dominant_plan_identification.sas",
+  "source_blob_sha": "92e56c0d76ef5b0765ca85955712729293c815df",
+  "source_commit": "5ba17b32cab6d1eaa27291b1584d6c99d70da5d4",
+  "tier": "mock_data",
+  "notes": "Dominant-payer identification: LEFT JOIN of the long GLP-1 claims table to the patient/year plan-mapping table, then a missing()-based recode that backfills dominant_payer from payer_type (or labels Unclear Insurance for secondary-payer rows), summarized by PROC FREQ. Logic kept verbatim; two small key-aligned mock tables supplied via autoexec in place of the JHU IQVIA FIA + plan-mapping files."
+}

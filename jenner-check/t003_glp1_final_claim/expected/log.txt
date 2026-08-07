@@ -1,0 +1,100 @@
+Jenner 0.1.0 (Unlicensed - limited to 100 observations)
+Get a license at https://jenneranalytics.com/license
+
+NOTE: Option OBS changed to 100.
+NOTE: Library INPUT assigned path=input.
+NOTE: DATA input.rx18_24_glp1_long_v01
+
+NOTE: Processing inline DATALINES (10 lines)
+
+NOTE: Read 10 rows from DATALINES.
+NOTE: Wrote input.rx18_24_glp1_long_v01 (10 rows, 9 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: DATA input.patients_v1
+
+NOTE: Processing inline DATALINES (3 lines)
+
+NOTE: Read 3 rows from DATALINES.
+NOTE: Wrote input.patients_v1 (3 rows, 2 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC SORT data=input.rx18_24_glp1_long_v01
+
+NOTE: Unlicensed mode - input limited to 100 observations.
+NOTE: Read 10 rows from input.rx18_24_glp1_long_v01.
+NOTE: Wrote final_claim (10 rows, 9 columns).
+NOTE: PROC SORT statement used.
+NOTE: PROC PRINT data=final_claim
+
+NOTE: PROC PRINT completed: 10 observations printed, 9 variables
+NOTE: PROC SQL 
+
+NOTE: Table final_claim_disc created.
+NOTE: PROC SQL statement used.
+NOTE: PROC SQL 
+
+NOTE: PROC SQL statement used.
+NOTE: PROC SORT data=final_claim_disc
+
+NOTE: Unlicensed mode - input limited to 100 observations.
+NOTE: Read 7 rows from final_claim_disc.
+NOTE: Wrote final_claim_disc (7 rows, 9 columns).
+NOTE: PROC SORT statement used.
+NOTE: DATA final_claim_disc
+
+
+NOTE: Read 7 rows from final_claim_disc.
+NOTE: Wrote final_claim_disc (6 rows, 9 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC PRINT data=final_claim_disc
+
+NOTE: PROC PRINT completed: 6 observations printed, 7 variables
+NOTE: DATA final_claim_disc
+
+
+NOTE: Read 6 rows from final_claim_disc.
+NOTE: Wrote final_claim_disc (2 rows, 9 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC SQL 
+
+NOTE: Table final_claim_non_disc created.
+NOTE: PROC SQL statement used.
+NOTE: PROC SQL 
+
+NOTE: PROC SQL statement used.
+NOTE: PROC SORT data=final_claim_non_disc
+
+NOTE: Unlicensed mode - input limited to 100 observations.
+NOTE: Read 3 rows from final_claim_non_disc.
+NOTE: Wrote final_claim_non_disc (3 rows, 9 columns).
+NOTE: PROC SORT statement used.
+NOTE: PROC PRINT data=final_claim_non_disc
+
+NOTE: PROC PRINT completed: 3 observations printed, 7 variables
+NOTE: DATA final_claim_non_disc
+
+
+NOTE: Read 3 rows from final_claim_non_disc.
+NOTE: Wrote final_claim_non_disc (1 rows, 9 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: DATA input.final_claims
+
+
+NOTE: Read 2 rows from final_claim_disc.
+NOTE: Read 3 rows from final_claim_non_disc.
+NOTE: Wrote input.final_claims (3 rows, 9 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC PRINT data=input.final_claims
+
+NOTE: PROC PRINT completed: 3 observations printed, 4 variables

@@ -1,0 +1,8 @@
+{
+  "bundle": "t005_rejection_time_to_fill",
+  "source_file": "glp1_rejection/05.analysis.sas",
+  "source_blob_sha": "db37c827d889982952229d433edf469cd2fcc7ff",
+  "source_commit": "5ba17b32cab6d1eaa27291b1584d6c99d70da5d4",
+  "tier": "mock_data",
+  "notes": "Time-to-fill validity check: rx_to_index_days = index_date - rx_written_dt, summarized with PROC MEANS (n/median/q1/q3/min/max), a PROC SQL CASE bucketing into <=6 / 7-30 / >30 day windows, and a PROC UNIVARIATE histogram. Logic kept verbatim; a small id_index sample supplied via autoexec in place of the JHU IQVIA FIA-derived id_index table."
+}

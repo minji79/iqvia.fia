@@ -1,0 +1,18 @@
+{
+  "_captured_at": "2026-06-12T19:30:39Z",
+  "_captured_run_id": "r_019ebd503b567981adc212e2d4becd8f",
+  "status": "ok",
+  "exit_code": 0,
+  "log_contains": [
+    "NOTE: Wrote df2 (9 rows, 5 columns).",
+    "NOTE: PROC MEANS statement used."
+  ],
+  "log_does_not_contain": [
+    "ERROR:",
+    "[JENNER-ERROR"
+  ],
+  "diagnostics": {
+    "parse_warnings": [],
+    "runtime_warnings": []
+  }
+}
