@@ -68,7 +68,47 @@ data sample; set switch.cohort_1570729; if dominant_payer="Medicaid: FFS"; run;
 data sample; set switch.cohort_1570729; if dominant_payer="Medicaid: MCO"; run;
 proc freq data=sample; table switching_v2*table1_outcomes /norow nopercent; run;
 
+/* ====================================================================
+   Test - check individual-level missingness
+   ==================================================================== */
 
+data test;
+    set switch.jama_published_cohort_cleaned;
+	length switching_v0 $100.;
+    if year >= last_year_fia then switching_v0 = "leave FIA network"; 
+    else if missing(dominant_plan_id) then switching_v0 = "missing in dominant_plan_id";
+	else if missing(next_dominant_plan_id) then switching_v0 = "missing in next_dominant_plan_id";
+    else if next_dominant_plan_id = dominant_plan_id then switching_v0 = "remained in the same plan_id"; 
+    else switching_v0 = "switching"; 
+run;
+proc freq data=test; table switching_v0; run;
+
+proc print data=switch.jama_published_cohort_cleaned (obs=5); run;
+
+* among Commercial;
+proc print data=test (obs=20); where dominant_payer="Commercial" and switching_v0 = "missing in dominant_plan_id" and year=2023; var patient_id model_type_name plan_name plan_id dominant_plan_id dominant_payer n_claimsPD year; run;
+data switch.sample_commercial; set input.RxFact_2018_2024_ili; where patient_id = 34692934323; run;
+proc print data=switch.sample_commercial; var patient_id svc_dt payer_id plan_id; run; 
+
+* among Medicare D: TM;
+proc print data=test (obs=20); where dominant_payer="Medicare D: TM" and switching_v0 = "missing in dominant_plan_id" and year=2023; var patient_id model_type_name plan_name plan_id dominant_plan_id dominant_payer n_claimsPD year; run;
+
+* among Medicare D: ADV;
+proc print data=test (obs=20); where dominant_payer="Medicare D: ADV" and switching_v0 = "missing in dominant_plan_id" and year=2023; var patient_id model_type_name plan_name plan_id dominant_plan_id dominant_payer n_claimsPD year; run;
+
+* among Medicaid: FFS;
+proc print data=test (obs=20); where dominant_payer="Medicaid: FFS" and switching_v0 = "missing in dominant_plan_id" and year=2023; var patient_id model_type_name plan_name plan_id dominant_plan_id dominant_payer n_claimsPD year; run;
+
+* among Medicaid: MCO;
+proc print data=test (obs=20); where dominant_payer="Medicaid: MCO" and switching_v0 = "missing in dominant_plan_id" and year=2023; var patient_id model_type_name plan_name plan_id dominant_plan_id dominant_payer n_claimsPD year; run;
+
+
+
+
+/* ====================================================================
+   Figure - three dots per payer
+   ==================================================================== */
+   
 /* 1. Create Sample Dataset Structure */
 data plot_data;
     length insurer $20 status $25;
@@ -131,18 +171,24 @@ proc sgplot data=plot_data noborder;
 run;
 
 
-
-/* heatmap */
-/* by initial payer */
+/* ====================================================================
+   Figure - heatmap by the initial payer
+   ==================================================================== */
 data sample; set switch.cohort_1570729; if dominant_payer="Commercial"; run;
 data sample; set switch.cohort_1570729; if dominant_payer="Exchange"; run;
-data sample; set switch.cohort_1570729; if dominant_payer="Medicare D: TM" and switching_v2 =1;; run;
+data sample; set switch.cohort_1570729; if dominant_payer="Medicare D: TM" and switching_v2 =1; run;
 data sample; set switch.cohort_1570729; if dominant_payer="Medicare D: ADV"; run;
 data sample; set switch.cohort_1570729; if dominant_payer="Medicaid: FFS"; run;
 data sample; set switch.cohort_1570729; if dominant_payer="Medicaid: MCO"; run;
 
-data sample; set switch.cohort_1570729; if dominant_payer="Medicare D: TM" and switching_v2 =1;; run;
-proc freq data=sample; table switching_v2*next_dominant_payer /nocol nopercent; run;
+data sample; set switch.cohort_1570729; if dominant_payer="Medicare D: TM"; run;
+proc freq data=sample; table switching_v2*≈ /nocol nopercent; run;
+
+proc print data=sample (obs=10); where next_dominant_payer="Commercial" and switching_v2 =0; run;
+
+
+proc print data=input.joe_plan_mapping; where year = 2021 and patient_id = 95724747652; run; /* it should be */
+
 
 /* ====================================================================
    STEP 1: Create Data with a Blank Separator Column (" ")
