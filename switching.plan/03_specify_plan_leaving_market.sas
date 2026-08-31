@@ -4,7 +4,7 @@ proc contents data=biosim.RxFact2025_clean; run;
 
 
 /* ====================================================================
-  1. make dataset
+  1-1. make dataset
    ==================================================================== */
    
 proc sort data=biosim.RxFact2025_clean; by plan_id year patient_id; run;
@@ -63,6 +63,141 @@ data plan_level_1;
 run;
 data input.plan_level_exit; set plan_level_1 plan_level_2; run;
 proc print data= input.plan_level_exit(obs=15); where not missing(plan_id); run;
+
+
+/* ====================================================================
+  1-2. make dataset - identify top 5 dominant payer information
+   ==================================================================== */
+* make plan_id - year - patient_id dataset;
+proc sort data=biosim.RxFact2025_clean 
+          out=df_25(keep=plan_id year patient_id) 
+          nodupkey;
+    by plan_id year patient_id;
+run;
+proc sort data=input.RxFact_2018_2024_ili
+          out=df_1724(keep=plan_id year patient_id) 
+          nodupkey;
+    by plan_id year patient_id;
+run;
+data input.plan_yr_ind; set df_1724 df_25; run;
+proc print data= input.plan_yr_ind (obs=15);where not missing(plan_id); run;
+
+* merge with donimant payer files;
+data input.plan_yr_ind; set plan_yr_ind; drop dominant_plan_id dominant_plan_name total_paid_claims; run;
+proc sql;
+  create table input.plan_yr_ind as
+  select distinct a.*, b.dominant_payer, b.plan_id as dominant_plan_id, b.plan_name as dominant_plan_name, b.total_paid_claims
+  from input.plan_yr_ind as a
+  left join biosim.dominant_pyr_1725 as b
+	on a.patient_id = b.patient_id and a.year = b.year;
+quit; 
+proc print data= input.plan_yr_ind (obs=15); where not missing(plan_id); run;
+
+proc freq data=input.plan_yr_ind; tables dominant_plan_id / missing; run;
+proc sql;
+    select 
+        count(*) as total_rows,
+        sum(case when missing(dominant_payer) then 1 else 0 end) as n_missing,
+        calculated n_missing / count(*) as pct_missing format=percent8.2
+    from input.plan_yr_ind;
+quit;
+
+/* top 3 dominant_payer by plan_id year level */
+proc sort data=input.plan_yr_ind; by plan_id year; run;
+
+data plan_yr_dmpyr;
+  set input.plan_yr_ind;
+  by plan_id year;
+  retain n_patients n_Commercial n_Exchange n_Medicaid_FFS n_Medicaid_MCO n_Medicaid_unsp n_Medicare_TM n_Medicare_ADV n_Medicare_unsp n_PPO_HMO n_State_Fed n_missing;
+  
+  if first.year then do;
+	  n_patients = 0;
+	  n_Commercial =0;
+	  n_Exchange =0;
+	  n_Medicaid_FFS =0;
+	  n_Medicaid_MCO =0;
+	  n_Medicaid_unsp =0;
+	  n_Medicare_TM =0;
+	  n_Medicare_ADV =0;
+	  n_Medicare_unsp =0;
+	  n_PPO_HMO =0;
+	  n_State_Fed =0;
+	  n_missing =0;
+   
+  end;
+  
+  n_patients + 1;
+
+  if dominant_payer = 'Commercial' then n_Commercial + 1;
+    else if dominant_payer = 'Exchange' then n_Exchange + 1;
+    else if dominant_payer = 'Medicaid: FFS' then n_Medicaid_FFS + 1;
+	else if dominant_payer = 'Medicaid: MCO' then n_Medicaid_MCO + 1;
+	else if dominant_payer = 'Medicaid: Unspec' then n_Medicaid_unsp + 1;
+	else if dominant_payer = 'Medicaid: FFS' then n_Medicaid_FFS + 1;
+	else if dominant_payer = 'Medicare D: ADV' then n_Medicare_ADV + 1;
+	else if dominant_payer = 'Medicare D: TM' then n_Medicare_TM + 1;
+	else if dominant_payer = 'Medicare D: Unspec' then n_Medicare_unsp + 1;
+	else if dominant_payer = 'PPO/HMO' then n_PPO_HMO + 1;
+	else if dominant_payer = 'State/Fed Employee' then n_State_Fed + 1;
+	else n_missing +1;
+
+  if last.year then output;
+  keep plan_id year n_patients n_Commercial n_Exchange n_Medicaid_FFS n_Medicaid_MCO n_Medicaid_unsp n_Medicare_TM n_Medicare_ADV n_Medicare_unsp n_PPO_HMO n_State_Fed n_missing;
+run; /* 10064 */
+proc print data= plan_yr_dmpyr (obs=15); where not missing(plan_id); run;
+
+/* 1. Transpose from wide to long */
+proc transpose data=plan_yr_dmpyr 
+               out=long_dmpyr(rename=(_NAME_=payer_category COL1=patient_count));
+    by plan_id year n_patients;
+    var n_Commercial n_Exchange n_Medicaid_FFS n_Medicaid_MCO n_Medicaid_unsp 
+        n_Medicare_TM n_Medicare_ADV n_Medicare_unsp n_PPO_HMO n_State_Fed;
+run;
+
+/* 2. Sort descending within plan_id - year */
+proc sort data=long_dmpyr;
+    by plan_id year descending patient_count;
+run;
+
+/* 3. Filter for Top 5 */
+data top5_dmpyr;
+    set long_dmpyr;
+    by plan_id year descending patient_count;
+
+    retain rank;
+    if first.year then rank = 0;
+    rank + 1;
+
+    if rank <= 5;
+run;
+
+/* 4. Reshape category names and counts back to wide format */
+proc transpose data=top5_dmpyr out=top5_wide(drop=_NAME_) prefix=top_cat_;
+    by plan_id year n_patients;
+    var payer_category;
+run;
+
+proc transpose data=top5_dmpyr out=top5_counts_wide(drop=_NAME_) prefix=top_count_;
+    by plan_id year n_patients;
+    var patient_count;
+run;
+
+/* 5. Merge into final dataset */
+data plan_yr_top5;
+    merge top5_wide top5_counts_wide;
+    by plan_id year;
+run;
+proc print data= plan_yr_top5 (obs=15); where not missing(plan_id); run;
+data input.plan_yr_top5; set plan_yr_top5; run;
+
+/* merge with input.plan_level_exit */
+proc sql;
+  create table input.plan_level_exit as
+  select distinct a.*, b.top_cat_1, b.top_cat_2, b.top_cat_3, b.top_cat_4, b.top_cat_5
+  from input.plan_level_exit as a
+  left join input.plan_yr_top5 as b
+	on a.plan_id = b.plan_id and a.year = b.year;
+quit; 
 
 
 /* ====================================================================
@@ -134,18 +269,16 @@ run;
 
 proc print data= plan_level_yoy (obs=15); where not missing(plan_id); run;
 
-* indicate more than 80% of decrease in patients numbers ;
-proc print data= plan_level_yoy (obs=15); where not missing(paid_yoy_ratio) & paid_yoy_ratio < 0.2; run;
+* indicate more than 90% of decrease in patients numbers ;
+proc print data= plan_level_yoy (obs=15); where not missing(paid_yoy_ratio) & paid_yoy_ratio < 0.1; run;
 proc print data= plan_level_yoy; var plan_id payer_name plan_name plan_type year n_patients n_total_claims n_claimsPD paid_yoy_ratio; where plan_id in (31, 41, 56); run;
 
 data input.plan_level_exit_clean; 
     set plan_level_yoy; 
 
-    /* Flag exit_this_year = 1 if paid claim volume dropped by >80% (ratio < 0.2), 
-       excluding 2019, within 2 years of the plan's last observed year */
+    /* Flag exit_this_year = 1 if paid claim volume dropped by >90% (ratio < 0.1), within 2 years of the plan's last observed year */
     if not missing(paid_yoy_ratio) 
-       and paid_yoy_ratio < 0.2 
-       and year ne 2019 
+       and paid_yoy_ratio < 0.1
        and (last_year_fia - year) <= 2 then exit_this_year = 1;
     else exit_this_year = 0;
 run;
@@ -174,19 +307,22 @@ data input.plan_level_exit_clean;
 
     drop has_exited;
 run;
-proc print data= input.plan_level_exit_clean; var plan_id payer_name plan_name plan_type year n_patients n_total_claims n_claimsPD paid_yoy_ratio exit_this_year first_exit_this_year; where plan_id in (31, 41, 56); run;
+proc print data= input.plan_level_exit_clean; 
+	var plan_id payer_name plan_name plan_type year n_patients n_total_claims n_claimsPD top_cat_1 top_cat_2 top_cat_3 top_cat_4 top_cat_5 paid_yoy_ratio exit_this_year first_exit_this_year; 
+	where plan_id in (31, 41, 56); run;
 
 
 /* ====================================================================
-   3. exclude the PBMs or missing in modeltype
+   3. NOT exclude the PBMs or missing in modeltype
    ==================================================================== */
-
+/*
 data input.plan_level_exit_clean;
     set input.plan_level_exit_clean;
     /* Delete rows where model_type contains 'PBM' */
     if find(model_type, 'PBM', 'i') > 0 | missing(model_type) then delete;
 run;
 proc freq data=input.plan_level_exit_clean; table model_type; run;
+*/
 
 /* ====================================================================
    4. TOP 10 largest plan_id that exited market
@@ -218,7 +354,7 @@ data input.plan_level_exit_wide;
 	if last.plan_id;
 
 run;
-proc print data=input.plan_level_exit_wide(obs=40); run; /* 15415 -> 8171 plan_id */
+proc print data=input.plan_level_exit_wide(obs=40); run; /* 15415 plan_id */
 
 /* exiting plan_id by plan type */
 proc freq data=input.plan_level_exit_wide; table plan_type*first_exit_this_year /nocol nopercent; run;
@@ -227,7 +363,7 @@ proc freq data=input.plan_level_exit_wide; table plan_type*first_exit_this_year 
 data exit_plan; set input.plan_level_exit_wide; if first_exit_this_year=1 and not missing(plan_id); run;
 proc sort data=exit_plan; by descending avg_n_patients; run;
 proc print data=exit_plan(obs=20); var payer_id plan_id model_type payer_name plan_name plan_type year n_patients n_total_claims n_claimsPD n_claimsRV
-	n_claimsRJ prev_n_patients prev_n_paid patient_yoy_ratio paid_yoy_ratio first_exit_this_year avg_n_patients; run;
+	n_claimsRJ prev_n_patients prev_n_paid paid_yoy_ratio top_cat_1 top_cat_2 top_cat_3 top_cat_4 top_cat_5 first_exit_this_year avg_n_patients; run;
 
 /* ====================================================================
    4. Let's look into Medicare plans closely 
