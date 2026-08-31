@@ -199,6 +199,14 @@ proc sql;
 	on a.plan_id = b.plan_id and a.year = b.year;
 quit; 
 
+proc sql;
+  create table input.plan_level_exit as
+  select distinct a.*, b.top_cat_1 as top_cat_1_nextyr, b.top_cat_2 as top_cat_2_nextyr, b.top_cat_3 as top_cat_3_nextyr
+  from input.plan_level_exit as a
+  left join input.plan_yr_top5 as b
+	on a.plan_id = b.plan_id and a.year +1 = b.year;
+quit; 
+proc print data= input.plan_level_exit (obs=15); where not missing(plan_id); run;
 
 /* ====================================================================
    2-1. identify exit year - criteria 1
